@@ -2,14 +2,14 @@ using GtkInteract
 using Winston
 
 ## manipulate with a plot device requires an output widget
-@manipulate for n=1:10, cg = :plot
+@manipulate for n=1:10, out = :plot
     p = plot(sin, 0, n*pi)
-     push!(cg, p)
- end
+    push!(out, p)
+end
 
 ## Unicode works, as does passing along functions through Options.
 @manipulate for ϕ = 0:π/16:4π, f = [:sin => sin, :cos => cos], out=:plot
-    push!(out, plot(x -> ϕ + f(x), 0, pi))
+    push!(out, plot(x -> f(x + ϕ), 0, pi))
 end
     
 
@@ -17,6 +17,17 @@ end
 @manipulate for n=1:10, out=:plot
     p = plot(sin, 0, n*pi)
     oplot(cos, 0, n*pi)
+    push!(out, p)
+end
+
+## and we can combine (mimicing an example from Interact)
+@manipulate for ϕ = 0:π/16:4π, f = [:sin => sin, :cos => cos], both = false, out=:plot
+    if both
+        p = plot(θ -> sin(θ + ϕ), 0, 8)
+	oplot(θ -> cos(θ + ϕ), 0, 8)
+    else
+        p = plot(θ -> f(θ + ϕ), 0, 8)
+    end
     push!(out, p)
 end
 
@@ -44,8 +55,19 @@ end
 
 ## manipulate can also use a textarea widget
 ## the value (n,x) is rendered after going through writemime("text/plain", ⋅̇) 
-@manipulate for n=1:10, x=1:10, cg=:text
-    push!(cg, (n,x))
+@manipulate for n=1:10, x=1:10, out=:text
+    push!(out, (n,x))
+end
+
+
+## Sadly, no latex output widget. So this example fails to render nicely
+using SymPy
+x = Sym("x")
+@manipulate for n=1:10, out=:text
+    a = diff(sin(x^2), x, n)
+    ## push!(out, a)            # poor alignment of rows
+    ## push!(out, latex(a))     # no native latex
+    push!(out, jprint(a))       # better, not great
 end
 
 ## Can put more than one output, but this should be laid out better...

@@ -22,6 +22,8 @@ import Interact: Options, dropdown, radiobuttons
 import Interact: Checkbox, checkbox
 import Interact: Textbox, textbox
 import Interact: Widget, InputWidget
+import Interact: make_widget, display_widgets, @manipulate
+
 
 ## exports (most widgets of interact and @manipulate macro)
 export button, slider, togglebutton, dropdown, radiobuttons, checkbox, textbox
@@ -308,7 +310,20 @@ function widget(x::Symbol, label="")
 end
 
 
-### Manipulate code. Taken from Interact.@manipulate
+### Manipulate code. Taken from Interact.@manipulate ###
+
+
+## This needs changing from Interact, as we need a parent container and a different
+## means to append child widgets.
+## Question: the warning message is annoying.
+function display_widgets(widgetvars)
+    w = mainwindow(title="@manipulate")
+    map(v -> Expr(:call, esc(:push!), w, esc(v)),
+        widgetvars)
+end
+
+## Saddly, this call to `widget` won't find our additions unless we copy the code here.
+## So we copy and pay the price of the warning
 function make_widget(binding)
     if binding.head != :(=)
         error("@manipulate syntax error.")
@@ -318,40 +333,34 @@ function make_widget(binding)
          Expr(:call, widget, esc(expr), string(sym)))
 end
 
-function display_widgets(widgetvars)
-    ww = mainwindow(title="@manipulate")
-    map(v -> Expr(:call, esc(:push!), ww, esc(v)),
-        widgetvars)
-end
+# function lift_block(block, symbols)
+#     lambda = Expr(:(->), Expr(:tuple, symbols...),
+#                   block)
+#     out = Expr(:call, Reactive.lift, lambda, symbols...)
+#     out
+# end
 
-function lift_block(block, symbols)
-    lambda = Expr(:(->), Expr(:tuple, symbols...),
-                  block)
-    out = Expr(:call, Reactive.lift, lambda, symbols...)
-    out
-end
+# function symbols(bindings)
+#     map(x->x.args[1], bindings)
+# end
 
-function symbols(bindings)
-    map(x->x.args[1], bindings)
-end
-
-macro manipulate(expr)
-    if expr.head != :for
-        error("@manipulate syntax is @manipulate for ",
-              " [<variable>=<domain>,]... <expression> end")
-    end
-    block = expr.args[2]
-    if expr.args[1].head == :block
-        bindings = expr.args[1].args
-    else
-        bindings = [expr.args[1]]
-    end
-    syms = symbols(bindings)
-    Expr(:let, Expr(:block,
-                    display_widgets(syms)...,
-                    esc(lift_block(block, syms))),
-         map(make_widget, bindings)...)
-end
+# macro manipulate(expr)
+#     if expr.head != :for
+#         error("@manipulate syntax is @manipulate for ",
+#               " [<variable>=<domain>,]... <expression> end")
+#     end
+#     block = expr.args[2]
+#     if expr.args[1].head == :block
+#         bindings = expr.args[1].args
+#     else
+#         bindings = [expr.args[1]]
+#     end
+#     syms = symbols(bindings)
+#     Expr(:let, Expr(:block,
+#                     display_widgets(syms)...,
+#                     esc(lift_block(block, syms))),
+#          map(make_widget, bindings)...)
+# end
 
 
 
