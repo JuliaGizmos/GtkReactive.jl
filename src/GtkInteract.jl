@@ -27,27 +27,12 @@ import Interact: make_widget, display_widgets, @manipulate
 
 ## exports (most widgets of interact and @manipulate macro)
 export button, slider, togglebutton, dropdown, radiobuttons, checkbox, textbox
-export cairographic, textarea
+export cairographic, textarea, label
 export mainwindow
 export @manipulate
 
 
 ### InputWidgets
-
-## label
-type Label{T} <: InputWidget{T}
-    signal::Input{T}
-    value::T
-end
-
-label(;value=nothing,  signal=Input(value)) = label(signal, value)
-label(lab; kwargs...) = label(value=lab, kwargs...)
-
-function gtk_widget(widget::Label) 
-    obj = @GtkLabel(widget.value)
-    lift(x -> Gtk.G_.text(obj, x), widget.signal)
-    obj
-end
 
 ## button
 button(; value="", label="", signal=Input(value)) =
@@ -168,6 +153,10 @@ end
 
 
 ### Output widgets
+Reactive.signal(x::Widget) = x.signal
+
+## We hack in output widgets. These take a push! method to update their display
+## the signal is used to pass in the object, so singal=Input{obj}
 
 ## CairoGraphic. 
 ##
@@ -237,10 +226,46 @@ end
 
 function Base.push!(obj::Textarea, value) 
     setproperty!(obj.buffer, :text, join(sprint(io->writemime(io, "text/plain", value))))
+    nothing
 end
 function Base.push!(obj::GtkTextViewLeaf, value) 
     buffer = getproperty(obj, :buffer, GtkTextBuffer)
     setproperty!(buffer, :text, join(sprint(io->writemime(io, "text/plain", value))))
+    nothing
+end
+
+
+## label
+type Label <: Widget
+    signal
+    value::String
+    obj
+end
+
+label(;value="") = Label(Input{Any}, string(value), nothing)
+label(lab; kwargs...) = label(value=lab, kwargs...)
+Reactive.signal(x::Label) = x.signal
+
+function gtk_widget(widget::Label) 
+    obj = @GtkLabel(widget.value)
+    setproperty!(obj, :selectable, true)
+    setproperty!(obj, :use_markup, true)
+
+    widget.obj = obj
+    widget.signal = Input(obj)
+    widget
+end
+
+function Base.push!(obj::Label, value) 
+    push!(obj.obj, value)
+    obj.value = string(value)
+end
+
+function Base.push!(obj::GtkLabel, value) 
+    value = string(value)
+    Gtk.G_.text(obj, value)
+    setproperty!(obj, :use_markup, true)
+    value
 end
 
 ### Container(s)
@@ -301,12 +326,12 @@ widget(x::Associative, label="") = radiobuttons(x, label=label)
 widget(x::Bool, label="") = checkbox(x, label=label)
 widget(x::String, label="") = textbox(x, label=label)
 widget{T <: Number}(x::T, label="") = textbox(typ=T, value=x, label=label)
-function widget(x::Symbol, label="")
-    if x == :plot
-        cairographic()
-    elseif x==:text
-        textarea()
-    end
+function widget(x::Symbol, args...)
+    fns = [:plot=>cairographic,
+           :text=>textarea,
+           :label=>label
+           ]
+    fns[x]()
 end
 
 
