@@ -70,8 +70,19 @@ x = Sym("x")
     push!(out, jprint(a))       # better, not great
 end
 
+
+## We can also use a label for output. This allows for some PANGO markup
+## (https://developer.gnome.org/pango/stable/PangoMarkupFormat.html)
+@manipulate for n = 1:20, out=:label
+    x = n > 10 ? "<b>$n</b>" : string(n)
+    push!(out, "The value is $x")
+end
+
+
 ## Can put more than one output, but this should be laid out better...
 @manipulate for n=1:10, m=1:10, out=:plot, out1=:text
     push!(out, plot(sin, 0, n*pi))
     push!(out1, m)
 end
+
+

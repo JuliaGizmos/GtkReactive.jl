@@ -4,13 +4,12 @@ module GtkInteract
 ## Bring in some of the easy features of Interact to work with Gtk and Winston
 
 ## TODO:
-## * work on sizing
-## * tidy up code
-## * examples
-## * copy other pieces of interact
+## * work on sizing, layout
+## * what else from Interact can come along?
 
 
-## we use gtk -- not Tk. This is before loading Winston
+
+## we use gtk -- not Tk for Winston. This is specified *before* loading Winston
 ENV["WINSTON_OUTPUT"] = :gtk
 using Gtk, Winston
 using Reactive
@@ -153,10 +152,16 @@ end
 
 
 ### Output widgets
-Reactive.signal(x::Widget) = x.signal
+##
+## Basically just a few. Here we "trick" the macro that creates a
+## function that map (vars...) -> expr created by @manipulate. The var
+## for output widgets pass in the output widget itself, so that values
+## can be `push!`ed onto them within the expression. This requires two
+## things: 
+## * `widget.obj=obj` (for positioning) and
+## * `widget.signal=Input(widget)` for `push!`ing.
 
-## We hack in output widgets. These take a push! method to update their display
-## the signal is used to pass in the object, so singal=Input{obj}
+Reactive.signal(x::Widget) = x.signal
 
 ## CairoGraphic. 
 ##
@@ -174,8 +179,6 @@ end
 
 cairographic(;width::Int=480, height::Int=400) = CairoGraphic(width, height, Input{Any}(nothing), nothing, nothing)
 Base.push!(obj::CairoGraphic, pc::Winston.PlotContainer) = Winston.display(obj.obj, pc)
-Base.push!(obj::GtkCanvas, pc::FramedPlot) = Winston.display(obj, pc)
-Reactive.signal(x::CairoGraphic) = x.signal
 
 function gtk_widget(widget::CairoGraphic)
     if widget.obj != nothing
@@ -186,13 +189,13 @@ function gtk_widget(widget::CairoGraphic)
     ## how to make winston draw here? Here we store canvas in obj and override push!
     ## is there a more natural way??
     widget.obj = obj
-    widget.signal = Input(obj)
+    widget.signal = Input(widget)
     widget
 end
 
 ## Textarea for output
 ## 
-## Add text via `push!(ta, values)`
+## Add text via `push!(obj, values)`
 type Textarea{T <: String} <: Widget
     width::Int
     height::Int
@@ -202,9 +205,10 @@ type Textarea{T <: String} <: Widget
     obj
 end
 
-textarea(;width::Int=480, height::Int=400, value::String="") = Textarea(width, height, Input(Any), value, nothing, nothing)
+function textarea(;width::Int=480, height::Int=400, value::String="")
+    Textarea(width, height, Input(Any), value, nothing, nothing)
+end
 textarea(value; kwargs...) = textarea(value=value, kwargs...)
-Reactive.signal(x::Textarea) = x.signal
 
 function gtk_widget(widget::Textarea)
     obj = @GtkTextView()
@@ -220,22 +224,17 @@ function gtk_widget(widget::Textarea)
     end
 
     widget.obj = block
-    widget.signal = Input(obj)
+    widget.signal = Input(widget)
     widget
 end
 
 function Base.push!(obj::Textarea, value) 
-    setproperty!(obj.buffer, :text, join(sprint(io->writemime(io, "text/plain", value))))
-    nothing
-end
-function Base.push!(obj::GtkTextViewLeaf, value) 
-    buffer = getproperty(obj, :buffer, GtkTextBuffer)
-    setproperty!(buffer, :text, join(sprint(io->writemime(io, "text/plain", value))))
+    setproperty!(obj.buffer, :text, join(sprint(io->writemime(io, "text/plain", value)))) ## ?? easier way?
     nothing
 end
 
 
-## label
+## label. Like text area, but is clearly not editable and allows for PANGO markup.
 type Label <: Widget
     signal
     value::String
@@ -244,7 +243,6 @@ end
 
 label(;value="") = Label(Input{Any}, string(value), nothing)
 label(lab; kwargs...) = label(value=lab, kwargs...)
-Reactive.signal(x::Label) = x.signal
 
 function gtk_widget(widget::Label) 
     obj = @GtkLabel(widget.value)
@@ -252,20 +250,15 @@ function gtk_widget(widget::Label)
     setproperty!(obj, :use_markup, true)
 
     widget.obj = obj
-    widget.signal = Input(obj)
+    widget.signal = Input(widget)
     widget
 end
 
 function Base.push!(obj::Label, value) 
-    push!(obj.obj, value)
-    obj.value = string(value)
-end
-
-function Base.push!(obj::GtkLabel, value) 
     value = string(value)
-    Gtk.G_.text(obj, value)
-    setproperty!(obj, :use_markup, true)
-    value
+    Gtk.G_.text(obj.obj, value)
+    setproperty!(obj.obj, :use_markup, true)
+    obj.value = value
 end
 
 ### Container(s)
@@ -280,7 +273,10 @@ type MainWindow
     nrows::Int
 end
 
-mainwindow(;width::Int=600, height::Int=480, title::String="") = gtk_widget(MainWindow(width, height, title, nothing, nothing, 1))
+function mainwindow(;width::Int=600, height::Int=480, title::String="") 
+    w = MainWindow(width, height, title, nothing, nothing, 1)
+    gtk_widget(w)
+end
 
 function gtk_widget(widget::MainWindow)
     if widget.obj != nothing
@@ -316,8 +312,11 @@ function Base.push!(parent::MainWindow, obj::Widget)
 end
 
 
-### SHortcuts for Manipulate
-# Make a widget out of a domain
+### Shortcuts for Manipulate. Override some from
+### Interact.jl, but can't seem to get just those to be found where this is called
+### so we bring them all in here.
+
+## Make a widget out of a domain
 widget(x::Signal, label="") = x
 widget(x::Widget, label="") = x
 widget(x::Range, label="") = slider(x, label=label)
@@ -326,6 +325,8 @@ widget(x::Associative, label="") = radiobuttons(x, label=label)
 widget(x::Bool, label="") = checkbox(x, label=label)
 widget(x::String, label="") = textbox(x, label=label)
 widget{T <: Number}(x::T, label="") = textbox(typ=T, value=x, label=label)
+
+## output widgets
 function widget(x::Symbol, args...)
     fns = [:plot=>cairographic,
            :text=>textarea,
@@ -357,36 +358,6 @@ function make_widget(binding)
     Expr(:(=), esc(sym),
          Expr(:call, widget, esc(expr), string(sym)))
 end
-
-# function lift_block(block, symbols)
-#     lambda = Expr(:(->), Expr(:tuple, symbols...),
-#                   block)
-#     out = Expr(:call, Reactive.lift, lambda, symbols...)
-#     out
-# end
-
-# function symbols(bindings)
-#     map(x->x.args[1], bindings)
-# end
-
-# macro manipulate(expr)
-#     if expr.head != :for
-#         error("@manipulate syntax is @manipulate for ",
-#               " [<variable>=<domain>,]... <expression> end")
-#     end
-#     block = expr.args[2]
-#     if expr.args[1].head == :block
-#         bindings = expr.args[1].args
-#     else
-#         bindings = [expr.args[1]]
-#     end
-#     syms = symbols(bindings)
-#     Expr(:let, Expr(:block,
-#                     display_widgets(syms)...,
-#                     esc(lift_block(block, syms))),
-#          map(make_widget, bindings)...)
-# end
-
 
 
 end # module
