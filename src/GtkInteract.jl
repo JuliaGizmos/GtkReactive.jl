@@ -16,8 +16,8 @@ using Reactive
 
 ## selectively import pieces of Interact
 import Interact: Button
-import Interact: Slider, slider, ToggleButton, togglebutton
-import Interact: Options, dropdown, radiobuttons
+import Interact: Slider, slider, ToggleButton, togglebuttons
+import Interact: Options, dropdown, radiobuttons, togglebuttons, select
 import Interact: Checkbox, checkbox
 import Interact: Textbox, textbox
 import Interact: Widget, InputWidget
@@ -25,7 +25,7 @@ import Interact: make_widget, display_widgets, @manipulate
 
 
 ## exports (most widgets of interact and @manipulate macro)
-export button, slider, togglebutton, dropdown, radiobuttons, checkbox, textbox
+export slider, button, checkbox, togglebutton, dropdown, radiobuttons, select, togglebuttons, textbox
 export cairographic, textarea, label
 export mainwindow
 export @manipulate
@@ -148,9 +148,85 @@ function gtk_widget(widget::Options{:RadioButtons})
     
 end
 
-## toggle buttons... XXX
+## toggle buttons. Exclusive like a radio button
+function gtk_widget(widget::Options{:ToggleButtons})
+    labs = collect(keys(widget.options))
+    vals = collect(values(widget.options))
+
+    block = @GtkBox(false)
+    function make_button(lab)
+        btn =  Gtk.@GtkToggleButton(lab)
+        setproperty!(btn, :active, lab == widget.value_label)
+        push!(block, btn)
+        btn
+    end
+    btns = map(make_button, labs)
+    for btn in btns
+        signal_connect(btn, :button_press_event) do _,__
+            val =  getproperty(btn, :active, Bool)
+            if !val
+                ## set button state
+                for b in btns
+                    setproperty!(b, :active, b==btn)
+                end
+                ## set widget state
+                push!(widget.signal, vals[findfirst(labs, getproperty(btn, :label, String))])
+            end
+            true                # stop eventn propogation
+        end
+    end
+
+    block
+end
 
 
+## select -- a grid
+function gtk_widget(widget::Options{:Select})
+    labs = collect(keys(widget.options))
+    vals = collect(values(widget.options))
+
+    m = @GtkListStore(eltype(labs))
+    block = @GtkScrolledWindow()
+    obj = @GtkTreeView()
+    [setproperty!(obj, x, true) for  x in [:hexpand, :vexpand]]
+    push!(block, obj)
+
+    Gtk.G_.model(obj, m)
+    for lab in labs
+        push!(m, (lab,))
+    end
+
+    cr = @GtkCellRendererText()
+    col = @GtkTreeViewColumn(widget.label, cr, {"text" => 0})
+    push!(obj, col)
+
+    ## initial choice
+    index = findfirst(labs, widget.value_label)
+    selection = Gtk.G_.selection(obj)
+    store = getproperty(obj, :model, Gtk.GtkListStoreLeaf)
+    iter = Gtk.iter_from_index(store, index)
+    Gtk.select!(selection, iter)
+
+    ## set up callback widget -> signal
+    signal_connect(selection, :changed) do args...
+        ## Gtk.selected is broken...
+        m = Gtk.mutable(Ptr{GtkTreeModel})
+        iter = Gtk.mutable(GtkTreeIter)
+        res = bool(ccall((:gtk_tree_selection_get_selected,Gtk.libgtk),Cint,
+                         (Ptr{GObject},Ptr{Ptr{GtkTreeModel}},Ptr{GtkTreeIter}),
+                         selection,m,iter))
+        i = ccall((:gtk_tree_model_get_string_from_iter, Gtk.libgtk), 
+                  Ptr{Uint8}, 
+                  (Ptr{GObject}, Ptr{GtkTreeIter}), m[], iter) |> bytestring |> int |> x -> x+1
+        push!(widget.signal, vals[i])
+    end
+        
+
+
+    block
+
+    
+end
 ### Output widgets
 ##
 ## Basically just a few. Here we "trick" the macro that creates a
@@ -320,8 +396,8 @@ end
 widget(x::Signal, label="") = x
 widget(x::Widget, label="") = x
 widget(x::Range, label="") = slider(x, label=label)
-widget(x::AbstractVector, label="") = radiobuttons(x, label=label)
-widget(x::Associative, label="") = radiobuttons(x, label=label)
+widget(x::AbstractVector, label="") = togglebuttons(x, label=label)
+widget(x::Associative, label="") = togglebuttons(x, label=label)
 widget(x::Bool, label="") = checkbox(x, label=label)
 widget(x::String, label="") = textbox(x, label=label)
 widget{T <: Number}(x::T, label="") = textbox(typ=T, value=x, label=label)

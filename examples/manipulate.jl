@@ -86,3 +86,9 @@ end
 end
 
 
+## Control widgets can be used instead of their being derived from the argument. This
+## gives some flexibility and allows the labels to be different than the variable
+## name associated with the control.
+@manipulate for rb=radiobuttons([1,2,3],label="rb"), cb=checkbox(true, label="checkbox")
+    println((rb, cb))
+end
