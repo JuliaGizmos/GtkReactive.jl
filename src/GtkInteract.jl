@@ -5,7 +5,7 @@ module GtkInteract
 
 ## TODO:
 ## * work on sizing, layout
-## * what else from Interact can come along?
+## * once INteract works out layout containers, include these
 
 
 
@@ -15,8 +15,8 @@ using Gtk, Winston
 using Reactive
 
 ## selectively import pieces of Interact
-import Interact: Button
-import Interact: Slider, slider, ToggleButton, togglebuttons
+import Interact: Button, button, ToggleButton, togglebutton
+import Interact: Slider, slider
 import Interact: Options, dropdown, radiobuttons, togglebuttons, select
 import Interact: Checkbox, checkbox
 import Interact: Textbox, textbox
@@ -34,11 +34,10 @@ export @manipulate
 ### InputWidgets
 
 ## button
-button(; value="", label="", signal=Input(value)) =
-    Button(signal, label, value)
+##
+## button("label") is constructor
+##
 
-button(label; kwargs...) =
-    button(value=label; kwargs...)
 
 function gtk_widget(widget::Button)
     obj = @GtkButton(widget.label)
@@ -76,12 +75,15 @@ function gtk_widget(widget::Slider)
 end
 
 ## togglebutton
+##
 function gtk_widget(widget::ToggleButton)
-    obj = @GtkToggleButton("")
+    obj = @GtkToggleButton(string(widget.value))
     setproperty!(obj, :active, widget.value)
     ## widget -> signal
     signal_connect(obj, :toggled) do btn, args...
-        push!(widget.signal, getproperty(btn, :active, Bool))
+        value = getproperty(btn, :active, Bool)
+        push!(widget.signal, value)
+        setproperty!(obj, :label, string(value))
     end
     obj
 end
@@ -363,15 +365,24 @@ function gtk_widget(widget::MainWindow)
     setproperty!(widget.window, :title, widget.title)
     Gtk.G_.default_size(widget.window, widget.width, widget.height)
 
+    al = @GtkAlignment(0.0, 0.0, 1.0, 1.0)
+    for pad in [:right_padding, :top_padding, :left_padding, :bottom_padding]
+        setproperty!(al, pad, 5)
+    end
     widget.obj = @GtkGrid()
-    push!(widget.window, widget.obj)
+    push!(widget.window, al)
+
+    setproperty!(widget.obj, :row_spacing, 5)
+    setproperty!(widget.obj, :column_spacing, 5)
+    push!(al, widget.obj)
     widget                      # return widget here...
 end
   
 function Base.push!(parent::MainWindow, obj::InputWidget) 
     lab, widget = obj.label, gtk_widget(obj)
-    al = @GtkAlignment(1.0, 0.0, 1.0, 1.0)
-    setproperty!(al, :right_padding, 2)
+    al = @GtkAlignment(1.0, 0.0, 0.0, 0.0)
+    setproperty!(al, :right_padding, 5)
+    setproperty!(al, :left_padding, 5)
     push!(al, @GtkLabel(lab))
     parent.obj[1, parent.nrows] = al
     parent.obj[2, parent.nrows] = widget

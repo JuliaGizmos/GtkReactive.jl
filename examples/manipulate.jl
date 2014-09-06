@@ -1,7 +1,29 @@
 using GtkInteract
 using Winston
 
-## manipulate with a plot device requires an output widget
+## Manipulate can be used to display at the console.
+## Note the need to call `println`, as otherwise there is no display. This is a difference
+## from `Interact`.
+@manipulate for n=1:10, x=1:10
+    println((n,x))
+end
+
+## Similary, a plot can be made
+## again, we need to call `display` to get the graphics window to open
+## (It is important the `Winston` have the `:gtk` output type, which may be achieved
+## by loading `GtkInteract` first).
+@manipulate for n=1:10
+    display(plot(sin, 0, n*pi))
+end
+
+
+## Output widgets
+##
+## In general, `GtkInteract` uses an output widget to incorprate different outputs into the GUI
+## There are three: `:plot`, `:text` and `:label`. Within the expression, the `push!` function
+## is used to write to the output widget.
+
+## manipulate with a plot device can use an output widget
 @manipulate for n=1:10, out = :plot
     p = plot(sin, 0, n*pi)
     push!(out, p)
@@ -44,16 +66,9 @@ end
                  
    
 #### Text based output ### 
-    
+## The `:text` output uses a text area with a scrolled window for the display of larger amounts of data.
+## The `:label` output widget uses a label. This is useful, as PANGO markup can be utilized.    
 
-
-## manipulate for text can use console. Function would need to manage erasing previous
-@manipulate for n=1:10, x=1:10
-    (n,x)
-end
-
-
-## manipulate can also use a textarea widget
 ## the value (n,x) is rendered after going through writemime("text/plain", ⋅̇) 
 @manipulate for n=1:10, x=1:10, out=:text
     push!(out, (n,x))
