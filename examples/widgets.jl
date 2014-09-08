@@ -23,7 +23,9 @@ w = mainwindow
 
 
 ## kitchen sink
-a = [:one => 1, :two => 2, :three => 3]
+using DataStructures
+a = OrderedDict(Symbol, Int)
+a[:one]=1; a[:two] = 2; a[:three] = 3
 
 l = Dict()
 l[:slider] = slider(1:10, label="slider")
@@ -34,6 +36,7 @@ l[:dropdown] = dropdown(a, label="dropdown")
 l[:radiobuttons] = radiobuttons(a, label="radiobuttons")
 l[:select] = Interact.select(a, label="select")
 l[:togglebuttons] = togglebuttons(a, label="togglebuttons")
+l[:buttongroup] = buttongroup(a, label="buttongroup") # non exclusive
 l[:textbox] = textbox("text goes here", label="textbox")
 
 w = mainwindow()
