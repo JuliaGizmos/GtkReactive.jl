@@ -34,6 +34,8 @@ export mainwindow
 export @manipulate
 
 ## Add an non-exclusive set of buttons
+## Code basically is Options code
+## XXX This is a poor name, but it isn't exported XXX
 type VectorOptions{view,T} <: InputWidget{T}
     signal
     label::String
@@ -159,7 +161,7 @@ end
 
 ## This needs changing from Interact, as we need a parent container and a different
 ## means to append child widgets.
-## Question: the warning message is annoying.
+## Question: the warning message is annoying, can it be fixed?
 function display_widgets(widgetvars)
     w = mainwindow(title="@manipulate")
     map(v -> Expr(:call, esc(:push!), w, esc(v)),

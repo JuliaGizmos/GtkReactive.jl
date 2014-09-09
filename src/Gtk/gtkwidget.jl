@@ -8,8 +8,7 @@
 ##
 function gtk_widget(widget::Button)
     obj = @GtkButton(widget.label)
-#    widget.value = widget.label
-#    widget.label = ""
+    widget.label = ""
 #    lift(x -> setproperty!(obj, :label, string(x)), widget)
     signal_connect(obj, :clicked) do obj, args...
         push!(widget.signal, widget.signal.value) # call
