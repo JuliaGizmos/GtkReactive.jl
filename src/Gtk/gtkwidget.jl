@@ -8,7 +8,9 @@
 ##
 function gtk_widget(widget::Button)
     obj = @GtkButton(widget.label)
-    lift(x -> setproperty!(obj, :label, string(x)), widget.signal)
+#    widget.value = widget.label
+#    widget.label = ""
+#    lift(x -> setproperty!(obj, :label, string(x)), widget)
     signal_connect(obj, :clicked) do obj, args...
         push!(widget.signal, widget.signal.value) # call
     end
@@ -336,13 +338,16 @@ function init_window(widget::MainWindow)
 end
   
 function Base.push!(parent::MainWindow, obj::InputWidget) 
-    lab, widget = obj.label, gtk_widget(obj)
+    widget = gtk_widget(obj)
+    lab = obj.label
+    
     al = @GtkAlignment(1.0, 0.0, 0.0, 0.0)
     setproperty!(al, :right_padding, 5)
     setproperty!(al, :left_padding, 5)
     push!(al, @GtkLabel(lab))
     parent.obj[1, parent.nrows] = al
     parent.obj[2, parent.nrows] = widget
+
     parent.nrows = parent.nrows + 1
     showall(parent.window)
 end
@@ -355,4 +360,4 @@ function Base.push!(parent::MainWindow, obj::Widget)
     showall(parent.window)
 end
 
-
+Base.append!(parent::MainWindow, items) = map(x -> push!(parent, x), items)

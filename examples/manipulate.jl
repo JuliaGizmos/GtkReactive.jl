@@ -107,3 +107,11 @@ end
 @manipulate for rb=radiobuttons([1,2,3],label="rb"), cb=checkbox(true, label="checkbox")
     println((rb, cb))
 end
+
+
+## An example of @vchuravy from https://github.com/JuliaLang/Interact.jl/issues/36
+using Distributions
+@manipulate for α in 1:100, β = 1:100, cg = :plot
+    p = plot(x -> pdf(Beta(α, β), x), 0, 1)
+    push!(cg, p)
+end
