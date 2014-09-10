@@ -2,6 +2,7 @@
 
 ## Controls
 
+
 ## button
 ##
 ## button("label") is constructor
@@ -21,9 +22,17 @@ function gtk_widget(widget::Checkbox)
     obj = @GtkCheckButton()
     setproperty!(obj, :active, widget.value)
     ## widget -> signal
-    signal_connect(obj, :toggled) do obj, args...
+    id = signal_connect(obj, :toggled) do obj, args...
         push!(widget.signal, getproperty(obj, :active, Bool))
     end
+
+    function handler(val)
+        signal_handler_block(obj, id)
+        setproperty!(obj, :active, val)
+        signal_handler_unblock(obj, id)
+    end
+    lift(handler, widget.signal)
+
     obj
 end
 
@@ -35,24 +44,42 @@ function gtk_widget(widget::Slider)
     Gtk.G_.value(obj, widget.value)
 
     ## widget -> signal
-    signal_connect(obj, :value_changed) do obj, args...
+    id = signal_connect(obj, :value_changed) do obj, args...
         val = Gtk.G_.value(obj)
         push!(widget.signal, val)
     end
+    
+    ## need to block signal propogation here, else we get errors
+    function handler(val)
+        signal_handler_block(obj, id)
+        Gtk.G_.value(obj, val)
+        signal_handler_unblock(obj, id)
+    end
+    lift(handler, widget.signal)
+
     obj
 end
 
-## togglebutton
-##
+## togglebutton (single one. XXX is label on button or a label? XXX)
 function gtk_widget(widget::ToggleButton)
     obj = @GtkToggleButton(string(widget.value))
     setproperty!(obj, :active, widget.value)
     ## widget -> signal
-    signal_connect(obj, :toggled) do btn, args...
+    id = signal_connect(obj, :toggled) do btn, args...
         value = getproperty(btn, :active, Bool)
         push!(widget.signal, value)
         setproperty!(obj, :label, string(value))
     end
+
+    ## need to block signal propogation here, else we get errors
+    function handler(val)
+        signal_handler_block(obj, id)
+        setproperty!(obj, :active, val)
+        signal_handler_unblock(obj, id)
+    end
+    lift(handler, widget.signal)
+
+
     obj
 end
 
@@ -63,10 +90,20 @@ function gtk_widget(widget::Textbox)
     setproperty!(obj, :text, string(widget.signal.value))
 
     ## widget -> signal
-    signal_connect(obj, :key_release_event) do obj, e, args...
+    id = signal_connect(obj, :key_release_event) do obj, e, args...
         txt = getproperty(obj, :text, String)
         push!(widget.signal, txt)
     end
+
+    
+    ## need to block signal propogation here, else we get errors
+    function handler(val)
+        signal_handler_block(obj, id)
+        setproperty!(obj, :text, string(val))
+        signal_handler_unblock(obj, id)
+    end
+    lift(handler, widget.signal)
+
 
     obj
 end
@@ -81,10 +118,23 @@ function gtk_widget(widget::Options{:Dropdown})
     setproperty!(obj, :active, index - 1)
 
     ## widget -> signal
-    signal_connect(obj, :changed) do obj, args...
+    id = signal_connect(obj, :changed) do obj, args...
         index = getproperty(obj, :active, Int) + 1
         push!(widget.signal, collect(values(widget.options))[index])
     end
+
+    ## need to block signal propogation here, else we get errors
+    function handler(val)
+        signal_handler_block(obj, id)
+        index = getproperty(obj, :active, Int) + 1
+        val = findfirst(collect(values(widget.options)), val)
+        if val != index
+            setproperty!(obj, :active, val - 1)
+        end
+        signal_handler_unblock(obj, id)
+    end
+    lift(handler, widget.signal)
+
 
     obj
 
@@ -103,8 +153,9 @@ function gtk_widget(widget::Options{:RadioButtons})
     selected = findfirst(collect(values(widget.options)), widget.value)
     setproperty!(btns[selected], :active, true)
 
+    ids = Dict()
     for btn in btns
-        signal_connect(btn, :toggled) do obj, args...
+        ids[btn] = signal_connect(btn, :toggled) do obj, args...
             if getproperty(obj, :active, Bool)
                 label = getproperty(obj, :label, String)
                 push!(widget.signal, widget.options[label])
@@ -113,6 +164,16 @@ function gtk_widget(widget::Options{:RadioButtons})
     end
     setproperty!(obj, :visible, true)
     showall(obj)
+
+    ## update buttons on push!(signal, value)
+    function handler(val)
+        [signal_handler_block(btn, id) for (btn,id) in ids]
+        selected = findfirst(collect(values(widget.options)), val)
+        setproperty!(btns[selected], :active, true)
+        [signal_handler_unblock(btn, id) for (btn,id) in ids]        
+    end
+    lift(handler, widget.signal)
+
 
     obj
     
@@ -131,8 +192,10 @@ function gtk_widget(widget::Options{:ToggleButtons})
         btn
     end
     btns = map(make_button, labs)
+
+    ids = Dict()
     for btn in btns
-        signal_connect(btn, :button_press_event) do _,__
+        ids[btn] = signal_connect(btn, :button_press_event) do _,__
             val =  getproperty(btn, :active, Bool)
             if !val
                 ## set button state
@@ -145,6 +208,20 @@ function gtk_widget(widget::Options{:ToggleButtons})
             true                # impt: stop evennt propogation
         end
     end
+
+    ## update buttons on push!(signal, value)
+    function handler(val)
+        ## get index from val
+        index = findfirst(vals, val)
+        lab = labs[index]
+        for btn in btns
+            signal_handler_block(btn, ids[btn])
+            setproperty!(btn, :active, getproperty(btn, :label, String) == lab)
+            signal_handler_unblock(btn, ids[btn])
+        end
+    end
+    lift(handler, widget.signal)
+
 
     block
 end
@@ -165,8 +242,9 @@ function gtk_widget(widget::VectorOptions{:ButtonGroup})
         push!(btns, btn)
     end
 
+    ids = Dict()
     for btn in btns
-        signal_connect(btn, :toggled) do btn, xs...
+        ids[btn] = signal_connect(btn, :toggled) do btn, xs...
             val =  getproperty(btn, :active, Bool)
             values = widget.signal.value
             lab = getproperty(btn, :label, String)
@@ -179,6 +257,23 @@ function gtk_widget(widget::VectorOptions{:ButtonGroup})
             push!(widget.signal, values)
         end
     end
+
+    ## update buttons on push!(signal, value)
+    function handler(values)
+        
+        indices = [findfirst(vals, v) for v in values]
+        selectedlabs = labs[indices]
+
+        for btn in btns
+            signal_handler_block(btn, ids[btn])
+            setproperty!(btn, :active, getproperty(btn, :label, String) in selectedlabs)
+            signal_handler_unblock(btn, ids[btn])
+        end
+
+    end
+    lift(handler, widget.signal)
+
+    
 
     block
 end
@@ -212,7 +307,7 @@ function gtk_widget(widget::Options{:Select})
     Gtk.select!(selection, iter)
 
     ## set up callback widget -> signal
-    signal_connect(selection, :changed) do args...
+    id = signal_connect(selection, :changed) do args...
         ## Gtk.selected is broken...
         m = Gtk.mutable(Ptr{GtkTreeModel})
         iter = Gtk.mutable(GtkTreeIter)
@@ -224,8 +319,16 @@ function gtk_widget(widget::Options{:Select})
                   (Ptr{GObject}, Ptr{GtkTreeIter}), m[], iter) |> bytestring |> int |> x -> x+1
         push!(widget.signal, vals[i])
     end
-        
-
+    
+    ## push! -> update UI
+    function handler(val)
+        signal_handler_block(selection, id)
+        index = findfirst(vals, val)
+        iter = Gtk.iter_from_index(store, index)
+        Gtk.select!(selection, iter)
+        signal_handler_unblock(selection, id)
+    end
+    lift(handler, widget.signal)
 
     block
 
