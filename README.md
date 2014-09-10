@@ -19,7 +19,7 @@ using Winston
 end
 ```
 
-![Imgur](http://i.imgur.com/1MiynXf)
+![Imgur](http://i.imgur.com/1MiynXf.png)
 
 
 The differences from `Interact` are:
