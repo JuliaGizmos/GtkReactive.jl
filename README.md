@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/jverzani/GtkInteract.jl.svg?branch=master)](https://travis-ci.org/jverzani/GtkInteract.jl)
 
-The `Interact` package brings interactive widgets to `IJulia`
+The [`Interact`](https://github.com/JuliaLang/Interact.jl)  package brings interactive widgets to `IJulia`
 notebooks. In particular, the `@manipulate` macro makes it trivial to
 define simple interactive graphics.
 
@@ -13,16 +13,21 @@ Winston. The basic syntax is *almost* the same:
 ```
 using GtkInteract
 using Winston
-@manipulate for ϕ = 0:π/16:4π, f = [:sin => sin, :cos => cos], out=:plot
-	    p = plot(x -> f(x + ϕ), 0, 2pi)
-	    push!(out, p)
+@manipulate for ϕ = 0:π/16:4π, f = [:sin=>sin, :cos=>cos], out=:plot
+       p = plot(θ -> f(θ + ϕ), 0, 25)
+       push!(out, p)
 end
 ```
 
+[Imgur](http://i.imgur.com/1MiynXf)
+
+
 The differences from `Interact` are:
 
-* the additional control `out=:plot` creates a place for the graphic to be displayed 
-* the `push!(out, p)` causes the `Winston` graphic to be displayed.
+* the additional control `out=:plot` creates an output widget for the
+* graphic to be displayed Displaying to the output widget is not
+  implicit, rather one "pushes" (`push!(out, p)`) to is. In the above
+  command, this call renders the `Winston` graphic.
 
 For textual output, a similar `out=:text` can be used, as in:
 
@@ -42,9 +47,22 @@ The basic widgets can also be used by hand to create simple GUIs:
 ```
 using Reactive
 w = mainwindow(title="Simple test")
-n = slider(1:10, label="n"); push!(w, n)
-m = slider(11:20, label="m"); push!(w, m)
-cg = cairographic(); push!(w, cg)
+n = slider(1:10, label="n")
+m = slider(11:20, label="m")
+cg = cairographic()
+
+append!(w, [n, m, cg])		# layout widgets
 
 @lift push!(cg, plot(sin, n*pi, m*pi))
 ```
+
+
+## Installation
+
+Until this package lands in `Julia`'s METADATA it should be installed via "cloning":
+
+```
+Pkg.clone("https://github.com/jverzani/GtkInteract.jl")
+```
+
+It requires [Gtk](https://github.com/JuliaLang/Gtk.jl). See that page for installation notes.
