@@ -24,9 +24,9 @@ end
 
 The differences from `Interact` are:
 
-* the additional control `out=:plot` creates an output widget for the
-* graphic to be displayed Displaying to the output widget is not
-  implicit, rather one "pushes" (`push!(out, p)`) to is. In the above
+* The additional control `out=:plot` creates an output widget for the graphic to be displayed. 
+* Displaying to the output widget is not
+  implicit; rather one "pushes" (`push!(out, p)`) to it. In the above
   command, this call renders the `Winston` graphic.
 
 For textual output, a similar `out=:text` or `out=:label` can be used. For example:
