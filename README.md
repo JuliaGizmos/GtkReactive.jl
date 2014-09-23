@@ -29,15 +29,15 @@ The differences from `Interact` are:
   implicit, rather one "pushes" (`push!(out, p)`) to is. In the above
   command, this call renders the `Winston` graphic.
 
-For textual output, a similar `out=:text` can be used, as in:
+For textual output, a similar `out=:text` or `out=:label` can be used. For example:
 
 ```
 using GtkInteract
 using SymPy
 x = Sym("x")
-@manipulate for n=1:20, out=:text
+@manipulate for n=1:5, out=:label
    a = diff(sin(x^2), x, n)
-   ## push!(out, a)		# looks bad
+   ## push!(out, a)		# bad row alignment
    push!(out, jprint(a))	# better
 end
 ```

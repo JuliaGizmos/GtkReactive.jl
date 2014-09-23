@@ -118,7 +118,7 @@ end
 set_bigfloat_precision(1024)
 sqrt2 = sqrt(big(2))
 
-@manipulate for n in slider(0:9, value=0, label="number of Newton steps:"), out=:label
+@manipulate for l=label("Number of steps"), n = slider(0:9, value=0, label="n"), out=:label
     a = matchdigits(newton(big(2), 2, n), sqrt2)
     push!(out, a)
 end

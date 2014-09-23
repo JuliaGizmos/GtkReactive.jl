@@ -84,7 +84,6 @@ Reactive.signal(x::Widget) = x.signal
 ## for a plot window
 ##
 ## add plot via `push!(cg, plot_call)`
-
 type CairoGraphic <: Widget
     width::Int
     height::Int
@@ -144,9 +143,6 @@ end
 
 
 ## Modifications to Manipulate
-### Shortcuts for Manipulate. Override some from
-### Interact.jl, but can't seem to get just those to be found where this is called
-### so we bring them all in here.
 
 ## We add these output widgets to `widget`
 function widget(x::Symbol, args...)

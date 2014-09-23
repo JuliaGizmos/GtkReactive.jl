@@ -8,12 +8,15 @@
 ## button("label") is constructor
 ##
 function gtk_widget(widget::Button)
+    ## construct widget
     obj = @GtkButton(widget.label)
     widget.label = ""
-#    lift(x -> setproperty!(obj, :label, string(x)), widget)
-    signal_connect(obj, :clicked) do obj, args...
+
+    ## widget -> signal
+    id = signal_connect(obj, :clicked) do obj, args...
         push!(widget.signal, widget.signal.value) # call
     end
+
     obj
 end
 
@@ -21,6 +24,7 @@ end
 function gtk_widget(widget::Checkbox)
     obj = @GtkCheckButton()
     setproperty!(obj, :active, widget.value)
+
     ## widget -> signal
     id = signal_connect(obj, :toggled) do obj, args...
         push!(widget.signal, getproperty(obj, :active, Bool))
@@ -49,7 +53,7 @@ function gtk_widget(widget::Slider)
         push!(widget.signal, val)
     end
     
-    ## need to block signal propogation here, else we get errors
+    ## 
     function handler(val)
         signal_handler_block(obj, id)
         Gtk.G_.value(obj, val)
@@ -64,6 +68,7 @@ end
 function gtk_widget(widget::ToggleButton)
     obj = @GtkToggleButton(string(widget.value))
     setproperty!(obj, :active, widget.value)
+    
     ## widget -> signal
     id = signal_connect(obj, :toggled) do btn, args...
         value = getproperty(btn, :active, Bool)
@@ -71,7 +76,7 @@ function gtk_widget(widget::ToggleButton)
         setproperty!(obj, :label, string(value))
     end
 
-    ## need to block signal propogation here, else we get errors
+    ## signal -> widget
     function handler(val)
         signal_handler_block(obj, id)
         setproperty!(obj, :active, val)
@@ -96,7 +101,7 @@ function gtk_widget(widget::Textbox)
     end
 
     
-    ## need to block signal propogation here, else we get errors
+    ## signal -> widget
     function handler(val)
         signal_handler_block(obj, id)
         setproperty!(obj, :text, string(val))
@@ -123,7 +128,7 @@ function gtk_widget(widget::Options{:Dropdown})
         push!(widget.signal, collect(values(widget.options))[index])
     end
 
-    ## need to block signal propogation here, else we get errors
+    ## signal -> widget
     function handler(val)
         signal_handler_block(obj, id)
         index = getproperty(obj, :active, Int) + 1
@@ -153,6 +158,7 @@ function gtk_widget(widget::Options{:RadioButtons})
     selected = findfirst(collect(values(widget.options)), widget.value)
     setproperty!(btns[selected], :active, true)
 
+    ## widget -> signal
     ids = Dict()
     for btn in btns
         ids[btn] = signal_connect(btn, :toggled) do obj, args...
@@ -165,7 +171,7 @@ function gtk_widget(widget::Options{:RadioButtons})
     setproperty!(obj, :visible, true)
     showall(obj)
 
-    ## update buttons on push!(signal, value)
+    ## signal -> widget
     function handler(val)
         [signal_handler_block(btn, id) for (btn,id) in ids]
         selected = findfirst(collect(values(widget.options)), val)
@@ -193,6 +199,7 @@ function gtk_widget(widget::Options{:ToggleButtons})
     end
     btns = map(make_button, labs)
 
+    ## widget -> signal
     ids = Dict()
     for btn in btns
         ids[btn] = signal_connect(btn, :button_press_event) do _,__
@@ -209,7 +216,7 @@ function gtk_widget(widget::Options{:ToggleButtons})
         end
     end
 
-    ## update buttons on push!(signal, value)
+    ## signal -> widget
     function handler(val)
         ## get index from val
         index = findfirst(vals, val)
@@ -242,6 +249,7 @@ function gtk_widget(widget::VectorOptions{:ButtonGroup})
         push!(btns, btn)
     end
 
+    ## widget -> signal
     ids = Dict()
     for btn in btns
         ids[btn] = signal_connect(btn, :toggled) do btn, xs...
@@ -258,7 +266,7 @@ function gtk_widget(widget::VectorOptions{:ButtonGroup})
         end
     end
 
-    ## update buttons on push!(signal, value)
+    ## signal -> widget
     function handler(values)
         
         indices = [findfirst(vals, v) for v in values]
@@ -354,9 +362,16 @@ function gtk_widget(widget::CairoGraphic)
     widget
 end
 
+
+## Methods to push! a graphic onto canvas
+## Would be nice to load these *only* when Winston or Gadfly is loaded
 Base.push!(obj::CairoGraphic, pc::Winston.PlotContainer) = Winston.display(obj.obj, pc)
 
 ## This is for Gadfly, Compose, GtkInteract -- super slow!!!
+if :Gadfly in names(Main)
+
+
+end
 if :Compose in names(Main)
     using Compose, Cairo
     function Base.push!(obj::CairoGraphic, co::Compose.Context)
@@ -368,9 +383,8 @@ end
 
 
 
-
-## Textarea
-## This is different! -- we use it as an output widget, not an input.
+## Text area.
+## unfortunately, setting the font doesn't seem to work.
 function gtk_widget(widget::Textarea)
     obj = @GtkTextView()
     block = @GtkScrolledWindow()
@@ -383,16 +397,19 @@ function gtk_widget(widget::Textarea)
     else
         setproperty!(obj, :buffer, widget.buffer)
     end
+    setproperty!(widget.buffer, :text, widget.value)
 
     widget.obj = block
     widget.signal = Input(widget)
     widget
 end
 
-function Base.push!(obj::Textarea, value) 
-    setproperty!(obj.buffer, :text, join(sprint(io->writemime(io, "text/plain", value)))) ## ?? easier way?
-    nothing
+## change text in view
+function Base.push!(obj::Textarea, value::String) 
+    setproperty!(obj.buffer, :text, value)
+    value
 end
+
 
 
 ## Label
@@ -406,17 +423,22 @@ function gtk_widget(widget::Label)
     widget
 end
 
-function Base.push!(obj::Label, value) 
-    value = string(value)
-    Gtk.G_.text(obj.obj, value)
+function Base.push!(obj::Label, value::String) 
+    setproperty!(obj.obj, :label, value)
     setproperty!(obj.obj, :use_markup, true)
     obj.value = value
+end
+
+## shared or label, textarea
+Base.push!{T <: String}(obj::Union(Textarea, Label), value::Vector{T}) = push!(obj, join(value, "\n"))
+
+function Base.push!(obj::Union(Textarea, Label), value)
+    push!(obj, sprint(io->writemime(io, "text/plain", value)))
 end
 
 
 
 ## Main window
-
 function init_window(widget::MainWindow)
     if widget.obj != nothing
         return widget
@@ -439,6 +461,7 @@ function init_window(widget::MainWindow)
     widget                      # return widget here...
 end
   
+## add children
 function Base.push!(parent::MainWindow, obj::InputWidget) 
     widget = gtk_widget(obj)
     lab = obj.label
