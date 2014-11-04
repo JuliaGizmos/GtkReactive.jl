@@ -316,15 +316,8 @@ function gtk_widget(widget::Options{:Select})
 
     ## set up callback widget -> signal
     id = signal_connect(selection, :changed) do args...
-        ## Gtk.selected is broken...
-        m = Gtk.mutable(Ptr{GtkTreeModel})
-        iter = Gtk.mutable(GtkTreeIter)
-        res = bool(ccall((:gtk_tree_selection_get_selected,Gtk.libgtk),Cint,
-                         (Ptr{GObject},Ptr{Ptr{GtkTreeModel}},Ptr{GtkTreeIter}),
-                         selection,m,iter))
-        i = ccall((:gtk_tree_model_get_string_from_iter, Gtk.libgtk), 
-                  Ptr{Uint8}, 
-                  (Ptr{GObject}, Ptr{GtkTreeIter}), m[], iter) |> bytestring |> int |> x -> x+1
+        iter = selected(selection)
+        i = Gtk.index_from_iter(store, iter)  ## XX This needs a pull request to be accepted
         push!(widget.signal, vals[i])
     end
     
