@@ -55,4 +55,5 @@ Until this package lands in `Julia`'s METADATA it should be installed via "cloni
 Pkg.clone("https://github.com/jverzani/GtkInteract.jl")
 ```
 
-It requires [Gtk](https://github.com/JuliaLang/Gtk.jl). See that page for installation notes.
+This package requires [Gtk](https://github.com/JuliaLang/Gtk.jl) (for
+GTK+ 3, not GTK+ 2). See that page for installation notes.
