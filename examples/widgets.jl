@@ -16,7 +16,7 @@ m = slider(11:20, label="m"); push!(w, m)
 cg = cairographic(); push!(w, cg)
 
 @lift push!(cg, plot(sin, n*pi, m*pi))
-w = mainwindow
+
 
 
 

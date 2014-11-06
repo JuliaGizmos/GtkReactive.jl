@@ -8,37 +8,27 @@ define simple interactive graphics.
 
 This package provides a similar `@manipulate` macro using `Gtk` for
 the widget toolkit, allowing similarly easy interactive graphics with
-Winston. The basic syntax is *almost* the same:
+Winston. The basic syntax is the same:
 
 ```
 using GtkInteract
 using Winston
-@manipulate for ϕ = 0:π/16:4π, f = [:sin=>sin, :cos=>cos], out=:plot
-       p = plot(θ -> f(θ + ϕ), 0, 25)
-       push!(out, p)
+@manipulate for ϕ = 0:π/16:4π, f = [:sin=>sin, :cos=>cos]
+    plot(θ -> f(θ + ϕ), 0, 25)
 end
 ```
 
 ![Imgur](http://i.imgur.com/1MiynXf.png)
 
-
-The differences from `Interact` are:
-
-* The additional control `out=:plot` creates an output widget for the graphic to be displayed. 
-* Displaying to the output widget is not
-  implicit; rather one "pushes" (`push!(out, p)`) to it. In the above
-  command, this call renders the `Winston` graphic.
-
-For textual output, a similar `out=:text` or `out=:label` can be used. For example:
+Text output can also be displayed:
 
 ```
 using GtkInteract
 using SymPy
 x = Sym("x")
-@manipulate for n=1:5, out=:label
+@manipulate for n=1:5
    a = diff(sin(x^2), x, n)
-   ## push!(out, a)		# bad row alignment
-   push!(out, jprint(a))	# better
+   jprint(a)
 end
 ```
 

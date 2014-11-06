@@ -17,21 +17,22 @@ using DataStructures
 
 
 ## selectively import pieces of Interact
-import Interact: Button, button, ToggleButton, togglebutton
+import Interact
+import Interact: Button,  button
+import Interact: ToggleButton, togglebutton
 import Interact: Slider, slider
 import Interact: Options, dropdown, radiobuttons, togglebuttons, select
 import Interact: Checkbox, checkbox
 import Interact: Textbox, textbox
 import Interact: Widget, InputWidget
-import Interact: make_widget, display_widgets, @manipulate
 import Interact: widget
 
 
 ## exports (most widgets of interact and @manipulate macro)
-export slider, button, checkbox, togglebutton, dropdown, radiobuttons, select, togglebuttons, textbox, buttongroup
-export cairographic, textarea, label
-export mainwindow
+export slider, button, checkbox, togglebutton, dropdown, radiobuttons, select, textbox, textarea, togglebuttons
 export @manipulate
+export buttongroup, cairographic,  label, progress
+export mainwindow
 
 ## Add an non-exclusive set of buttons
 ## Code basically is Options code
@@ -64,7 +65,7 @@ function VectorOptions{K, V}(view::Symbol, options::Associative{K, V};
     VectorOptions(view, opts; kwargs...)
 end
 
-
+## A button group is like `togglebuttons` only one can select 0, 1, or more of the items.
 buttongroup(opts; kwargs...) = VectorOptions(:ButtonGroup, opts; kwargs...)
 
 ### Output widgets
@@ -124,6 +125,20 @@ end
 label(;value="") = Label(Input{Any}, string(value), nothing)
 label(lab; kwargs...) = label(value=lab, kwargs...)
 
+## Progress is a widget, `push!` values onto it where `value` is within `[first(range), last(range)]`
+type Progress <: Widget
+    signal
+    range::Range
+    obj
+end
+
+progress(args...) = Progress(args...)
+function progress(;label="", value=0, range=0:100)
+    input = Input(clamp((value - first(range)) / (last(range) - first(range)), 0, 1))
+    Progress(input, range, nothing)
+end
+
+
 ### Container(s)
 
 ## MainWindow
@@ -132,12 +147,14 @@ type MainWindow
     height::Int
     title
     window
+    label
+    cg
     obj
     nrows::Int
 end
 
-function mainwindow(;width::Int=600, height::Int=480, title::String="") 
-    w = MainWindow(width, height, title, nothing, nothing, 1)
+function mainwindow(;width::Int=300, height::Int=200, title::String="") 
+    w = MainWindow(width, height, title, nothing, nothing, nothing, nothing, 1)
     init_window(w)
 end
 
@@ -155,18 +172,48 @@ end
 
 
 
-## This needs changing from Interact, as we need a parent container and a different
-## means to append child widgets.
-## Question: the warning message is annoying, can it be fixed?
-function display_widgets(widgetvars)
+## Main changes come from needing to pass through a parent container in order to "display" objects
+## in "display_widgets" we just use push! though we could define `display` methods but passing in the 
+## parent container makes that awkward.
+function display_widgets(win, widgetvars)
+    map(v -> Expr(:call, esc(:push!), win, esc(v)), widgetvars)
+end
+
+## In `@manipulate` the macro builds up an expression, a. The display method is used to access the runtime
+## value. Here we modify `display` to enclose a main window. This has drawbacks -- the same display method is
+## used by GUIs that don't use `@manipulate`. Until a better method is found, the suggestion is to use one or the other.
+macro manipulate(expr)
+    if expr.head != :for
+        error("@manipulate syntax is @manipulate for ",
+              " [<variable>=<domain>,]... <expression> end")
+    end
+    block = expr.args[2]
+    if expr.args[1].head == :block
+        bindings = expr.args[1].args
+    else
+        bindings = [expr.args[1]]
+    end
+    syms = Interact.symbols(bindings)
+
+
+    ## Modifications
     w = mainwindow(title="@manipulate")
-    map(v -> Expr(:call, esc(:push!), w, esc(v)),
-        widgetvars)
+    a = Expr(:let, Expr(:block,
+                        display_widgets(w, syms)...,
+                        esc(Interact.lift_block(block, syms))),
+             map(Interact.make_widget, bindings)...)
+
+    # define within so access to w is via closure
+    function Base.display{T <: Reactive.Signal}(a::T)
+         lift(a ->show_outwidget(w, a), a)
+    end
+
+    a
+
 end
 
 
-
-## Gtk specific things
+## load Gtk specific things
 include("Gtk/gtkwidget.jl")
 
 

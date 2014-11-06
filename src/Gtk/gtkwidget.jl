@@ -429,6 +429,24 @@ function Base.push!(obj::Union(Textarea, Label), value)
     push!(obj, sprint(io->writemime(io, "text/plain", value)))
 end
 
+## Progress bar
+function gtk_widget(widget::Progress) 
+    widget.obj = obj = @GtkProgressBar()
+
+    function handler(val)
+        frac = clamp((val - first(widget.range)) / (last(widget.range) - first(widget.range)), 0, 1)
+        setproperty!(obj, :fraction, frac)
+    end
+    lift(handler, widget.signal)
+
+    obj
+end
+
+## push value in range of obj.range
+function Base.push!(obj::Progress, value)
+    push!(obj.signal, value)
+end
+
 
 
 ## Main window
@@ -437,20 +455,26 @@ function init_window(widget::MainWindow)
         return widget
     end
 
-    widget.window = @GtkWindow()
-    setproperty!(widget.window, :title, widget.title)
-    Gtk.G_.default_size(widget.window, widget.width, widget.height)
+    widget.window = @GtkWindow(title=widget.title)
+    resize!(widget.window, widget.width, widget.height)
+
+    box = @GtkBox(:v)
+    push!(widget.window, box)
 
     al = @GtkAlignment(0.0, 0.0, 1.0, 1.0)
     for pad in [:right_padding, :top_padding, :left_padding, :bottom_padding]
         setproperty!(al, pad, 5)
     end
-    widget.obj = @GtkGrid()
-    push!(widget.window, al)
 
+    
+    widget.obj = @GtkGrid()
+    setproperty!(widget.obj, :hexpand, true)
     setproperty!(widget.obj, :row_spacing, 5)
     setproperty!(widget.obj, :column_spacing, 5)
+
+    push!(box, al)
     push!(al, widget.obj)
+
     widget                      # return widget here...
 end
   
@@ -462,6 +486,8 @@ function Base.push!(parent::MainWindow, obj::InputWidget)
     al = @GtkAlignment(1.0, 0.0, 0.0, 0.0)
     setproperty!(al, :right_padding, 5)
     setproperty!(al, :left_padding, 5)
+    setproperty!(widget, :hexpand, true)
+
     push!(al, @GtkLabel(lab))
     parent.obj[1, parent.nrows] = al
     parent.obj[2, parent.nrows] = widget
@@ -473,9 +499,39 @@ end
 
 function Base.push!(parent::MainWindow, obj::Widget) 
     widget = gtk_widget(obj)
+
     parent.obj[2, parent.nrows] = (:obj in names(obj)) ? obj.obj : widget
     parent.nrows = parent.nrows + 1
     showall(parent.window)
 end
 
 Base.append!(parent::MainWindow, items) = map(x -> push!(parent, x), items)
+
+
+## for output widgets
+function show_outwidget(w, x::FramedPlot) 
+    if w.cg == nothing
+        box = w.window[1]
+        w.cg = @GtkCanvas(480, 400)
+        setproperty!(w.cg, :vexpand, true)
+        push!(box, w.cg)
+        showall(w.window)
+    end
+    Winston.display(w.cg, x)    
+end
+
+function show_outwidget(w, x) 
+    x == nothing && return()
+    if w.label == nothing
+        w.label = @GtkLabel("")
+        setproperty!(w.label, :selectable, true)
+        setproperty!(w.label, :use_markup, true)
+        push!(w.window[1], w.label)
+        showall(w.window)
+    end
+    setproperty!(w.label, :label, to_string(x))
+end
+
+## convert object to string for display through label
+to_string(x::String) = x
+to_string(x) = sprint(io -> writemime(io, "text/plain", x))
