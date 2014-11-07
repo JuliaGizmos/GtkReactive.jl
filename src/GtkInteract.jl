@@ -5,18 +5,18 @@ module GtkInteract
 
 ## TODO:
 ## * work on sizing, layout
-## * once INteract works out layout containers, include these
+## * once `Interact` works out layout containers, include these
 
 
 
-## we use Gtk -- not Tk for Winston. This is specified *before* loading Winston
+## we use `Gtk` -- not `Tk` for `Winston`. This is specified *before* loading `Winston`
 ENV["WINSTON_OUTPUT"] = :gtk
 using Gtk, Winston
 using Reactive
 using DataStructures
 
 
-## selectively import pieces of Interact
+## selectively import pieces of `Interact`
 import Interact
 import Interact: Button,  button
 import Interact: ToggleButton, togglebutton
@@ -28,7 +28,7 @@ import Interact: Widget, InputWidget
 import Interact: widget
 
 
-## exports (most widgets of interact and @manipulate macro)
+## exports (most widgets of `Interact` and the modified `@manipulate` macro)
 export slider, button, checkbox, togglebutton, dropdown, radiobuttons, select, textbox, textarea, togglebuttons
 export @manipulate
 export buttongroup, cairographic,  label, progress
@@ -36,8 +36,7 @@ export mainwindow
 
 ## Add a non-exclusive set of buttons
 ## Code is basically the Options code of Interact
-## XXX This is a poor name, but it isn't exported XXX
-type VectorOptions{view,T} <: InputWidget{T}
+type VectorOptions{view,T} <: InputWidget{T} # XXX This is a poor name, but it isn't exported XXX
     signal
     label::String
     values                       
@@ -70,7 +69,7 @@ buttongroup(opts; kwargs...) = VectorOptions(:ButtonGroup, opts; kwargs...)
 
 ### Output widgets
 ##
-## These require an obj for the respective `push!` methods.
+## These have values `push!`ed onto them, rather than controls which are used to adjust values.
 
 ## CairoGraphic. 
 ##
@@ -90,7 +89,7 @@ cairographic(;width::Int=480, height::Int=400) = CairoGraphic(width, height, Inp
 
 ## Textarea for output
 ## 
-## Replace text via `push!(obj, value::String)`
+## Replace text via `push!(obj, value)`
 type Textarea{T <: String} <: Widget
     width::Int
     height::Int
@@ -110,7 +109,7 @@ textarea(value; kwargs...) = textarea(value=value, kwargs...)
 ## label. 
 ##
 ## Like text area, but is clearly not editable and allows for PANGO markup.
-## Replace text via `push!(obj, value::String)`
+## Replace text via `push!(obj, value)`
 type Label <: Widget
     signal
     value::String
@@ -125,13 +124,14 @@ label(lab; kwargs...) = label(value=lab, kwargs...)
 ## `push!` values onto it where `value` is within `[first(range), last(range)]`
 type Progress <: Widget
     signal
+    value
     range::Range
     obj
 end
 
 progress(args...) = Progress(args...)
 function progress(;label="", value=0, range=0:100)
-    Progress(Input(value), range, nothing)
+    Progress(nothing, value, range, nothing)
 end
 
 Reactive.signal(x::Widget) = x.signal
@@ -140,7 +140,8 @@ Reactive.signal(x::Widget) = x.signal
 function widget(x::Symbol, args...)
     fns = [:plot=>cairographic,
            :text=>textarea,
-           :label=>label
+           :label=>label,
+           :progress=>progress
            ]
     fns[x]()
 end
@@ -171,14 +172,14 @@ end
 ## Modifications for @manipulate
 
 ## Main changes come from needing to pass through a parent container in order to "display" objects
-## in "display_widgets" we just use push! though we could define `display` methods but passing in the 
+## in "display_widgets" we just use `push!` though we could define `display` methods but passing in the 
 ## parent container makes that awkward.
 function display_widgets(win, widgetvars)
     map(v -> Expr(:call, esc(:push!), win, esc(v)), widgetvars)
 end
 
-## In `@manipulate` the macro builds up an expression, a. The display method is used to access the runtime
-## value. Here we add a special type to couple the expression with the main window.
+## In `@manipulate` the macro builds up an expression, a. The `display` method is used to access the runtime
+## value. Here we add a special type to couple the expression with a parent container, the main window.
 
 type ManipulateWidget
     a

@@ -66,15 +66,33 @@ x = Sym("x")
     jprint(a)
 end
 
+# Output widgets
+
+## There are controls for gathering input, and output widgets for display. These consist of
+## cairographic, textarea, label, and progress
+## These values are `push!`ed onto within the function call. The function call should return `nothing`,
+## else the output will be displayed as well in either a label or plot container.
+
 ## The label can be replaced by a multiline text buffer. The syntax is
 ## a bit awkward.  output widgets have values `push!`ed onto them and a final
 ## value of `nothing` is used.
-@manipulate for n=1:10, x=1:10, out=:text
+@manipulate for n=1:10, x=1:10, out=textarea()
     push!(out, (n,x))
     nothing
 end
 
+## The progres bar is another output widget
+@manipulate for n=1:100, pb=progress()
+    push!(pb, n)
+    nothing
+end
 
+## We can have more than one output widget
+@manipulate for n=1:10, cg1=cairographic(width=300, height=200), cg2=cairographic(width=300, height=200)
+    push!(cg1, Winston.plot(cos, 0, n*pi))
+    push!(cg2, Winston.plot(sin, 0, n*pi))
+    nothing
+end
 
 
 ## Control widgets can be used instead of their being derived from the argument. This

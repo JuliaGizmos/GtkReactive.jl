@@ -1,13 +1,7 @@
 ## one can use the widgets directly
 ## (there is no real choice for layout beyond push!)
 
-
-
-
 using GtkInteract, Reactive, Winston
-
-
-
 
 ## This is basically what @manipulate does
 w = mainwindow(title="Simple test")
@@ -16,8 +10,6 @@ m = slider(11:20, label="m"); push!(w, m)
 cg = cairographic(); push!(w, cg)
 
 @lift push!(cg, plot(sin, n*pi, m*pi))
-
-
 
 
 ## A pattern where the update only is related to a button push, and not each control
@@ -29,6 +21,9 @@ btn = button("update"); push!(w, btn)
 
 ## this is really ugly... but click on the button to print the product..
 lift(_ -> println(signal(n).value * signal(m).value), btn)
+
+
+
 
 ## This pattern -- from Shasi
 ## https://groups.google.com/forum/?fromgroups#!topic/julia-users/Ur5b2_dsJyA
@@ -59,6 +54,7 @@ end
 
 
 ## kitchen sink of control widgets
+##
 using DataStructures
 a = OrderedDict(Symbol, Int)
 a[:one]=1; a[:two] = 2; a[:three] = 3
@@ -76,11 +72,10 @@ l[:buttongroup] = buttongroup(a, label="buttongroup") # non exclusive
 l[:textbox] = textbox("text goes here", label="textbox")
 
 w = mainwindow()
-for (k,v) in l
-    push!(w, v)
-end
+append!(w, values(l))
 
 ## progress bar
+##
 using GtkInteract, Reactive
 w = mainwindow()
 b = button("press")
@@ -88,9 +83,9 @@ pb = progress()
 
 append!(w, [pb, b])
 
-## need @async here to update within a call
+# connect button press to update
 lift(b) do _
-    @async push!(pb, ifloor(100*rand()))
+    push!(pb, ifloor(100*rand()))
 end
 
 

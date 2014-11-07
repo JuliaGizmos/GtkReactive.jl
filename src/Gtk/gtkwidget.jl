@@ -416,24 +416,24 @@ end
 Base.push!{T <: String}(obj::Union(Textarea, Label), value::Vector{T}) = push!(obj, join(value, "\n"))
 
 function Base.push!(obj::Union(Textarea, Label), value)
-    push!(obj, sprint(io->writemime(io, "text/plain", value)))
+    push!(obj, to_string(value))
 end
 
 ## Progress bar
 function gtk_widget(widget::Progress) 
-    widget.obj = obj = @GtkProgressBar()
+    obj = @GtkProgressBar()
 
-    lift(widget.signal) do val
-        frac = clamp((val - first(widget.range)) / (last(widget.range) - first(widget.range)), 0, 1)
-        setproperty!(obj, :fraction, frac)
-    end
-
-    obj
+    
+    widget.obj = obj
+    push!(widget, widget.value)
+    widget.signal = Input(widget)
+    widget
 end
 
 ## push value in range of obj.range
 function Base.push!(widget::Progress, value)
-    push!(widget.signal, value)
+    frac = clamp((value - first(widget.range)) / (last(widget.range) - first(widget.range)), 0, 1)
+    setproperty!(widget.obj, :fraction, frac)
 end
 
 
