@@ -9,7 +9,7 @@ module GtkInteract
 
 
 
-## we use gtk -- not Tk for Winston. This is specified *before* loading Winston
+## we use Gtk -- not Tk for Winston. This is specified *before* loading Winston
 ENV["WINSTON_OUTPUT"] = :gtk
 using Gtk, Winston
 using Reactive
@@ -34,8 +34,8 @@ export @manipulate
 export buttongroup, cairographic,  label, progress
 export mainwindow
 
-## Add an non-exclusive set of buttons
-## Code basically is Options code
+## Add a non-exclusive set of buttons
+## Code is basically the Options code of Interact
 ## XXX This is a poor name, but it isn't exported XXX
 type VectorOptions{view,T} <: InputWidget{T}
     signal
@@ -65,19 +65,18 @@ function VectorOptions{K, V}(view::Symbol, options::Associative{K, V};
     VectorOptions(view, opts; kwargs...)
 end
 
-## A button group is like `togglebuttons` only one can select 0, 1, or more of the items.
+## A `buttongroup` is like `togglebuttons` only one can select 0, 1, or more of the items.
 buttongroup(opts; kwargs...) = VectorOptions(:ButtonGroup, opts; kwargs...)
 
 ### Output widgets
 ##
 ## These require an obj for the respective `push!` methods.
-Reactive.signal(x::Widget) = x.signal
 
 ## CairoGraphic. 
 ##
 ## for a plot window
 ##
-## add plot via `push!(cg, plot_call)`
+## Replace plot via `push!(cg, winston_plot_object)`
 type CairoGraphic <: Widget
     width::Int
     height::Int
@@ -91,7 +90,7 @@ cairographic(;width::Int=480, height::Int=400) = CairoGraphic(width, height, Inp
 
 ## Textarea for output
 ## 
-## Add text via `push!(obj, values)`
+## Replace text via `push!(obj, value::String)`
 type Textarea{T <: String} <: Widget
     width::Int
     height::Int
@@ -108,7 +107,10 @@ end
 textarea(value; kwargs...) = textarea(value=value, kwargs...)
 
 
-## label. Like text area, but is clearly not editable and allows for PANGO markup.
+## label. 
+##
+## Like text area, but is clearly not editable and allows for PANGO markup.
+## Replace text via `push!(obj, value::String)`
 type Label <: Widget
     signal
     value::String
@@ -118,7 +120,9 @@ end
 label(;value="") = Label(Input{Any}, string(value), nothing)
 label(lab; kwargs...) = label(value=lab, kwargs...)
 
-## Progress is a widget, `push!` values onto it where `value` is within `[first(range), last(range)]`
+## Progress creates a progress bar
+##
+## `push!` values onto it where `value` is within `[first(range), last(range)]`
 type Progress <: Widget
     signal
     range::Range
@@ -127,17 +131,29 @@ end
 
 progress(args...) = Progress(args...)
 function progress(;label="", value=0, range=0:100)
-    Progress(value, range, nothing)
+    Progress(Input(value), range, nothing)
 end
 
+Reactive.signal(x::Widget) = x.signal
+
+## We add these output widgets to `widget`
+function widget(x::Symbol, args...)
+    fns = [:plot=>cairographic,
+           :text=>textarea,
+           :label=>label
+           ]
+    fns[x]()
+end
 
 ### Container(s)
 
 ## MainWindow
+##
+## A top-level window
 type MainWindow
     width::Int
     height::Int
-    title
+    title::String
     window
     label
     cg
@@ -150,18 +166,9 @@ function mainwindow(;width::Int=300, height::Int=200, title::String="")
     init_window(w)
 end
 
-## We add these output widgets to `widget`
-function widget(x::Symbol, args...)
-    fns = [:plot=>cairographic,
-           :text=>textarea,
-           :label=>label
-           ]
-    fns[x]()
-end
 
 
-
-## Modifications fot @manipulate
+## Modifications for @manipulate
 
 ## Main changes come from needing to pass through a parent container in order to "display" objects
 ## in "display_widgets" we just use push! though we could define `display` methods but passing in the 

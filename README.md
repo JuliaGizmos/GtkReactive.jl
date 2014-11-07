@@ -2,17 +2,19 @@
 
 [![Build Status](https://travis-ci.org/jverzani/GtkInteract.jl.svg?branch=master)](https://travis-ci.org/jverzani/GtkInteract.jl)
 
-The [`Interact`](https://github.com/JuliaLang/Interact.jl)  package brings interactive widgets to `IJulia`
-notebooks. In particular, the `@manipulate` macro makes it trivial to
-define simple interactive graphics.
+The [`Interact`](https://github.com/JuliaLang/Interact.jl) package
+brings interactive widgets to `IJulia` notebooks. In particular, the
+`@manipulate` macro makes it trivial to define simple interactive
+graphics. The [`Patchwork`](https://github.com/shashi/Patchwork.jl)
+package can be used to efficiently manipulate SVG graphics, including
+those created through `Gadfly`.
 
 This package provides a similar `@manipulate` macro using `Gtk` for
 the widget toolkit, allowing similarly easy interactive graphics with
-Winston. The basic syntax is the same:
+`Winston`. The basic syntax is the same:
 
 ```
-using GtkInteract
-using Winston
+using GtkInteract, Winston
 @manipulate for ϕ = 0:π/16:4π, f = [:sin=>sin, :cos=>cos]
     plot(θ -> f(θ + ϕ), 0, 25)
 end
@@ -23,8 +25,7 @@ end
 Text output can also be displayed:
 
 ```
-using GtkInteract
-using SymPy
+using GtkInteract, SymPy
 x = Sym("x")
 @manipulate for n=1:5
    a = diff(sin(x^2), x, n)

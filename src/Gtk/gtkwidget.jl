@@ -2,13 +2,11 @@
 
 ## Controls
 
-
 ## button
 ##
 ## button("label") is constructor
 ##
 function gtk_widget(widget::Button)
-    ## construct widget
     obj = @GtkButton(widget.label)
     widget.label = ""
 
@@ -30,12 +28,12 @@ function gtk_widget(widget::Checkbox)
         push!(widget.signal, getproperty(obj, :active, Bool))
     end
 
-    function handler(val)
+    lift(widget.signal) do val
         signal_handler_block(obj, id)
         setproperty!(obj, :active, val)
         signal_handler_unblock(obj, id)
     end
-    lift(handler, widget.signal)
+        
 
     obj
 end
@@ -54,13 +52,12 @@ function gtk_widget(widget::Slider)
     end
     
     ## 
-    function handler(val)
+    lift(widget.signal) do val
         signal_handler_block(obj, id)
         Gtk.G_.value(obj, val)
         signal_handler_unblock(obj, id)
     end
-    lift(handler, widget.signal)
-
+    
     obj
 end
 
@@ -77,12 +74,11 @@ function gtk_widget(widget::ToggleButton)
     end
 
     ## signal -> widget
-    function handler(val)
+    lift(widget.signal) do val
         signal_handler_block(obj, id)
         setproperty!(obj, :active, val)
         signal_handler_unblock(obj, id)
     end
-    lift(handler, widget.signal)
 
 
     obj
@@ -102,13 +98,11 @@ function gtk_widget(widget::Textbox)
 
     
     ## signal -> widget
-    function handler(val)
+    lift(widget.signal) do val
         signal_handler_block(obj, id)
         setproperty!(obj, :text, string(val))
         signal_handler_unblock(obj, id)
     end
-    lift(handler, widget.signal)
-
 
     obj
 end
@@ -129,7 +123,7 @@ function gtk_widget(widget::Options{:Dropdown})
     end
 
     ## signal -> widget
-    function handler(val)
+    lift(widget.signal) do val
         signal_handler_block(obj, id)
         index = getproperty(obj, :active, Int) + 1
         val = findfirst(collect(values(widget.options)), val)
@@ -138,7 +132,6 @@ function gtk_widget(widget::Options{:Dropdown})
         end
         signal_handler_unblock(obj, id)
     end
-    lift(handler, widget.signal)
 
 
     obj
@@ -172,13 +165,12 @@ function gtk_widget(widget::Options{:RadioButtons})
     showall(obj)
 
     ## signal -> widget
-    function handler(val)
+    lift(widget.signal) do val
         [signal_handler_block(btn, id) for (btn,id) in ids]
         selected = findfirst(collect(values(widget.options)), val)
         setproperty!(btns[selected], :active, true)
         [signal_handler_unblock(btn, id) for (btn,id) in ids]        
     end
-    lift(handler, widget.signal)
 
 
     obj
@@ -217,7 +209,7 @@ function gtk_widget(widget::Options{:ToggleButtons})
     end
 
     ## signal -> widget
-    function handler(val)
+    lift(widget.signal) do val
         ## get index from val
         index = findfirst(vals, val)
         lab = labs[index]
@@ -227,9 +219,8 @@ function gtk_widget(widget::Options{:ToggleButtons})
             signal_handler_unblock(btn, ids[btn])
         end
     end
-    lift(handler, widget.signal)
 
-
+    
     block
 end
 
@@ -267,7 +258,7 @@ function gtk_widget(widget::VectorOptions{:ButtonGroup})
     end
 
     ## signal -> widget
-    function handler(values)
+    lift(widget.signal) do values
         
         indices = [findfirst(vals, v) for v in values]
         selectedlabs = labs[indices]
@@ -279,7 +270,7 @@ function gtk_widget(widget::VectorOptions{:ButtonGroup})
         end
 
     end
-    lift(handler, widget.signal)
+
 
     
 
@@ -322,14 +313,13 @@ function gtk_widget(widget::Options{:Select})
     end
     
     ## push! -> update UI
-    function handler(val)
+    lift(widget.signal) do val
         signal_handler_block(selection, id)
         index = findfirst(vals, val)
         iter = Gtk.iter_from_index(store, index)
         Gtk.select!(selection, iter)
         signal_handler_unblock(selection, id)
     end
-    lift(handler, widget.signal)
 
     block
 
@@ -433,12 +423,10 @@ end
 function gtk_widget(widget::Progress) 
     widget.obj = obj = @GtkProgressBar()
 
-
-    function handler(val)
+    lift(widget.signal) do val
         frac = clamp((val - first(widget.range)) / (last(widget.range) - first(widget.range)), 0, 1)
         setproperty!(obj, :fraction, frac)
     end
-    lift(handler, widget.signal)
 
     obj
 end

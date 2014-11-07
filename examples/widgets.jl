@@ -80,46 +80,17 @@ for (k,v) in l
     push!(w, v)
 end
 
+## progress bar
+using GtkInteract, Reactive
+w = mainwindow()
+b = button("press")
+pb = progress()
 
-## An example by @stevengj (https://github.com/JuliaLang/Interact.jl/issues/36)
+append!(w, [pb, b])
 
-# n steps of Newton iteration for sqrt(a), starting at x
-function newton(a, x, n)
-    for i = 1:n
-        x = 0.5 * (x + a/x)
-    end
-    return x
-end
-
-# output x as HTML, with digits matching x0 printed in bold
-function matchdigits(x::Number, x0::Number)
-    s = string(x)
-    s0 = string(x0)
-    buf = IOBuffer()
-    matches = true
-    i = 0
-    print(buf, "<b>")           # pango <b> matches HTML
-    while (i += 1) <= length(s)
-        i % 30 == 0 && print(buf, "\n") # not <br>
-        if matches && i <= length(s0) && isdigit(s[i])
-            if s[i] == s0[i]
-                print(buf, s[i])
-                continue
-            end
-            print(buf, "</b>")
-            matches = false
-        end
-        print(buf, s[i])
-    end
-    matches && print(buf, "</b>")
-    takebuf_string(buf)
-end
-
-set_bigfloat_precision(1024)
-sqrt2 = sqrt(big(2))
-
-@manipulate for l=label("Number of steps"), n = slider(0:9, value=0, label="n")
-   matchdigits(newton(big(2), 2, n), sqrt2)
+## need @async here to update within a call
+lift(b) do _
+    @async push!(pb, ifloor(100*rand()))
 end
 
 
