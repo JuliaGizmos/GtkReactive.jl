@@ -70,14 +70,7 @@ buttongroup(opts; kwargs...) = VectorOptions(:ButtonGroup, opts; kwargs...)
 
 ### Output widgets
 ##
-## Basically just a few. Here we "trick" the macro that creates a
-## function that map (vars...) -> expr created by @manipulate. The var
-## for output widgets pass in the output widget itself, so that values
-## can be `push!`ed onto them within the expression. This requires two
-## things: 
-## * `widget.obj=obj` (for positioning) and
-## * `widget.signal=Input(widget)` for `push!`ing.
-
+## These require an obj for the respective `push!` methods.
 Reactive.signal(x::Widget) = x.signal
 
 ## CairoGraphic. 
@@ -109,7 +102,7 @@ type Textarea{T <: String} <: Widget
 end
 
 function textarea(;width::Int=480, height::Int=400, value::String="")
-    Textarea(width, height, Input(Any), value, nothing, nothing)
+    Textarea(width, height, Input(Any),  value, nothing, nothing)
 end
 
 textarea(value; kwargs...) = textarea(value=value, kwargs...)
@@ -134,8 +127,7 @@ end
 
 progress(args...) = Progress(args...)
 function progress(;label="", value=0, range=0:100)
-    input = Input(clamp((value - first(range)) / (last(range) - first(range)), 0, 1))
-    Progress(input, range, nothing)
+    Progress(value, range, nothing)
 end
 
 
@@ -158,9 +150,6 @@ function mainwindow(;width::Int=300, height::Int=200, title::String="")
     init_window(w)
 end
 
-
-## Modifications to Manipulate
-
 ## We add these output widgets to `widget`
 function widget(x::Symbol, args...)
     fns = [:plot=>cairographic,
@@ -172,6 +161,8 @@ end
 
 
 
+## Modifications fot @manipulate
+
 ## Main changes come from needing to pass through a parent container in order to "display" objects
 ## in "display_widgets" we just use push! though we could define `display` methods but passing in the 
 ## parent container makes that awkward.
@@ -180,8 +171,13 @@ function display_widgets(win, widgetvars)
 end
 
 ## In `@manipulate` the macro builds up an expression, a. The display method is used to access the runtime
-## value. Here we modify `display` to enclose a main window. This has drawbacks -- the same display method is
-## used by GUIs that don't use `@manipulate`. Until a better method is found, the suggestion is to use one or the other.
+## value. Here we add a special type to couple the expression with the main window.
+
+type ManipulateWidget
+    a
+    w
+end
+
 macro manipulate(expr)
     if expr.head != :for
         error("@manipulate syntax is @manipulate for ",
@@ -203,12 +199,8 @@ macro manipulate(expr)
                         esc(Interact.lift_block(block, syms))),
              map(Interact.make_widget, bindings)...)
 
-    # define within so access to w is via closure
-    function Base.display{T <: Reactive.Signal}(a::T)
-         lift(a ->show_outwidget(w, a), a)
-    end
-
-    a
+    b = Expr(:call, :ManipulateWidget, a, w)
+    b
 
 end
 

@@ -433,6 +433,7 @@ end
 function gtk_widget(widget::Progress) 
     widget.obj = obj = @GtkProgressBar()
 
+
     function handler(val)
         frac = clamp((val - first(widget.range)) / (last(widget.range) - first(widget.range)), 0, 1)
         setproperty!(obj, :fraction, frac)
@@ -443,8 +444,8 @@ function gtk_widget(widget::Progress)
 end
 
 ## push value in range of obj.range
-function Base.push!(obj::Progress, value)
-    push!(obj.signal, value)
+function Base.push!(widget::Progress, value)
+    push!(widget.signal, value)
 end
 
 
@@ -508,7 +509,12 @@ end
 Base.append!(parent::MainWindow, items) = map(x -> push!(parent, x), items)
 
 
-## for output widgets
+## for displaying an @manipulate object, we need this
+function Base.display(x::ManipulateWidget)
+    a = x.a; w = x.w
+    lift(a -> show_outwidget(w, a), a)
+end
+
 function show_outwidget(w, x::FramedPlot) 
     if w.cg == nothing
         box = w.window[1]

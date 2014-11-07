@@ -30,7 +30,7 @@ end
 @manipulate for ϕ = 0:π/16:4π, f = [:sin => sin, :cos => cos], both = false
     if both
         plot(θ -> sin(θ + ϕ), 0, 8)
-	oplot(θ -> cos(θ + ϕ), 0, 8)
+	oplot(θ -> cos(θ + ϕ), 0, 8, "b")
     else
        plot(θ -> f(θ + ϕ), 0, 8)
     end
