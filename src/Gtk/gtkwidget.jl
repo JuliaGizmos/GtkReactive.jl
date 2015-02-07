@@ -308,7 +308,7 @@ function gtk_widget(widget::Options{:Select})
     ## set up callback widget -> signal
     id = signal_connect(selection, :changed) do args...
         iter = selected(selection)
-        i = Gtk.index_from_iter(store, iter)  ## XX This needs a pull request to be accepted
+        i = Gtk.index_from_iter(store, iter)  ## XXX This needs a pull request to be accepted XXX
         push!(widget.signal, vals[i])
     end
     
@@ -352,9 +352,9 @@ Base.push!(obj::CairoGraphic, pc::Winston.PlotContainer) = Winston.display(obj.o
 
 ## This is for Gadfly, Compose, GtkInteract -- super slow!!!
 if :Gadfly in names(Main)
-
-
+    ## XXX
 end
+
 if :Compose in names(Main)
     using Compose, Cairo
     function Base.push!(obj::CairoGraphic, co::Compose.Context)
@@ -498,10 +498,7 @@ Base.append!(parent::MainWindow, items) = map(x -> push!(parent, x), items)
 
 
 ## for displaying an @manipulate object, we need this
-function Base.display(x::ManipulateWidget)
-    a = x.a; w = x.w
-    lift(a -> show_outwidget(w, a), a)
-end
+Base.display(x::ManipulateWidget) = lift(a -> show_outwidget(x.w, a), x.a)
 
 function show_outwidget(w, x::FramedPlot) 
     if w.cg == nothing

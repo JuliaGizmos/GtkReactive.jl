@@ -69,7 +69,7 @@ buttongroup(opts; kwargs...) = VectorOptions(:ButtonGroup, opts; kwargs...)
 
 ### Output widgets
 ##
-## These have values `push!`ed onto them, rather than controls which are used to adjust values.
+## These have values `push!`ed onto them. They do not accept user input like controls do.
 
 ## CairoGraphic. 
 ##

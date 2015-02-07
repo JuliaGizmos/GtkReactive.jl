@@ -1,6 +1,15 @@
-using GtkInteract, Reactive
+using GtkInteract
 using Base.Test
 
+## test manipulate
+@manipulate for n=1:10
+    n
+end
+
+
+
+## tests widgets
+using Reactive
 opts = ["one", "two", "three"]
 # write your own tests here
 w = mainwindow(title="test")

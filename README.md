@@ -5,13 +5,16 @@
 The [`Interact`](https://github.com/JuliaLang/Interact.jl) package
 brings interactive widgets to `IJulia` notebooks. In particular, the
 `@manipulate` macro makes it trivial to define simple interactive
-graphics. The [`Patchwork`](https://github.com/shashi/Patchwork.jl)
-package can be used to efficiently manipulate SVG graphics, including
-those created through `Gadfly`.
+graphics. Though `Interact` can animate graphics using `Gadfly`,
+`PyPlot`, or `Winstont`, the new
+[`Patchwork`](https://github.com/shashi/Patchwork.jl) package can be
+used to efficiently manipulate SVG graphics, including those created
+through `Gadfly`, for more fluid graphical animations.
 
-This package provides a similar `@manipulate` macro using `Gtk` for
-the widget toolkit, allowing similarly easy interactive graphics with
-`Winston`. The basic syntax is the same:
+The `GtkInteract` package modifies `Interact`'s `@manipulate` macro to
+allow interactive widgets from the command-line REPL using the `Gtk`
+package for the widget toolkit. The allows for similarly easy
+interactive graphics with `Winston`. The basic syntax is the same:
 
 ```
 using GtkInteract, Winston
@@ -22,7 +25,7 @@ end
 
 ![Imgur](http://i.imgur.com/1MiynXf.png)
 
-Text output can also be displayed:
+Text output can also be displayed (though not as nicely as in `IJulia` due to HTML and LaTeX support):
 
 ```
 using GtkInteract, SymPy
