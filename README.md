@@ -61,3 +61,23 @@ Pkg.clone("https://github.com/jverzani/GtkInteract.jl")
 
 This package requires [Gtk](https://github.com/JuliaLang/Gtk.jl) (for
 GTK+ 3, not GTK+ 2). See that page for installation notes.
+
+## Using with PyPlot
+
+There is experimental support for plotting with PyPlot. Rather than have a `withfig(f)` call, as with `IJulia`, we have a call to `gcf()` as the final command:
+
+```
+using PyPlot
+pygui(false) ## necessary
+
+using GtkInteract
+@manipulate for n in 1:10, m in 1:10
+    ts = linspace(0, 2*n*m*pi, 2500)
+    xs = [sin(m*t) for t in ts]
+    ys = [cos(n*t) for t in ts]
+    PyPlot.plot(xs, ys)
+    gcf()
+end
+```
+
+The `pygui(false)` seems necessary to prevent a crash. There may be a *much* nicer way of doing this -- if you know how, please share.

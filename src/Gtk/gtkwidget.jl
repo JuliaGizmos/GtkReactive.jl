@@ -511,7 +511,11 @@ function show_outwidget(w, x::FramedPlot)
     Winston.display(w.cg, x)    
 end
 
-function show_outwidget(w, x) 
+function show_outwidget(w, x)
+    if string(typeof(x)) == "Figure"
+        return(show_pyplot(w,x))
+    end
+
     x == nothing && return()
     if w.label == nothing
         w.label = @GtkLabel("")
@@ -526,3 +530,19 @@ end
 ## convert object to string for display through label
 to_string(x::String) = x
 to_string(x) = sprint(io -> writemime(io, "text/plain", x))
+
+function show_pyplot(w, x)
+    if w.label == nothing
+         w.label = @GtkImage()
+         push!(w.window[1], w.label)
+        showall(w.window)
+    end
+    
+    f = tempname() * ".png"
+    io = open(f, "w")
+    writemime(io, "image/png", x)
+    close(io)
+    Gtk.G_.from_file(w.label, f)
+    rm(f)
+    x[:clear]()
+end
