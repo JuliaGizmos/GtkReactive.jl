@@ -1,5 +1,103 @@
 ## Code that is Gtk specific
 
+## Plotting code is package dependent
+Requires.@require Winston begin
+    ## need to check this, as we get error otherwise!
+    ENV["WINSTON_OUTPUT"] = :gtk
+
+    
+    Base.push!(obj::CairoGraphic, pc::Winston.PlotContainer) = Winston.display(obj.obj, pc)
+
+    
+    function show_outwidget(w, x::Winston.FramedPlot) 
+        if w.cg == nothing
+            box = w.window[1]
+            w.cg = @GtkCanvas(480, 400)
+            setproperty!(w.cg, :vexpand, true)
+            push!(box, w.cg)
+            showall(w.window)
+        end
+        Winston.display(w.cg, x)    
+    end
+end
+
+## This is for Gadfly, Compose, GtkInteract -- super slow!!!
+Requires.@require Gadfly begin
+    ## XXX
+end
+
+Requires.@require Compose begin
+    using Compose, Cairo
+    function Base.push!(obj::CairoGraphic, co::Compose.Context)
+        ## XXX Must clear old before drawing new XXX
+        c = obj.obj
+        Gtk.draw(c -> Compose.draw(CAIROSURFACE(c.back),co), c)
+    end
+end
+
+
+Requires.@require PyPlot begin
+    using PyPlot
+    pygui(false)
+    
+    """ 
+    
+Overwrite `withfig` from `PyPlot` to work here. This causes a warning when the package is loaded. All this does
+is comment out `undisplay` call from `PyPlot`'s.
+
+We use this as with `Interact`:
+
+```
+f = figure()
+@manipulate for n in 1:5
+    withfig(f) do
+        xs = linspace(0, n*pi)
+        PyPlot.plot(xs, map(sin, xs))
+    end
+end
+```
+    """
+    function PyPlot.withfig(actions::Function, f::PyPlot.Figure; clear=true)
+        ax_save = gca()
+        figure(f[:number])
+        finalizer(f, close)
+        try
+            if clear && !isempty(f)
+                clf()
+            end
+            actions()
+        catch
+            rethrow()
+        finally
+            try
+                sca(ax_save) # may fail if axes were overwritten
+            end
+            ##Main.IJulia.undisplay(f) ## IJulia display queue
+        end
+        return f
+    end
+    export withfig
+
+    " How to show a pyplot figure "
+    function show_outwidget(w, x::PyPlot.Figure) 
+        if w.label == nothing
+            w.label = @GtkImage()
+            push!(w.window[1], w.label)
+            showall(w.window)
+        end
+        
+        f = tempname() * ".png"
+        io = open(f, "w")
+        writemime(io, "image/png", x)
+        close(io)
+        Gtk.G_.from_file(w.label, f)
+        rm(f)
+        x[:clear]()
+        nothing
+    end
+end
+
+##################################################
 ## Controls
 
 ## button
@@ -251,7 +349,7 @@ function gtk_widget(widget::VectorOptions{:ButtonGroup})
             if val
                 !(vals[i] in values) && push!(values, vals[i])
             else
-                (vals[i] in values) && (values = setdiff(values, vals[i]))
+                (vals[i] in values) && (values = filter(x -> vals[i] != x, values))
             end
             push!(widget.signal, values)
         end
@@ -280,6 +378,9 @@ end
 
 ## select -- a grid
 function gtk_widget(widget::Options{:Select})
+    error("Select is not supported, as there is pending pull request")
+
+    
     labs = collect(keys(widget.options))
     vals = collect(values(widget.options))
 
@@ -343,25 +444,6 @@ function gtk_widget(widget::CairoGraphic)
     widget.obj = obj
     widget.signal = Input(widget)
     widget
-end
-
-
-## Methods to push! a graphic onto canvas
-## Would be nice to load these *only* when Winston or Gadfly is loaded
-Base.push!(obj::CairoGraphic, pc::Winston.PlotContainer) = Winston.display(obj.obj, pc)
-
-## This is for Gadfly, Compose, GtkInteract -- super slow!!!
-if :Gadfly in names(Main)
-    ## XXX
-end
-
-if :Compose in names(Main)
-    using Compose, Cairo
-    function Base.push!(obj::CairoGraphic, co::Compose.Context)
-        ## XXX Must clear old before drawing new XXX
-        c = obj.obj
-        Gtk.draw(c -> Compose.draw(CAIROSURFACE(c.back),co), c)
-    end
 end
 
 
@@ -500,22 +582,7 @@ Base.append!(parent::MainWindow, items) = map(x -> push!(parent, x), items)
 ## for displaying an @manipulate object, we need this
 Base.display(x::ManipulateWidget) = lift(a -> show_outwidget(x.w, a), x.a)
 
-function show_outwidget(w, x::FramedPlot) 
-    if w.cg == nothing
-        box = w.window[1]
-        w.cg = @GtkCanvas(480, 400)
-        setproperty!(w.cg, :vexpand, true)
-        push!(box, w.cg)
-        showall(w.window)
-    end
-    Winston.display(w.cg, x)    
-end
-
 function show_outwidget(w, x)
-    if string(typeof(x)) == "Figure"
-        return(show_pyplot(w,x))
-    end
-
     x == nothing && return()
     if w.label == nothing
         w.label = @GtkLabel("")
@@ -530,19 +597,3 @@ end
 ## convert object to string for display through label
 to_string(x::String) = x
 to_string(x) = sprint(io -> writemime(io, "text/plain", x))
-
-function show_pyplot(w, x)
-    if w.label == nothing
-         w.label = @GtkImage()
-         push!(w.window[1], w.label)
-        showall(w.window)
-    end
-    
-    f = tempname() * ".png"
-    io = open(f, "w")
-    writemime(io, "image/png", x)
-    close(io)
-    Gtk.G_.from_file(w.label, f)
-    rm(f)
-    x[:clear]()
-end

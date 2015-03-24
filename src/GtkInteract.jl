@@ -9,12 +9,10 @@ module GtkInteract
 
 
 
-## we use `Gtk` -- not `Tk` for `Winston`. This is specified *before* loading `Winston`
-ENV["WINSTON_OUTPUT"] = :gtk
-using Gtk, Winston
+using Gtk
 using Reactive
 using DataStructures
-
+using Requires
 
 ## selectively import pieces of `Interact`
 import Interact

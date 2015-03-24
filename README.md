@@ -6,7 +6,7 @@ The [`Interact`](https://github.com/JuliaLang/Interact.jl) package
 brings interactive widgets to `IJulia` notebooks. In particular, the
 `@manipulate` macro makes it trivial to define simple interactive
 graphics. Though `Interact` can animate graphics using `Gadfly`,
-`PyPlot`, or `Winstont`, the new
+`PyPlot`, or `Winston`, the new
 [`Patchwork`](https://github.com/shashi/Patchwork.jl) package can be
 used to efficiently manipulate SVG graphics, including those created
 through `Gadfly`, for more fluid graphical animations.
@@ -23,7 +23,37 @@ using GtkInteract, Winston
 end
 ```
 
+
 ![Imgur](http://i.imgur.com/1MiynXf.png)
+
+## Using with PyPlot
+
+There is experimental support for plotting with PyPlot. Using `PyPlot`
+requires an extra wrapper function, called `withfig`. This is
+overridden in this package so causes a warning. The pattern is like
+this:
+
+```
+using GtkInteract, PyPlot
+
+f = figure()
+@manipulate for n in 1:10, m in 1:10
+    withfig(f) do
+      ts = linspace(0, 2*n*m*pi, 2500)
+      xs = [sin(m*t) for t in ts]
+      ys = [cos(n*t) for t in ts]
+      PyPlot.plot(xs, ys)
+    end
+end
+```
+
+It can be a bit slower, as this does not draw onto a canvas, but
+rather creates an image file and displays that on each update.  In the
+background `pygui(false)` is called. Not doing so leads to a crash on
+some machines.
+
+
+## Text output
 
 Text output can also be displayed (though not as nicely as in `IJulia` due to HTML and LaTeX support):
 
@@ -35,6 +65,8 @@ x = Sym("x")
    jprint(a)
 end
 ```
+
+## basic widgets
 
 The basic widgets can also be used by hand to create simple GUIs:
 
@@ -62,22 +94,3 @@ Pkg.clone("https://github.com/jverzani/GtkInteract.jl")
 This package requires [Gtk](https://github.com/JuliaLang/Gtk.jl) (for
 GTK+ 3, not GTK+ 2). See that page for installation notes.
 
-## Using with PyPlot
-
-There is experimental support for plotting with PyPlot. Rather than have a `withfig(f)` call, as with `IJulia`, we have a call to `gcf()` as the final command:
-
-```
-using PyPlot
-pygui(false) ## necessary
-
-using GtkInteract
-@manipulate for n in 1:10, m in 1:10
-    ts = linspace(0, 2*n*m*pi, 2500)
-    xs = [sin(m*t) for t in ts]
-    ys = [cos(n*t) for t in ts]
-    PyPlot.plot(xs, ys)
-    gcf()
-end
-```
-
-The `pygui(false)` seems necessary to prevent a crash. There may be a *much* nicer way of doing this -- if you know how, please share.
