@@ -82,6 +82,7 @@ append!(w, [n, m, cg])		# layout widgets
 @lift push!(cg, plot(sin, n*pi, m*pi))
 ```
 
+For now, there are no layout options.
 
 ## Installation
 
