@@ -40,24 +40,25 @@ Requires.@require PyPlot begin
     using PyPlot
     pygui(false)
     
-    """ 
+""" 
     
-Overwrite `withfig` from `PyPlot` to work here. This causes a warning when the package is loaded. All this does
-is comment out `undisplay` call from `PyPlot`'s.
+Overwrite `withfig` from `PyPlot` to work here. This code snippet is
+found in PyPlot, save the comment. It is licensed under the MIT
+license.
 
 We use this as with `Interact`:
 
 ```
 f = figure()
 @manipulate for n in 1:5
-    withfig(f) do
+    GtkInteract.withfig(f) do
         xs = linspace(0, n*pi)
         PyPlot.plot(xs, map(sin, xs))
     end
 end
 ```
-    """
-    function PyPlot.withfig(actions::Function, f::PyPlot.Figure; clear=true)
+"""
+function withfig(actions::Function, f::PyPlot.Figure; clear=true)
         ax_save = gca()
         figure(f[:number])
         finalizer(f, close)

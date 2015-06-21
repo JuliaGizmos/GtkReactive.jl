@@ -136,13 +136,14 @@ end
 Reactive.signal(x::Widget) = x.signal
 
 ## We add these output widgets to `widget`
+widget_dict = Dict{Symbol, Function}()
+widget_dict[:plot]=cairographic
+widget_dict[:text] =textarea
+widget_dict[:label]=label
+widget_dict[:progress]=progress
+
 function widget(x::Symbol, args...)
-    fns = [:plot=>cairographic,
-           :text=>textarea,
-           :label=>label,
-           :progress=>progress
-           ]
-    fns[x]()
+    widget_dict[x]()
 end
 
 ### Container(s)

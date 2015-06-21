@@ -5,19 +5,21 @@
 The [`Interact`](https://github.com/JuliaLang/Interact.jl) package
 brings interactive widgets to `IJulia` notebooks. In particular, the
 `@manipulate` macro makes it trivial to define simple interactive
-graphics. Though `Interact` can animate graphics using `Gadfly`,
-`PyPlot`, or `Winston`, the new
+graphics.  `Interact` can animate graphics using `Gadfly`, `PyPlot`,
+or `Winston`. For more fluid graphical animations, the new
 [`Patchwork`](https://github.com/shashi/Patchwork.jl) package can be
 used to efficiently manipulate SVG graphics, including those created
-through `Gadfly`, for more fluid graphical animations.
+through `Gadfly`,
 
 The `GtkInteract` package modifies `Interact`'s `@manipulate` macro to
 allow interactive widgets from the command-line REPL using the `Gtk`
-package for the widget toolkit. The allows for similarly easy
-interactive graphics with `Winston`. The basic syntax is the same:
+package for the widget toolkit. This package then allows for similarly
+easy interactive graphics with `Winston`. The basic syntax is the
+same:
 
 ```
-using GtkInteract, Winston
+using Winston
+using GtkInteract
 @manipulate for ϕ = 0:π/16:4π, f = [:sin=>sin, :cos=>cos]
     plot(θ -> f(θ + ϕ), 0, 25)
 end
@@ -29,16 +31,15 @@ end
 ## Using with PyPlot
 
 There is experimental support for plotting with PyPlot. Using `PyPlot`
-requires an extra wrapper function, called `withfig`. This is
-overridden in this package so causes a warning. The pattern is like
-this:
+requires an extra wrapper function, called `GtkInteract.withfig`. (The `withfig`
+function is defined in  `PyPlot` and modified here, hence the module qualification.)
 
 ```
 using GtkInteract, PyPlot
 
 f = figure()
 @manipulate for n in 1:10, m in 1:10
-    withfig(f) do
+    GtkInteract.withfig(f) do
       ts = linspace(0, 2*n*m*pi, 2500)
       xs = [sin(m*t) for t in ts]
       ys = [cos(n*t) for t in ts]
@@ -52,6 +53,7 @@ rather creates an image file and displays that on each update.  In the
 background `pygui(false)` is called. Not doing so leads to a crash on
 some machines.
 
+(To copy-and-paste code that works with `Interact` simply requires some local definition such as `withfig=GtkInteract.withfig`.)
 
 ## Text output
 
@@ -59,10 +61,10 @@ Text output can also be displayed (though not as nicely as in `IJulia` due to HT
 
 ```
 using GtkInteract, SymPy
-x = Sym("x")
+x = symbols("x")
 @manipulate for n=1:5
    a = diff(sin(x^2), x, n)
-   jprint(a)
+   SymPy.jprint(a)
 end
 ```
 
@@ -71,7 +73,7 @@ end
 The basic widgets can also be used by hand to create simple GUIs:
 
 ```
-using Reactive
+using Reactive, Winston
 w = mainwindow(title="Simple test")
 n = slider(1:10, label="n")
 m = slider(11:20, label="m")
