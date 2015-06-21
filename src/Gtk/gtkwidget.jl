@@ -1,10 +1,11 @@
 ## Code that is Gtk specific
 
 ## Plotting code is package dependent
-Requires.@require Winston begin
-    ## need to check this, as we get error otherwise!
-    ENV["WINSTON_OUTPUT"] = :gtk
 
+## need to check this, as we get error otherwise!
+ENV["WINSTON_OUTPUT"] = :gtk
+
+Requires.@require Winston begin
     
     Base.push!(obj::CairoGraphic, pc::Winston.PlotContainer) = Winston.display(obj.obj, pc)
 
