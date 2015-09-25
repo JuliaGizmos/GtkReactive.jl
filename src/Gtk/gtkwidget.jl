@@ -1,10 +1,32 @@
 ## Code that is Gtk specific
 
 ## Plotting code is package dependent
+Requires.@require Plots begin
+
+    Base.push!(obj::CairoGraphic, pc::Plots.Plot) = push!(obj, pc.o[end])
+    function Base.push!(obj::Gtk.GtkCanvas, pc::Plots.Plot)
+        o = pc.o
+        if isa(o, Tuple)
+            o = o[end]
+        end
+        display(obj, o)
+    end
+
+    
+    function show_outwidget(w, x::Plots.Plot) 
+        if w.cg == nothing
+            box = w.window[1]
+            w.cg = @GtkCanvas(480, 400)
+            setproperty!(w.cg, :vexpand, true)
+            push!(box, w.cg)
+            showall(w.window)
+        end
+        push!(w.cg, x)    
+    end
+end
 
 ## need to check this, as we get error otherwise!
 ENV["WINSTON_OUTPUT"] = :gtk
-
 Requires.@require Winston begin
     
     Base.push!(obj::CairoGraphic, pc::Winston.PlotContainer) = Winston.display(obj.obj, pc)
