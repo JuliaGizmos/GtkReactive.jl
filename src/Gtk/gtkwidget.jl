@@ -9,7 +9,7 @@ Requires.@require Plots begin
         if isa(o, Tuple)
             o = o[end]
         end
-        display(obj, o)
+        Gtk.display(obj, o)
     end
 
     
