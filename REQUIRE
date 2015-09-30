@@ -1,7 +1,10 @@
+julia 0.4-
 Gtk
+Plots
 Winston
 Graphics
 Interact
 Reactive
 DataStructures
 Requires
+Compat

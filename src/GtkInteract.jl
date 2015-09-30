@@ -13,6 +13,12 @@ using Gtk
 using Reactive
 using DataStructures
 using Requires
+using Compat
+
+## For now use Plots, :winston and Gtk
+using Plots
+plotter!(:winston)
+ENV["WINSTON_OUTPUT"] = :gtk
 
 
 ## selectively import pieces of `Interact`

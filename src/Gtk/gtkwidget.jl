@@ -1,15 +1,15 @@
 ## Code that is Gtk specific
 
 ## Plotting code is package dependent
-Requires.@require Plots begin
-
+#Requires.@require Plots begin
+#    info("requiring plots")
     Base.push!(obj::CairoGraphic, pc::Plots.Plot) = push!(obj, pc.o[end])
     function Base.push!(obj::Gtk.GtkCanvas, pc::Plots.Plot)
         o = pc.o
         if isa(o, Tuple)
             o = o[end]
         end
-        Gtk.display(obj, o)
+        display(obj, o)
     end
 
     
@@ -23,7 +23,7 @@ Requires.@require Plots begin
         end
         push!(w.cg, x)    
     end
-end
+#end
 
 ## need to check this, as we get error otherwise!
 ENV["WINSTON_OUTPUT"] = :gtk
@@ -214,7 +214,7 @@ function gtk_widget(widget::Textbox)
 
     ## widget -> signal
     id = signal_connect(obj, :key_release_event) do obj, e, args...
-        txt = getproperty(obj, :text, String)
+        txt = getproperty(obj, :text, AbstractString)
         push!(widget.signal, txt)
     end
 
@@ -278,7 +278,7 @@ function gtk_widget(widget::Options{:RadioButtons})
     for btn in btns
         ids[btn] = signal_connect(btn, :toggled) do obj, args...
             if getproperty(obj, :active, Bool)
-                label = getproperty(obj, :label, String)
+                label = getproperty(obj, :label, AbstractString)
                 push!(widget.signal, widget.options[label])
             end
         end
@@ -324,7 +324,7 @@ function gtk_widget(widget::Options{:ToggleButtons})
                     setproperty!(b, :active, b==btn)
                 end
                 ## set widget state
-                push!(widget.signal, vals[findfirst(labs, getproperty(btn, :label, String))])
+                push!(widget.signal, vals[findfirst(labs, getproperty(btn, :label, AbstractString))])
             end
             true                # impt: stop evennt propogation
         end
@@ -337,7 +337,7 @@ function gtk_widget(widget::Options{:ToggleButtons})
         lab = labs[index]
         for btn in btns
             signal_handler_block(btn, ids[btn])
-            setproperty!(btn, :active, getproperty(btn, :label, String) == lab)
+            setproperty!(btn, :active, getproperty(btn, :label, AbstractString) == lab)
             signal_handler_unblock(btn, ids[btn])
         end
     end
@@ -368,7 +368,7 @@ function gtk_widget(widget::VectorOptions{:ButtonGroup})
         ids[btn] = signal_connect(btn, :toggled) do btn, xs...
             val =  getproperty(btn, :active, Bool)
             values = widget.signal.value
-            lab = getproperty(btn, :label, String)
+            lab = getproperty(btn, :label, AbstractString)
             i = findfirst(labs, lab)
             if val
                 !(vals[i] in values) && push!(values, vals[i])
@@ -387,7 +387,7 @@ function gtk_widget(widget::VectorOptions{:ButtonGroup})
 
         for btn in btns
             signal_handler_block(btn, ids[btn])
-            setproperty!(btn, :active, getproperty(btn, :label, String) in selectedlabs)
+            setproperty!(btn, :active, getproperty(btn, :label, AbstractString) in selectedlabs)
             signal_handler_unblock(btn, ids[btn])
         end
 
@@ -420,7 +420,7 @@ function gtk_widget(widget::Options{:Select})
     end
 
     cr = @GtkCellRendererText()
-    col = @GtkTreeViewColumn(widget.label, cr, {"text" => 0})
+    col = @GtkTreeViewColumn(widget.label, cr, Dict([("text",0)]))
     push!(obj, col)
 
     ## initial choice
@@ -494,7 +494,7 @@ function gtk_widget(widget::Textarea)
 end
 
 ## change text in view
-function Base.push!(obj::Textarea, value::String) 
+function Base.push!(obj::Textarea, value::AbstractString) 
     setproperty!(obj.buffer, :text, value)
     value
 end
@@ -512,16 +512,17 @@ function gtk_widget(widget::Label)
     widget
 end
 
-function Base.push!(obj::Label, value::String) 
+function Base.push!(obj::Label, value::AbstractString) 
     setproperty!(obj.obj, :label, value)
     setproperty!(obj.obj, :use_markup, true)
     obj.value = value
 end
 
 ## shared or label, textarea
-Base.push!{T <: String}(obj::Union(Textarea, Label), value::Vector{T}) = push!(obj, join(value, "\n"))
+typealias TextOrLabel @compat Union{Textarea, Label}
+Base.push!{T <: AbstractString}(obj::TextOrLabel, value::Vector{T}) = push!(obj, join(value, "\n"))
 
-function Base.push!(obj::Union(Textarea, Label), value)
+function Base.push!(obj::TextOrLabel, value)
     push!(obj, to_string(value))
 end
 
@@ -619,5 +620,5 @@ function show_outwidget(w, x)
 end
 
 ## convert object to string for display through label
-to_string(x::String) = x
+to_string(x::AbstractString) = x
 to_string(x) = sprint(io -> writemime(io, "text/plain", x))
