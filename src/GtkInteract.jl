@@ -17,7 +17,7 @@ using Compat
 
 ## For now use Plots, :winston and Gtk
 using Plots
-plotter!(:winston)
+backend(:winston)
 ENV["WINSTON_OUTPUT"] = :gtk
 
 
