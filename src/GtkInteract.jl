@@ -17,7 +17,7 @@ using Compat
 
 ## For now use Plots, :winston and Gtk
 using Plots
-plotter!(:winston)
+backend(:winston)
 ENV["WINSTON_OUTPUT"] = :gtk
 
 
@@ -43,12 +43,12 @@ export mainwindow
 ## Code is basically the Options code of Interact
 type VectorOptions{view,T} <: InputWidget{T} # XXX This is a poor name, but it isn't exported XXX
     signal
-    label::String
+    label::AbstractString
     values                       
-    options::OrderedDict{String, T}
+    options::OrderedDict{AbstractString, T}
 end
 
-function VectorOptions{T}(view::Symbol, options::OrderedDict{String, T};
+function VectorOptions{T}(view::Symbol, options::OrderedDict{AbstractString, T};
                           label = "",
                           value=T[],           
                           signal=Input(value))
@@ -57,14 +57,14 @@ end
 
 function VectorOptions{T}(view::Symbol, options::AbstractArray{T};
                     kwargs...)
-    opts = OrderedDict{String, T}()
+    opts = OrderedDict{AbstractString, T}()
     map(v -> opts[string(v)] = v, options)
     VectorOptions(view, opts; kwargs...)
 end
 
 function VectorOptions{K, V}(view::Symbol, options::Associative{K, V};
                     kwargs...)
-    opts = OrderedDict{String, V}()
+    opts = OrderedDict{AbstractString, V}()
     map(v->opts[string(v[1])] = v[2], options)
     VectorOptions(view, opts; kwargs...)
 end
@@ -95,7 +95,7 @@ cairographic(;width::Int=480, height::Int=400) = CairoGraphic(width, height, Inp
 ## Textarea for output
 ## 
 ## Replace text via `push!(obj, value)`
-type Textarea{T <: String} <: Widget
+type Textarea{T <: AbstractString} <: Widget
     width::Int
     height::Int
     signal
@@ -104,7 +104,7 @@ type Textarea{T <: String} <: Widget
     obj
 end
 
-function textarea(;width::Int=480, height::Int=400, value::String="")
+function textarea(;width::Int=480, height::Int=400, value::AbstractString="")
     Textarea(width, height, Input(Any),  value, nothing, nothing)
 end
 
@@ -117,7 +117,7 @@ textarea(value; kwargs...) = textarea(value=value, kwargs...)
 ## Replace text via `push!(obj, value)`
 type Label <: Widget
     signal
-    value::String
+    value::AbstractString
     obj
 end
 
@@ -160,7 +160,7 @@ end
 type MainWindow
     width::Int
     height::Int
-    title::String
+    title::AbstractString
     window
     label
     cg
@@ -168,7 +168,7 @@ type MainWindow
     nrows::Int
 end
 
-function mainwindow(;width::Int=300, height::Int=200, title::String="") 
+function mainwindow(;width::Int=300, height::Int=200, title::AbstractString="") 
     w = MainWindow(width, height, title, nothing, nothing, nothing, nothing, 1)
     init_window(w)
 end
