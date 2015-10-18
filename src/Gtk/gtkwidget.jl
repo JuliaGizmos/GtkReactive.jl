@@ -3,32 +3,55 @@
 ## Plotting code is package dependent
 #Requires.@require Plots begin
 #    info("requiring plots")
-    Base.push!(obj::CairoGraphic, pc::Plots.Plot) = push!(obj, pc.o[end])
-    function Base.push!(obj::Gtk.GtkCanvas, pc::Plots.Plot)
-        o = pc.o
-        if isa(o, Tuple)
-            o = o[end]
+
+function Base.push!(obj::CairoGraphic, p::Plots.Plot{Plots.ImmersePackage})
+    c = obj.obj
+
+    out = Gadfly.render_prepare(p.o[2])
+    out1 = Immerse.render_finish(out; dynamic=false)
+    
+    c.draw = let bad=false
+        function (_)
+            bad && return
+            # Render
+            backend = Immerse.render_backend(c)
+            try
+                Compose.draw(backend, out1)
+            catch e
+                bad = true
+                rethrow(e)
+            end
         end
-        display(obj, o)
     end
+    Gtk.draw(c)
+end
+
+Base.push!(obj::CairoGraphic, pc::Plots.Plot{Plots.WinstonPackage}) = push!(obj, pc.o[end])
+function Base.push!(obj::Gtk.GtkCanvas, pc::Plots.Plot{Plots.WinstonPackage})
+    o = pc.o
+    if isa(o, Tuple)
+        o = o[end]
+    end
+    display(obj, o)
+end
 
     
-    function show_outwidget(w, x::Plots.Plot) 
-        if w.cg == nothing
-            box = w.window[1]
-            w.cg = @GtkCanvas(480, 400)
-            setproperty!(w.cg, :vexpand, true)
-            push!(box, w.cg)
-            showall(w.window)
-        end
-        push!(w.cg, x)    
+function show_outwidget(w, x::Plots.Plot) 
+    if w.cg == nothing
+        box = w.window[1]
+        w.cg = @GtkCanvas(480, 400)
+        setproperty!(w.cg, :vexpand, true)
+        push!(box, w.cg)
+        showall(w.window)
     end
+    push!(w.cg, x)    
+end
 #end
 
 ## need to check this, as we get error otherwise!
-ENV["WINSTON_OUTPUT"] = :gtk
+
 Requires.@require Winston begin
-    
+    ENV["WINSTON_OUTPUT"] = :gtk    
     Base.push!(obj::CairoGraphic, pc::Winston.PlotContainer) = Winston.display(obj.obj, pc)
 
     
