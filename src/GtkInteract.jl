@@ -17,8 +17,6 @@ using Compat
 
 ## For now use Plots, :winston and Gtk
 using Plots
-backend(:winston)
-ENV["WINSTON_OUTPUT"] = :gtk
 
 
 ## selectively import pieces of `Interact`

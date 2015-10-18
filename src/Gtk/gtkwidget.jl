@@ -4,8 +4,8 @@
 #Requires.@require Plots begin
 #    info("requiring plots")
 
-function Base.push!(obj::CairoGraphic, p::Plots.Plot{Plots.ImmersePackage})
-    c = obj.obj
+Base.push!(obj::CairoGraphic, p::Plots.Plot{Plots.ImmersePackage}) = push!(obj.obj, p)
+function Base.push!(c::GtkCanvas, p::Plots.Plot{Plots.ImmersePackage})
 
     out = Gadfly.render_prepare(p.o[2])
     out1 = Immerse.render_finish(out; dynamic=false)

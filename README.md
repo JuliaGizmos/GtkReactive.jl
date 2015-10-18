@@ -14,23 +14,28 @@ through `Gadfly`,
 The `GtkInteract` package modifies `Interact`'s `@manipulate` macro to
 allow interactive widgets from the command-line REPL using the `Gtk`
 package for the widget toolkit. This package then allows for similarly
-easy interactive graphics with `Winston`. We use the `Plots` interface to `Winston` as ultimately we would like to support more than one backend.
+easy interactive graphics from the command line. It works with the
+following packages: `Winston`, `Plots` (using the backend `:immerse`
+or `:winston`, though the later will likely be deprecated), and
+possibly `PyPlot`.
 
 The basic syntax is the same.
 
 ```
 using GtkInteract, Plots
+backend(:immerse)
 @manipulate for ϕ = 0:π/16:4π, f = Dict(:sin=>sin, :cos=>cos)
     plot(θ -> f(θ + ϕ), 0, 25)
 end
 ```
 
+This produces a layout along the lines of:
 
 ![Imgur](http://i.imgur.com/1MiynXf.png)
 
 ## Using with PyPlot
 
-[This is currently broken!]
+[This is currently broken on a mac, segfaulting with the interactivity!]
 
 There is experimental support for plotting with PyPlot. Using `PyPlot`
 requires an extra wrapper function, called `GtkInteract.withfig`. (The `withfig`
@@ -75,7 +80,8 @@ end
 The basic widgets can also be used by hand to create simple GUIs:
 
 ```
-using Reactive, Winston
+using GtkInteract
+using Reactive, Plots
 w = mainwindow(title="Simple test")
 n = slider(1:10, label="n")
 m = slider(11:20, label="m")
