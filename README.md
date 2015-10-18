@@ -16,7 +16,7 @@ allow interactive widgets from the command-line REPL using the `Gtk`
 package for the widget toolkit. This package then allows for similarly
 easy interactive graphics from the command line. It works with the
 following packages: `Winston`, `Plots` (using the backend `:immerse`
-or `:winston`, though the later will likely be deprecated), and
+or `:winston`, though the latter will likely be deprecated), and
 possibly `PyPlot`.
 
 The basic syntax is the same.
