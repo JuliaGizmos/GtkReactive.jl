@@ -137,8 +137,6 @@ function progress(;label="", value=0, range=0:100)
     Progress(nothing, value, range, nothing)
 end
 
-Reactive.signal(x::Widget) = x.signal
-
 ## We add these output widgets to `widget`
 widget_dict = Dict{Symbol, Function}()
 widget_dict[:plot]=cairographic
@@ -208,7 +206,7 @@ macro manipulate(expr)
     w = mainwindow(title="@manipulate")
     a = Expr(:let, Expr(:block,
                         display_widgets(w, syms)...,
-                        esc(Interact.lift_block(block, syms))),
+                        esc(Interact.map_block(block, syms))),
              map(Interact.make_widget, bindings)...)
 
     b = Expr(:call, :ManipulateWidget, a, w)
