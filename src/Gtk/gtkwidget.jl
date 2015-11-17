@@ -173,7 +173,7 @@ function gtk_widget(widget::Checkbox)
         push!(widget.signal, getproperty(obj, :active, Bool))
     end
 
-    lift(widget.signal) do val
+    foreach(widget.signal) do val
         signal_handler_block(obj, id)
         setproperty!(obj, :active, val)
         signal_handler_unblock(obj, id)
@@ -197,7 +197,7 @@ function gtk_widget(widget::Slider)
     end
     
     ## 
-    lift(widget.signal) do val
+    foreach(widget.signal) do val
         signal_handler_block(obj, id)
         Gtk.G_.value(obj, val)
         signal_handler_unblock(obj, id)
@@ -219,7 +219,7 @@ function gtk_widget(widget::ToggleButton)
     end
 
     ## signal -> widget
-    lift(widget.signal) do val
+    foreach(widget.signal) do val
         signal_handler_block(obj, id)
         setproperty!(obj, :active, val)
         signal_handler_unblock(obj, id)
@@ -243,7 +243,7 @@ function gtk_widget(widget::Textbox)
 
     
     ## signal -> widget
-    lift(widget.signal) do val
+    foreach(widget.signal) do val
         signal_handler_block(obj, id)
         setproperty!(obj, :text, string(val))
         signal_handler_unblock(obj, id)
@@ -268,7 +268,7 @@ function gtk_widget(widget::Options{:Dropdown})
     end
 
     ## signal -> widget
-    lift(widget.signal) do val
+    foreach(widget.signal) do val
         signal_handler_block(obj, id)
         index = getproperty(obj, :active, Int) + 1
         val = findfirst(collect(values(widget.options)), val)
@@ -310,7 +310,7 @@ function gtk_widget(widget::Options{:RadioButtons})
     showall(obj)
 
     ## signal -> widget
-    lift(widget.signal) do val
+    foreach(widget.signal) do val
         [signal_handler_block(btn, id) for (btn,id) in ids]
         selected = findfirst(collect(values(widget.options)), val)
         setproperty!(btns[selected], :active, true)
@@ -354,7 +354,7 @@ function gtk_widget(widget::Options{:ToggleButtons})
     end
 
     ## signal -> widget
-    lift(widget.signal) do val
+    foreach(widget.signal) do val
         ## get index from val
         index = findfirst(vals, val)
         lab = labs[index]
@@ -403,7 +403,7 @@ function gtk_widget(widget::VectorOptions{:ButtonGroup})
     end
 
     ## signal -> widget
-    lift(widget.signal) do values
+    foreach(widget.signal) do values
         
         indices = [findfirst(vals, v) for v in values]
         selectedlabs = labs[indices]
@@ -461,7 +461,7 @@ function gtk_widget(widget::Options{:Select})
     end
     
     ## push! -> update UI
-    lift(widget.signal) do val
+    foreach(widget.signal) do val
         signal_handler_block(selection, id)
         index = findfirst(vals, val)
         iter = Gtk.iter_from_index(store, index)
@@ -628,7 +628,7 @@ Base.append!(parent::MainWindow, items) = map(x -> push!(parent, x), items)
 
 
 ## for displaying an @manipulate object, we need this
-Base.display(x::ManipulateWidget) = lift(a -> show_outwidget(x.w, a), x.a)
+Base.display(x::ManipulateWidget) = foreach(a -> show_outwidget(x.w, a), x.a)
 
 function show_outwidget(w, x)
     x == nothing && return()
