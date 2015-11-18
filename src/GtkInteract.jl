@@ -49,7 +49,7 @@ end
 function VectorOptions{T}(view::Symbol, options::OrderedDict{AbstractString, T};
                           label = "",
                           value=T[],           
-                          signal=Input(value))
+                          signal=Signal(value))
     VectorOptions{view, T}(signal, label, value, options)
 end
 
@@ -87,7 +87,7 @@ type CairoGraphic <: Widget
     obj
 end
 
-cairographic(;width::Int=480, height::Int=400) = CairoGraphic(width, height, Input{Any}(nothing), nothing, nothing)
+cairographic(;width::Int=480, height::Int=400) = CairoGraphic(width, height, Signal{Any}(nothing), nothing, nothing)
 
 
 ## Textarea for output
@@ -103,7 +103,7 @@ type Textarea{T <: AbstractString} <: Widget
 end
 
 function textarea(;width::Int=480, height::Int=400, value::AbstractString="")
-    Textarea(width, height, Input(Any),  value, nothing, nothing)
+    Textarea(width, height, Signal(Any),  value, nothing, nothing)
 end
 
 textarea(value; kwargs...) = textarea(value=value, kwargs...)
@@ -119,7 +119,7 @@ type Label <: Widget
     obj
 end
 
-label(;value="") = Label(Input{Any}, string(value), nothing)
+label(;value="") = Label(Signal{Any}, string(value), nothing)
 label(lab; kwargs...) = label(value=lab, kwargs...)
 
 ## Progress creates a progress bar
@@ -166,7 +166,8 @@ end
 
 function mainwindow(;width::Int=300, height::Int=200, title::AbstractString="") 
     w = MainWindow(width, height, title, nothing, nothing, nothing, nothing, 1)
-    init_window(w)
+    widget = init_window(w)
+    widget
 end
 
 

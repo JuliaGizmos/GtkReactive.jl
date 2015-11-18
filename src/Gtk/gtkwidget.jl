@@ -1,42 +1,32 @@
 ## Code that is Gtk specific
 
 ## Plotting code is package dependent
-#Requires.@require Plots begin
-#    info("requiring plots")
+## Plots should dispatch to underlying code for Immerse, Winston or PyPlot
 
-Base.push!(obj::CairoGraphic, p::Plots.Plot{Plots.ImmersePackage}) = push!(obj.obj, p)
-function Base.push!(c::GtkCanvas, p::Plots.Plot{Plots.ImmersePackage})
 
-    out = Gadfly.render_prepare(p.o[2])
-    out1 = Immerse.render_finish(out; dynamic=false)
-    
-    c.draw = let bad=false
-        function (_)
-            bad && return
-            # Render
-            backend = Immerse.render_backend(c)
-            try
-                Compose.draw(backend, out1)
-            catch e
-                bad = true
-                rethrow(e)
-            end
-        end
-    end
-    Gtk.draw(c)
-end
+## Plots package
 
-Base.push!(obj::CairoGraphic, pc::Plots.Plot{Plots.WinstonPackage}) = push!(obj, pc.o[end])
-function Base.push!(obj::Gtk.GtkCanvas, pc::Plots.Plot{Plots.WinstonPackage})
-    o = pc.o
-    if isa(o, Tuple)
-        o = o[end]
-    end
-    display(obj, o)
-end
+## show_outwidget makes a display widget for a plot
 
-    
-function show_outwidget(w, x::Plots.Plot) 
+## ## For unicode plots we try a label, but doesn't work...
+## function show_outwidget(w, p::Plots.Plot{Plots.UnicodePlotsPackage})
+##      if w.label == nothing
+##         w.label = @GtkLabel("")
+##         setproperty!(w.label, :selectable, true)
+##         setproperty!(w.label, :use_markup, true)
+##         push!(w.window[1], w.label)
+##         showall(w.window)
+##     end
+
+##     ## Fails!
+##     Plots.rebuildUnicodePlot!(p)
+##     out = sprint(io -> writemime(io, "text/plain", p.o))
+##     setproperty!(w.label, :label, out)
+
+## end
+
+## In general use a canvas to display a plot in the main window
+function make_canvas(w::MainWindow, x)
     if w.cg == nothing
         box = w.window[1]
         w.cg = @GtkCanvas(480, 400)
@@ -46,45 +36,68 @@ function show_outwidget(w, x::Plots.Plot)
     end
     push!(w.cg, x)    
 end
-#end
+show_outwidget(w, x::Plots.Plot) = make_canvas(w, x)
+    
+Base.push!(obj::CairoGraphic, p::Plots.Plot) = push!(obj.obj, p)
+Base.push!(c::GtkCanvas, p::Plots.Plot) = push!(c, p.o[2])
 
-## need to check this, as we get error otherwise!
 
+## Individual Packages
+
+
+## Immerse
+Requires.@require Immerse begin
+    eval(Expr(:using, :Gadfly))
+    eval(Expr(:using, :Compose))
+
+    ## same as Plots.Plot, make canvas window
+    show_outwidget(w::GtkInteract.MainWindow, x::Gadfly.Plot) = make_canvas(w, x)
+
+    Base.push!(obj::CairoGraphic, p::Gadfly.Plot) = Winston.display(obj.obj, p)    
+    function Base.push!(c::GtkCanvas, p::Gadfly.Plot)
+        out = Immerse.render_finish(Gadfly.render_prepare(p); dynamic=false)
+        c.draw = let bad=false
+            function (_)
+                bad && return
+                # Render
+                backend = Immerse.render_backend(c)
+                try
+                    Compose.draw(backend, out)
+                catch e
+                    bad = true
+                    rethrow(e)
+                end
+            end
+        end
+        Gtk.draw(c)
+    end
+
+end
+
+
+
+## Winston
+## Winston is a problem if `ENV["WINSTON_OUTPUT"] = :gtk` is not set *beforehand*
 Requires.@require Winston begin
     ENV["WINSTON_OUTPUT"] = :gtk    
-    Base.push!(obj::CairoGraphic, pc::Winston.PlotContainer) = Winston.display(obj.obj, pc)
 
+    show_outwidget(w, x::Winston.FramedPlot) = make_canvas(w, x)
     
-    function show_outwidget(w, x::Winston.FramedPlot) 
-        if w.cg == nothing
-            box = w.window[1]
-            w.cg = @GtkCanvas(480, 400)
-            setproperty!(w.cg, :vexpand, true)
-            push!(box, w.cg)
-            showall(w.window)
-        end
-        Winston.display(w.cg, x)    
-    end
+    Base.push!(obj::CairoGraphic, pc::Winston.PlotContainer) = Winston.display(obj.obj, pc)    
+    Base.push!(c::GtkCanvas, pc::Winston.PlotContainer) = Winston.display(c, pc)
 end
 
-## This is for Gadfly, Compose, GtkInteract -- super slow!!!
+## Gadfly 
 Requires.@require Gadfly begin
-    ## XXX
-end
+    info("Gadfly support is through Immerse")
 
-Requires.@require Compose begin
-    using Compose, Cairo
-    function Base.push!(obj::CairoGraphic, co::Compose.Context)
-        ## XXX Must clear old before drawing new XXX
-        c = obj.obj
-        Gtk.draw(c -> Compose.draw(CAIROSURFACE(c.back),co), c)
-    end
 end
 
 
 Requires.@require PyPlot begin
-    using PyPlot
-    pygui(false)
+    info("PyPlot support is very buggy!")
+    
+    PyPlot.pygui(false)
     
 """ 
     
@@ -105,25 +118,25 @@ end
 ```
 """
 function withfig(actions::Function, f::PyPlot.Figure; clear=true)
-        ax_save = gca()
-        figure(f[:number])
-        finalizer(f, close)
-        try
-            if clear && !isempty(f)
-                clf()
-            end
-            actions()
-        catch
-            rethrow()
-        finally
-            try
-                sca(ax_save) # may fail if axes were overwritten
-            end
-            ##Main.IJulia.undisplay(f) ## IJulia display queue
+    ax_save = PyPlot.gca()
+    PyPlot.figure(f[:number])
+    finalizer(f, close)
+    try
+        if clear && !isempty(f)
+            PyPlot.clf()
         end
-        return f
+        actions()
+    catch
+        rethrow()
+    finally
+        try
+            PyPlot.sca(ax_save) # may fail if axes were overwritten
+        end
+        ##Main.IJulia.undisplay(f) ## IJulia display queue
     end
-    export withfig
+    return f
+end
+export withfig
 
     " How to show a pyplot figure "
     function show_outwidget(w, x::PyPlot.Figure) 
@@ -173,7 +186,7 @@ function gtk_widget(widget::Checkbox)
         push!(widget.signal, getproperty(obj, :active, Bool))
     end
 
-    foreach(widget.signal) do val
+    Reactive.foreach(widget.signal) do val
         signal_handler_block(obj, id)
         setproperty!(obj, :active, val)
         signal_handler_unblock(obj, id)
@@ -190,14 +203,25 @@ function gtk_widget(widget::Slider)
     Gtk.G_.size_request(obj, 200, -1)
     Gtk.G_.value(obj, widget.value)
 
+    ## This *should* work, but doesn't seem to...
+    ## ## https://github.com/JuliaLang/Gtk.jl/blob/master/doc/more_signals.md
+    ## function scale_cb(scaleptr::Ptr, user_data)
+    ##     val = G_.value(obj)
+    ##     push!(widget.signal, val)
+    ##     nothing
+    ## end
+    ## id = signal_connect(scale_cb, obj, "value-changed", Void, (), false, nothing)
+
+    
     ## widget -> signal
+    ## this might be an issue #161
     id = signal_connect(obj, :value_changed) do obj, args...
         val = Gtk.G_.value(obj)
         push!(widget.signal, val)
     end
     
     ## 
-    foreach(widget.signal) do val
+    Reactive.foreach(widget.signal) do val
         signal_handler_block(obj, id)
         Gtk.G_.value(obj, val)
         signal_handler_unblock(obj, id)
@@ -219,7 +243,7 @@ function gtk_widget(widget::ToggleButton)
     end
 
     ## signal -> widget
-    foreach(widget.signal) do val
+    Reactive.foreach(widget.signal) do val
         signal_handler_block(obj, id)
         setproperty!(obj, :active, val)
         signal_handler_unblock(obj, id)
@@ -243,7 +267,7 @@ function gtk_widget(widget::Textbox)
 
     
     ## signal -> widget
-    foreach(widget.signal) do val
+    Reactive.foreach(widget.signal) do val
         signal_handler_block(obj, id)
         setproperty!(obj, :text, string(val))
         signal_handler_unblock(obj, id)
@@ -268,7 +292,7 @@ function gtk_widget(widget::Options{:Dropdown})
     end
 
     ## signal -> widget
-    foreach(widget.signal) do val
+    Reactive.foreach(widget.signal) do val
         signal_handler_block(obj, id)
         index = getproperty(obj, :active, Int) + 1
         val = findfirst(collect(values(widget.options)), val)
@@ -310,7 +334,7 @@ function gtk_widget(widget::Options{:RadioButtons})
     showall(obj)
 
     ## signal -> widget
-    foreach(widget.signal) do val
+    Reactive.foreach(widget.signal) do val
         [signal_handler_block(btn, id) for (btn,id) in ids]
         selected = findfirst(collect(values(widget.options)), val)
         setproperty!(btns[selected], :active, true)
@@ -354,7 +378,7 @@ function gtk_widget(widget::Options{:ToggleButtons})
     end
 
     ## signal -> widget
-    foreach(widget.signal) do val
+    Reactive.foreach(widget.signal) do val
         ## get index from val
         index = findfirst(vals, val)
         lab = labs[index]
@@ -403,7 +427,7 @@ function gtk_widget(widget::VectorOptions{:ButtonGroup})
     end
 
     ## signal -> widget
-    foreach(widget.signal) do values
+    Reactive.foreach(widget.signal) do values
         
         indices = [findfirst(vals, v) for v in values]
         selectedlabs = labs[indices]
@@ -461,7 +485,7 @@ function gtk_widget(widget::Options{:Select})
     end
     
     ## push! -> update UI
-    foreach(widget.signal) do val
+    Reactive.foreach(widget.signal) do val
         signal_handler_block(selection, id)
         index = findfirst(vals, val)
         iter = Gtk.iter_from_index(store, index)
@@ -489,7 +513,7 @@ function gtk_widget(widget::CairoGraphic)
     ## how to make winston draw here? Here we store canvas in obj and override push!
     ## is there a more natural way??
     widget.obj = obj
-    widget.signal = Input(widget)
+    widget.signal = Signal(widget)
     widget
 end
 
@@ -512,7 +536,8 @@ function gtk_widget(widget::Textarea)
     setproperty!(widget.buffer, :text, widget.value)
 
     widget.obj = block
-    widget.signal = Input(widget)
+    #    widget.signal = Input(widget)
+    widget.signal = Signal(widget)
     widget
 end
 
@@ -531,7 +556,8 @@ function gtk_widget(widget::Label)
     setproperty!(obj, :use_markup, true)
 
     widget.obj = obj
-    widget.signal = Input(widget)
+    #    widget.signal = Input(widget)
+    widget.signal = Signal(widget)
     widget
 end
 
@@ -556,7 +582,8 @@ function gtk_widget(widget::Progress)
     
     widget.obj = obj
     push!(widget, widget.value)
-    widget.signal = Input(widget)
+    #    widget.signal = Input(widget)
+    widget.signal = Signal(widget)
     widget
 end
 
@@ -619,7 +646,7 @@ end
 function Base.push!(parent::MainWindow, obj::Widget) 
     widget = gtk_widget(obj)
 
-    parent.obj[2, parent.nrows] = (:obj in names(obj)) ? obj.obj : widget
+    parent.obj[2, parent.nrows] = (:obj in fieldnames(obj)) ? obj.obj : widget
     parent.nrows = parent.nrows + 1
     showall(parent.window)
 end
@@ -628,9 +655,10 @@ Base.append!(parent::MainWindow, items) = map(x -> push!(parent, x), items)
 
 
 ## for displaying an @manipulate object, we need this
-Base.display(x::ManipulateWidget) = foreach(a -> show_outwidget(x.w, a), x.a)
+Base.display(x::ManipulateWidget) = Reactive.foreach(a -> show_outwidget(x.w, a), x.a)
 
 function show_outwidget(w, x)
+            
     x == nothing && return()
     if w.label == nothing
         w.label = @GtkLabel("")
