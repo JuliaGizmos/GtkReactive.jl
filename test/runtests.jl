@@ -9,16 +9,14 @@ end
 
 
 ## tests widgets
-using Reactive
 opts = ["one", "two", "three"]
 # write your own tests here
-w = mainwindow(title="test")
 sl = slider(1:10)         # one from range
 cb = checkbox(true, label="check")      # bool
 tb = togglebutton(true, label="toggle") # bool
 dd = dropdown(opts)       # 1 of n
 rbs = radiobuttons(opts)  # 1 of n
-#sel = select(opts)        # 1 of n
+sel = GtkInteract.select(opts, label="select")        # 1 of n
 tbs = togglebuttons(opts) # 1 of n
 bg = buttongroup(opts)    # 0,1,...,n of n
 
@@ -26,18 +24,21 @@ bg = buttongroup(opts)    # 0,1,...,n of n
 btn = button("button")
 out = label()
 
-controls = [sl, cb, tb, dd, rbs,  tbs, bg] #sel,
-append!(w, controls)
-append!(w, [btn, out])
+controls = [sl, cb, tb, dd, rbs,  tbs, bg, sel]
 
-lift(controls...) do sl, cb, tb, dd, rbs, tbs, bg #  sel,
-    push!(out, """
-          $(string(sl))
-          $(string(cb))
-          $(string(tb))
-          $(string(dd))
-          $(string(rbs))
-          $(string(tbs))
-          $(string(bg))
-          """)  #          $(string(sel))
-end
+w = window(vbox(controls...), hbox(halign(:end,pad(10, btn))))
+
+
+## This is failing
+## using Reactive
+## Reactive.foreach(controls...) do sl, cb, tb, dd, rbs, tbs, bg #  sel,
+##     push!(out, """
+##           $(string(sl))
+##           $(string(cb))
+##           $(string(tb))
+##           $(string(dd))
+##           $(string(rbs))
+##           $(string(tbs))
+##           $(string(bg))
+##           """)  #          $(string(sel))
+## end

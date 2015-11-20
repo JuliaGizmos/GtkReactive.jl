@@ -33,9 +33,22 @@ This produces a layout along the lines of:
 
 ![Imgur](http://i.imgur.com/1MiynXf.png)
 
+Using `Immerse` directly is also in the design (though currently there is an issue)
+
+```
+using GtkInteract, Immerse
+@manipulate for ϕ = 0:π/16:4π, f = Dict(:sin=>sin, :cos=>cos)
+    xs = linspace(0, 25)
+    ys = map(θ -> f(θ + ϕ), xs)
+    Immerse.plot(x=xs, y=ys)
+end
+```
+
+(The issues is the canvas does not get refreshed.)
+
 ## Text output
 
-Text output can also be displayed (though not as nicely as in `IJulia` due to HTML and LaTeX support):
+Text output can also be displayed (though not as nicely as in `IJulia` due to a lack of HTML support):
 
 ```
 using GtkInteract, SymPy
@@ -52,14 +65,26 @@ The basic widgets can also be used by hand to create simple GUIs:
 
 ```
 using GtkInteract
-using Reactive, Plots
+
 w = mainwindow(title="Simple test")
 n = slider(1:10, label="n")
 m = slider(11:20, label="m")
 cg = cairographic()
 
 append!(w, [n, m, cg])		# layout widgets
+```
 
+
+More complicated layouts are possible using a few layouts similar to those in the `Escher` package:
+
+```
+window(vbox(hbox(n, m),
+                     grow(cg)),
+              title="Some title")
+```
+
+
+```
 @map push!(cg, plot(sin, n*pi, m*pi))
 ```
 
