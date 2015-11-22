@@ -10,9 +10,6 @@ using DataStructures
 using Requires
 using Compat
 
-## For now use Plots, Can also use Immerse directly (so Gadfly), Winston, and *possible* PyPlot
-using Plots
-
 
 ## selectively import pieces of `Interact`
 import Interact

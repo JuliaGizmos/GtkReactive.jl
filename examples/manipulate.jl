@@ -7,7 +7,7 @@ backend(:immerse)
    (n,x)
 end
 
-## Similary, a plot can be made
+## Similary, a plot can be made. Here we use Immerse through Plots:
 @manipulate for n=1:10
     plot(sin, 0, n*pi)
 end
@@ -35,7 +35,14 @@ end
     end
 end
 
-   
+## immerse works as directly, as well. In this case, the immerse toolbar is available:
+
+using Immerse
+@manipulate for n=1:10
+    Immerse.plot(x=rand(n*10), y=rand(n*10))
+end
+
+
 # Text output
 ## The basic text output uses a label.
 ## This allows for some PANGO markup
@@ -78,8 +85,8 @@ end
 
 ## We can have more than one output widget
 @manipulate for n=1:10, cg1=cairographic(width=300, height=200), cg2=cairographic(width=300, height=200)
-    push!(cg1, plot(cos, 0, n*pi))
-    push!(cg2, plot(sin, 0, n*pi))
+    push!(cg1, Plots.plot(cos, 0, n*pi))
+    push!(cg2, Plots.plot(sin, 0, n*pi))
     nothing
 end
 
@@ -95,7 +102,7 @@ end
 ## An example of @vchuravy from https://github.com/JuliaLang/Interact.jl/issues/36
 using Distributions
 @manipulate for α in 1:100, β = 1:100
-    plot(x -> pdf(Beta(α, β), x), 0, 1)
+    Plots.plot(x -> pdf(Beta(α, β), x), 0, 1)
 end
 
 ## An example by @stevengj (https://github.com/JuliaLang/Interact.jl/issues/36)

@@ -59,6 +59,7 @@ x = symbols("x")
 end
 ```
 
+
 ## basic widgets
 
 The basic widgets can also be used by hand to create simple GUIs:
@@ -83,7 +84,7 @@ window(vbox(hbox(n, m),
               title="Some title")
 ```
 
-we can use `Reactive.map`to propogate changes in the controls to update the graphic window:
+We can use `Reactive.map`to propogate changes in the controls to update the graphic window:
 
 ```
 map(n,m) do n,m
@@ -91,7 +92,12 @@ map(n,m) do n,m
 end
 ```
 
-For now, there are no layout options.
+This basic usage follows this pattern: we map over the input widgets
+and within the function passed to map (through the `do` notation
+above), we `push!` some combination of the values onto one or more
+output widgets, such as `cg` above. The `@manipulate` macro basically
+figure out an output widget from the last value found in the code
+block and pushes that value onto the output widget.
 
 ## Installation
 

@@ -18,34 +18,31 @@ function make_canvas(w::MainWindow, x)
     push!(w.cg, x)    
 end
 
-## In general use a canvas to display a plot in the main window
-show_outwidget(w::GtkInteract.MainWindow, x::Plots.Plot) = make_canvas(w, x)
+Requires.@require Plots begin
+    ## In general use a canvas to display a plot in the main window
+    show_outwidget(w::GtkInteract.MainWindow, x::Plots.Plot) = make_canvas(w, x)
     
-Base.push!(obj::CairoGraphic, p::Plots.Plot) = push!(obj.obj, p)
-Base.push!(c::GtkCanvas, p::Plots.Plot) = push!(c, p.o[2])
+    Base.push!(obj::CairoGraphic, p::Plots.Plot) = push!(obj.obj, p)
+    Base.push!(c::GtkCanvas, p::Plots.Plot) = push!(c, p.o[2])
 
-## show_outwidget makes a display widget for a plot
+    ## show_outwidget makes a display widget for a plot
 
-## ## For unicode plots we try a label, but doesn't work...
-## function show_outwidget(w::GtkInteract.MainWindow, p::Plots.Plot{Plots.UnicodePlotsPackage})
-##      if w.label == nothing
-##         w.label = @GtkLabel("")
-##         setproperty!(w.label, :selectable, true)
-##         setproperty!(w.label, :use_markup, true)
-##         push!(w.window[1], w.label)
-##         showall(w.window)
-##     end
-
-##     ## Fails!
-##     Plots.rebuildUnicodePlot!(p)
-##     out = sprint(io -> writemime(io, "text/plain", p.o))
-##     setproperty!(w.label, :label, out)
-
-## end
-
-
-## Individual Packages
-
+    ## ## For unicode plots we try a label, but doesn't work...
+    ## function show_outwidget(w::GtkInteract.MainWindow, p::Plots.Plot{Plots.UnicodePlotsPackage})
+    ##      if w.label == nothing
+    ##         w.label = @GtkLabel("")
+    ##         setproperty!(w.label, :selectable, true)
+    ##         setproperty!(w.label, :use_markup, true)
+    ##         push!(w.window[1], w.label)
+    ##         showall(w.window)
+    ## end
+    
+    ##     ## Fails!
+    ##     Plots.rebuildUnicodePlot!(p)
+    ##     out = sprint(io -> writemime(io, "text/plain", p.o))
+    ##     setproperty!(w.label, :label, out)
+    ## end
+end
 
 ## Immerse
 ## XXX This has issues, as the canvas doen't get refreshed between draws
