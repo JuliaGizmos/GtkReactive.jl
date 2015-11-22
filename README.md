@@ -33,7 +33,7 @@ This produces a layout along the lines of:
 
 ![Imgur](http://i.imgur.com/1MiynXf.png)
 
-Using `Immerse` directly is also in the design (though currently there is an issue)
+Using `Immerse` directly is also possible:
 
 ```
 using GtkInteract, Immerse
@@ -43,8 +43,6 @@ using GtkInteract, Immerse
     Immerse.plot(x=xs, y=ys)
 end
 ```
-
-(The issues is the canvas does not get refreshed.)
 
 ## Text output
 
