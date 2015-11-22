@@ -1,5 +1,6 @@
 using GtkInteract
-using Winston
+using Plots
+backend(:immerse)
 
 ## Manipulate can display text output in a label
 @manipulate for n=1:10, x=1:10
@@ -7,45 +8,34 @@ using Winston
 end
 
 ## Similary, a plot can be made
-## (It is important the `Winston` have the `:gtk` output type, which may be achieved
-## by loading `GtkInteract` first).
 @manipulate for n=1:10
     plot(sin, 0, n*pi)
 end
 
 
 ## Unicode works, as does passing along functions through Options.
-@manipulate for ϕ = 0:π/16:4π, f = [:sin => sin, :cos => cos]
+@manipulate for ϕ = 0:π/16:4π, f = Dict(:sin => sin, :cos => cos)
    plot(x -> f(x + ϕ), 0, pi)
 end
     
 
-## Can use oplot for adding layers
+## Can use plot! for adding layers
 @manipulate for n=1:10
     plot(sin, 0, n*pi)
-    oplot(cos, 0, n*pi, "b")
+    plot!(cos, 0, n*pi, color=:red)
 end
 
 ## and we can combine (mimicing an example from Interact)
-@manipulate for ϕ = 0:π/16:4π, f = [:sin => sin, :cos => cos], both = false
+@manipulate for ϕ = 0:π/16:4π, f = Dict(:sin => sin, :cos => cos), both = false
     if both
         plot(θ -> sin(θ + ϕ), 0, 8)
-	oplot(θ -> cos(θ + ϕ), 0, 8, "b")
+	plot!(θ -> cos(θ + ϕ), 0, 8, color=:red)
     else
        plot(θ -> f(θ + ϕ), 0, 8)
     end
 end
 
-
-## can use lower level Winston commands
-@manipulate for n=1.0:0.1:5.0, m=1.0:0.1:5.0
-    t = linspace(0, 2pi, 1000)
-    xs = map(x -> sin(n*pi*x), t)
-    ys = map(x -> cos(m*pi*x), t)
-    p = Winston.FramedPlot(title="parametric")
-    Winston.add(p, Winston.Curve(xs, ys))
-end
-                 
+   
 # Text output
 ## The basic text output uses a label.
 ## This allows for some PANGO markup
@@ -62,7 +52,6 @@ x = Sym("x")
 @manipulate for n=1:10
     a = diff(sin(x^2), x, n)
     a
-    SymPy.latex(a)
     jprint(a)
 end
 
@@ -89,8 +78,8 @@ end
 
 ## We can have more than one output widget
 @manipulate for n=1:10, cg1=cairographic(width=300, height=200), cg2=cairographic(width=300, height=200)
-    push!(cg1, Winston.plot(cos, 0, n*pi))
-    push!(cg2, Winston.plot(sin, 0, n*pi))
+    push!(cg1, plot(cos, 0, n*pi))
+    push!(cg2, plot(sin, 0, n*pi))
     nothing
 end
 
@@ -104,7 +93,7 @@ end
 
 
 ## An example of @vchuravy from https://github.com/JuliaLang/Interact.jl/issues/36
-using Distributions, Winston
+using Distributions
 @manipulate for α in 1:100, β = 1:100
     plot(x -> pdf(Beta(α, β), x), 0, 1)
 end

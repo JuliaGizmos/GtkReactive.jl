@@ -83,9 +83,12 @@ window(vbox(hbox(n, m),
               title="Some title")
 ```
 
+we can use `Reactive.map`to propogate changes in the controls to update the graphic window:
 
 ```
-@map push!(cg, plot(sin, n*pi, m*pi))
+map(n,m) do n,m
+  push!(cg, plot(sin, n*pi, m*pi))
+end
 ```
 
 For now, there are no layout options.

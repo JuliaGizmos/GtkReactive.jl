@@ -1,33 +1,120 @@
-## one can use the widgets directly
-## (there is no real choice for layout beyond push!)
+## The creation of *simple* GUIs usually involves 3 steps:
+## * create the controls
+## * layout the controls
+## * propogate changes in a control to some output
 
-using GtkInteract, Reactive, Winston
+## With `GtkInteract`, the first two are covered by using patterns from
+## `Interact` and `Escher` and the latter by patterns from `Reactive.
 
-## This is basically what @manipulate does
+
+using GtkInteract, Reactive, Plots
+backend(:immerse)
+
+
+## To create controls is done by calling the constructor. The available controls
+## basically map some data into GUI element:
+
+n = slider(1:10, label="n")
+rb = radiobutton(["one", "two", "three"], label="radio")
+cb = checkbox(true, label="checkbox")
+
+## the `Interact.widget` function will try to read your mind:
+
+Interact.widget(1:4) # a slider
+Interact.widget(true) # a check box
+Interact.widget(["one", "two", "three"]) # togglebuttons
+
+
+## To layout the controls we first make a parent window, and then add
+## widgets to that.  We have two types of parent windows produced by
+## `mainwindow` and `window`. The mainwindow uses a fixed "form"
+## layout for simplicity. One simply appends the controls to the
+## mainwindow. The `label` property of the widget, is used to label
+## the control.
+
 w = mainwindow(title="Simple test")
-n = slider(1:10, label="n"); push!(w, n)
-m = slider(11:20, label="m"); push!(w, m)
-cg = cairographic(); push!(w, cg)
+n = slider(1:10, label="n") 
+m = slider(11:20, label="m")
+cg = cairographic()
+append!(w, [n,m,cg])
 
-@lift push!(cg, plot(sin, n*pi, m*pi))
+
+## Other layouts are available. The style is borrowed from Escher, though not all the functionality
+## there is implemented. For this use, instead of `mainwindow`, a `window` object is used.
+## For example, we have:
+
+n = slider(1:10, label="n:")
+m = slider(11:20, label="m:")
+cg = cairographic()
+w = window(hbox(vbox(hbox(label(n.label), n),
+                     hbox(label(m.label), m)
+                    ),
+               padding(5, cg)); title = "Simple test")
 
 
-## A pattern where the update only is related to a button push, and not each control
-## is desired if the update is expensive to compute (With sliders it may be computed up to 4 times during the move).
+## This uses boxes (`hbox` and `vbox`) to orangize child widgets. The
+## structure above is that a `hbox` is used to hold a box that has the
+## two slider controls and the graphic window. A vertical box is used to
+## layout the slider controls. Unlike the layout with `mainwindow`, the
+## labels must be managed by the programmer. Hence the constructs like
+## `hbox(label(n.label), n)` which packs a label next to the control.  To
+## adjust layout, there are a few attributes. Illustrated above is
+## `padding`, which adds 5pixels of "padding" around the widget used to
+## display the graphic.
+
+## Either way, once the widgets are made and layed out, they can be connected using Reactive signals:
+
+map(n, m) do n,m
+    push!(cg, plot(sin, n*pi, m*pi))
+end
+
+## the map function propogates changes to the underlying widgets to
+## the function call.
+##
+## The `map` functon (`map(fn, widgets...)`) takes
+## the widgets and allows them to be referenced by their values. That
+## is, the use of `n` and `m` within the `plot` command uses the
+## values in the controls `n` and `m`.
+##
+## With `GtkInteract`, there are
+## two types of widgets: input widgets and output widgets. The
+## graphics device is an output widget. For these, values are
+## `push!`ed onto them. So the call `push!(cg, ...)` should update the
+## graphic using the generated plot. Other output widgets include
+## `immersefigure`, and `textarea`.
+
+
+## A pattern where the update only is related to a button push, and
+## not each control is desired if the update is expensive to compute
+## (With sliders it may be computed up to 4 times during the move).
+
 w = mainwindow(title="Simple test")
-n = slider(1:10, label="n"); push!(w, n)
-m = slider(1:10, label="m"); push!(w, m)
-btn = button("update"); push!(w, btn)
+n = slider(1:10, label="n")
+m = slider(1:10, label="m")
+btn = button("update")
+append!(w, [n, m, btn])
 
-## this is really ugly... but click on the button to print the product..
-lift(_ -> println(signal(n).value * signal(m).value), btn)
+## We can connect to the button to pass along the values of the other widget:
+map(btn) do _
+    println(n.value * m.value)
+end
 
 
-
-
+## Notice we used `n.value` and not the more natural `n`.
+### XXX THIS PATTERN IS CURRENTLY NOT WORKING XXX
 ## This pattern -- from Shasi
 ## https://groups.google.com/forum/?fromgroups#!topic/julia-users/Ur5b2_dsJyA
 ## -- is a much nicer way to react to a button, but not other controls:
+
+w = mainwindow(title="Simple test")
+n = slider(1:10, label="n")
+m = slider(1:10, label="m")
+btn = button("update")
+append!(w, [n, m, btn])
+
+vals = map(tuple,n, m)
+
+map(apply(println, vals), sampleon(btn, vals))
 
 using Reactive, GtkInteract, Winston
 
@@ -37,17 +124,23 @@ replot = button("replot")
 cg = cairographic()
 
 ## display
-w = mainwindow()
-append!(w, [α, β, replot, cg])
-
-## connect 
-coeffs = sampleon(replot, lift(tuple, α, β))
+hbox(vbox(hbox(label(α.label),α),
+          hbox(label(β.label), β),
+          replot),
+     padding(5, cg)) |> window(title="layout")
+     
+## We can then connect the button as follows:
+coeffs = sampleon(replot, map(tuple, α, β))
 
 function draw_plot(α, β)
     push!(cg, plot(x -> α + sin(x + β), 0, 2pi))
 end
 
-@lift apply(draw_plot, coeffs)
+map(coeffs) do vals
+    apply(draw_plot, vals)
+end
+
+## XXX THE PATTERN ABOVE IS NOT WORKING XXX
 
 
 
@@ -56,27 +149,29 @@ end
 ## kitchen sink of control widgets
 ##
 using DataStructures
-a = OrderedDict(Symbol, Int)
+a = OrderedDict{Symbol, Int}()
 a[:one]=1; a[:two] = 2; a[:three] = 3
 
 l = Dict()
-l[:slider] = slider(1:10, label="slider")
-l[:button] = button("button label")
-l[:checkbox] = checkbox(true, label="checkbox")
-l[:togglebutton] = togglebutton(true, label="togglebutton")
-l[:dropdown] = dropdown(a, label="dropdown")
-l[:radiobuttons] = radiobuttons(a, label="radiobuttons")
-l[:select] = Interact.select(a, label="select")
+l[:slider]        = slider(1:10, label="slider")
+l[:button]        = button("button label")
+l[:checkbox]      = checkbox(true, label="checkbox")
+l[:togglebutton]  = togglebutton(true, label="togglebutton")
+l[:dropdown]      = dropdown(a, label="dropdown")
+l[:radiobuttons]  = radiobuttons(a, label="radiobuttons")
+l[:select]        = selectlist(a, label="select")  # aka Interact.select
 l[:togglebuttons] = togglebuttons(a, label="togglebuttons")
-l[:buttongroup] = buttongroup(a, label="buttongroup") # non exclusive
-l[:textbox] = textbox("text goes here", label="textbox")
+l[:buttongroup]   = buttongroup(a, label="buttongroup") # non exclusive
+l[:textbox]       = textbox("text goes here", label="textbox")
 
 w = mainwindow()
 append!(w, values(l))
 
+
+## ANother out put widget
 ## progress bar
 ##
-using GtkInteract, Reactive
+using GtkInteract
 w = mainwindow()
 b = button("press")
 pb = progress()
@@ -84,8 +179,8 @@ pb = progress()
 append!(w, [pb, b])
 
 # connect button press to update
-lift(b) do _
-    push!(pb, ifloor(100*rand()))
+map(b) do _
+    push!(pb, floor(Integer, 100*rand()))
 end
 
 

@@ -19,14 +19,14 @@ rbs = radiobuttons(opts)  # 1 of n
 sel = GtkInteract.select(opts, label="select")        # 1 of n
 tbs = togglebuttons(opts) # 1 of n
 bg = buttongroup(opts)    # 0,1,...,n of n
-
+txtb = textbox("text goes here", label="textbox")
 
 btn = button("button")
 out = label()
 
 controls = [sl, cb, tb, dd, rbs,  tbs, bg, sel]
 
-w = window(vbox(controls...), hbox(halign(:end,pad(10, btn))))
+w = window(vbox(controls...), hbox(halign(:end,padding(10, btn))))
 
 
 ## This is failing

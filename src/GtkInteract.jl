@@ -1,12 +1,7 @@
 module GtkInteract
 
-
-## Bring in some of the easy features of Interact to work with Gtk and Winston
-
 ## TODO:
-## * work on sizing, layout
-## * once `Interact` works out layout containers, include these
-
+## * more layout?
 
 
 using Gtk
@@ -15,7 +10,7 @@ using DataStructures
 using Requires
 using Compat
 
-## For now use Plots, :winston and Gtk
+## For now use Plots, Can also use Immerse directly (so Gadfly), Winston, and *possible* PyPlot
 using Plots
 
 
@@ -28,14 +23,15 @@ import Interact: Options, dropdown, radiobuttons, togglebuttons, select
 import Interact: Checkbox, checkbox
 import Interact: Textbox, textbox
 import Interact: Widget, InputWidget
-import Interact: widget
-
+import Interact: widget, signal
+import Reactive: foreach
 
 ## exports (most widgets of `Interact` and the modified `@manipulate` macro)
-export slider, button, checkbox, togglebutton, dropdown, radiobuttons, select, textbox, textarea, togglebuttons
+export slider, button, checkbox, togglebutton, dropdown, radiobuttons, selectlist, textbox, textarea, togglebuttons
 export @manipulate
 export buttongroup, cairographic,  label, progress
-export mainwminwindow
+export mainwindow
+export foreach
 
 ## Add a non-exclusive set of buttons
 ## Code is basically the Options code of Interact
@@ -67,19 +63,33 @@ function VectorOptions{K, V}(view::Symbol, options::Associative{K, V};
     VectorOptions(view, opts; kwargs...)
 end
 
-## A `buttongroup` is like `togglebuttons` only one can select 0, 1, or more of the items.
+
+"""
+A `buttongroup` is like `togglebuttons` only one can select 0, 1, or more of the items.
+"""
 buttongroup(opts; kwargs...) = VectorOptions(:ButtonGroup, opts; kwargs...)
 
-### Output widgets
-##
-## These have values `push!`ed onto them. They do not accept user input like controls do.
+## Output widgets
 
-## CairoGraphic. 
-##
-## for a plot window
-##
-## Replace plot via `push!(cg, winston_plot_object)`
-type CairoGraphic <: Widget
+
+"""
+
+Output widgets are different from input widgets, in that they do not have signals propogate when they
+are changed. Rather, they are for display.
+
+Values are `push!`ed onto the widget to update the display.
+"""
+abstract OutputWidget <: Widget
+
+Interact.signal(w::OutputWidget) = w.signal
+"""
+CairoGraphic. 
+
+for a plot window
+
+Replace plot via `push!(cg, winston_plot_object)`
+"""
+type CairoGraphic <: OutputWidget
     width::Int
     height::Int
     signal
@@ -87,13 +97,32 @@ type CairoGraphic <: Widget
     obj
 end
 
-cairographic(;width::Int=480, height::Int=400) = CairoGraphic(width, height, Signal{Any}(nothing), nothing, nothing)
+cairographic(;width::Int=480, height::Int=400) = CairoGraphic(width, height,nothing, nothing, nothing)
 
 
-## Textarea for output
-## 
-## Replace text via `push!(obj, value)`
-type Textarea{T <: AbstractString} <: Widget
+type ImmerseFigure <: OutputWidget
+    width::Int
+    height::Int
+    signal
+    value
+    obj
+    toolbar
+    cnv
+end
+
+"""
+
+Add area for an `Immerse` graphic
+
+"""
+immersefigure(;width::Int=480, height::Int=400) = ImmerseFigure(width, height, nothing, nothing, nothing,nothing, nothing)
+
+"""
+Textarea for output
+ 
+Replace text via `push!(obj, value)`
+"""
+type Textarea{T <: AbstractString} <: OutputWidget
     width::Int
     height::Int
     signal
@@ -109,29 +138,30 @@ end
 textarea(value; kwargs...) = textarea(value=value, kwargs...)
 
 
-## label. 
-##
-## Like text area, but is clearly not editable and allows for PANGO markup.
-## Replace text via `push!(obj, value)`
-type Label <: Widget
+type Label <: OutputWidget
     signal
     value::AbstractString
     obj
 end
+"""
+label. 
 
+Like text area, but is clearly not editable and allows for PANGO markup.
+Replace text via `push!(obj, value)`
+"""
 label(;value="") = Label(Signal{Any}, string(value), nothing)
 label(lab; kwargs...) = label(value=lab, kwargs...)
 
-## Progress creates a progress bar
-##
-## `push!` values onto it where `value` is within `[first(range), last(range)]`
-type Progress <: Widget
+type Progress <: OutputWidget
     signal
     value
     range::Range
     obj
 end
 
+## Progress creates a progress bar
+##
+## `push!` values onto it where `value` is within `[first(range), last(range)]`
 progress(args...) = Progress(args...)
 function progress(;label="", value=0, range=0:100)
     Progress(nothing, value, range, nothing)
@@ -148,7 +178,8 @@ function widget(x::Symbol, args...)
     widget_dict[x]()
 end
 
-### Container(s)
+##################################################
+### Container(s) and Layout
 ##
 ## We have some exports here to trim down. These kinda follow the layout of Escher
 ## but Gtk is not as rich as HTML
@@ -163,7 +194,7 @@ export size,
        vskip, hskip,
        grow, shrink, flex,
        align, halign, valign,
-       paad,
+       padding,
        vbox, hbox,
        tabs,
        window
@@ -187,7 +218,7 @@ immutable Size <: LayoutAttribute
     h_px::Length
 end
 
-Base.size(w::Int, h::Int, lyt::Layout) = Size(lyt, "", "", Length{:px}(w), Length{:px}(h))
+Base.size(w::Int, h::Int, lyt) = Size(lyt, "", "", Length{:px}(w), Length{:px}(h))
 Base.size(w::Int, h::Int) = lyt -> size(w, h, lyt)
 
 "Width of widget"
@@ -211,20 +242,35 @@ height(px::Int) = w -> height(px, w)
 #maxheight(w, x...) = height("max", w, x...)
 
 
-vksip(y, lyt::Layout) = size(0, y, lyt)
-vskip(y) = lyt -> vskip(y, lyt)
-hskip(y, lyt::Layout) = size(y, 0, lyt)
-hskip(y) = lyt -> hskip(y, lyt)
+vksip(y) = size(0, y, empty)
+hskip(y) = size(y, 0, empty)
 
 ## flex
 immutable Grow <: LayoutAttribute
     tile
     factor
+    direction
 end
+
 ## factor in [0,1]
-grow(factor::Real, tile) = Grow(tile, factor)
+"""
+
+Have widget expand if space is available
+
+* `grow(widget)` expand
+* `grow(factor, widget)` use factor to determine growth. Only 0 and 1 are used
+
+Use a direction to constrain growth to one direction:
+
+* `grow(:horizontal, widget)` (also `:vertical`)
+
+"""
+grow(factor::Real, tile) = Grow(tile, factor, [:horizontal,:vertical])
 grow(factor::Real) = tile -> grow(factor, tile)
 grow(tile) = grow(1.0, tile)
+grow(direction::Vector{Symbol}, factor::Real, tile) = Grow(tile, factor, direction)
+grow(direction::Symbol, factor::Real, tile) = grow([direction;], factor, tile)
+grow(direction::Symbol, tile) = grow([direction;], 1, tile)
 
 immutable Shrink <: LayoutAttribute
     tile
@@ -260,10 +306,26 @@ immutable Align <: LayoutAttribute
     valign
 end
 
+
+"""
+
+Align child if more space is needed than requested.
+
+* `align(h,v,lyt)` where `h` and `v` are in `[:fill, :axisstart, :start, :axisend, :end, :center,:baseline]`
+
+"""
 align(h::Symbol, v::Symbol, lyt) = Align(lyt, Alignments[h], Alignments[v])
 align(h::Symbol, v::Symbol) = lyt -> align(h, v, lyt)
+
+"""
+Align horizonatally. See `align`.
+"""
 halign(a::Symbol, lyt) = align(a, :fill, lyt)
 halign(a::Symbol) = lyt -> halign(a, lyt)
+
+"""
+Align vertically. See `align`.
+"""
 valign(a::Symbol, lyt) = align(:fill, a, lyt)
 valign(a::Symbol) = lyt -> valign(a, lyt)
 
@@ -277,11 +339,22 @@ end
 ## what to put for sides?
 padcontent(len, tile, sides=[:left, :right, :top, :bottom]) = Pad(tile, sides, Length{:px}(len))
 
-paad(len::Int, widget) = padcontent(len, widget)
-paad(len::Int) = widget -> pad(len, widget)
-paad(sides::AbstractVector, len, tile) =
+"""
+
+Add padding to a widget.
+
+
+* `padding(n, widget)` add n pixels of space around each side
+* `padding([:left, :right, :top, :bottom], n, widget)` specify which sides with a vector.
+
+"""
+padding(len::Int, widget) = padcontent(len, widget)
+padding(len::Int) = widget -> pad(len, widget)
+padding(sides::AbstractVector, len, tile) =
     padcontent(sides, len, Container(tile))
 
+
+##################################################
 ## Boxes
 type FlowContainer <: Layout
     obj
@@ -289,15 +362,45 @@ type FlowContainer <: Layout
     children
 end
 
-" vertical box"
+"""
+
+vertical box for packing in children
+
+```
+vbox(child1, child2, ...)
+```
+
+Use attributes before packing to get spacing:
+
+```
+vbox(grow(child1), padding(10, child2))
+```
+
+"""
 vbox(children...) = FlowContainer(nothing, "vertical", [children...])
+
+"""
+
+Horizontal box container. See `vbox`.
+
+"""
 hbox(children...) = FlowContainer(nothing, "horizontal", [children...])
 
+"""
 
+An empty container for spacing purposes
+
+"""
+const empty = vbox()
 ## Separator
 immutable Separator <: Layout
     orient
 end
+"""
+
+A simple separator between text. [Currently implemented in an old school way...]
+
+"""
 separator(orient::Symbol=:horizontal) = Separator(orient)
 
 ## Tabs...
@@ -307,11 +410,16 @@ immutable Tabs <: Layout
     initial::Int
 end
 
-## Tabs are a bit different than Escher
-## We use pairs to label children
-##
-## tabs("label"=>tile, "label1"=>tile, ...; selected=1)
-##
+"""
+
+Use a notebook to organize pages
+
+The tab labels are specified at construction time using "pairs:"
+
+
+*  `tabs("label"=>tile, "label1"=>tile, ...; selected=1)`
+
+"""
 function tabs(tiles...; selected::Int=1)
     labels = [label for (label, child) in tiles]
     children = [child for (label, child) in tiles]
@@ -324,16 +432,41 @@ type Window <: Layout
     children
 end
 
-## """
-## A parentless container, like MainWindow, but less fuss.
-##
-## Children are packed into a `vbox`.
-##
-## """
+"""
+A parentless container, like MainWindow, but less fuss.
+
+Child widgets are packed into a `vbox`.
+
+* `window(child1, child2, ...; title="some title")`
+
+"""
 window(children...; title::AbstractString="") = Window(title, [children...])
 window(;kwargs...) = tile -> window(tile; kwargs...)
 
+## Typography
+## If these are useful, they could easily be expanded
+immutable Bold <: Layout label end
+"""
+Make bold text in label
+"""
+bold(label::AbstractString) = Bold(label)
 
+immutable Emph <: Layout label end
+"""
+Make emphasized test in a label
+"""
+emph(label::AbstractString) = Emph(label)
+
+immutable Code <: Layout label end
+"""
+Use typewriter font in text for a label
+"""
+code(label::AbstractString) = Code(label)
+
+
+##################################################
+## Manipulate
+##
 ## MainWindow
 ##
 ## A top-level window
@@ -348,6 +481,25 @@ type MainWindow <: Layout
     nrows::Int
 end
 
+"""
+
+Mainwindow for manipulate or easy layout of widgets with label.
+
+The main window uses a "form" layout. That is, a two-column
+format. The first column to hold labels, the second the controls. The
+label comes from the label property of the control specified through
+the `label=` keyword argument.
+
+Example
+
+```
+sl = slider(1:10, label="slider")
+rb = radiobuttons(["one", "two", "three"], label="radio")
+w = mainwindow(title="a main window")
+append!(w, [sl, rb])
+```
+
+"""
 function mainwindow(;width::Int=300, height::Int=200, title::AbstractString="") 
     w = MainWindow(width, height, title, nothing, nothing, nothing, nothing, 1)
     widget = init_window(w)
@@ -401,16 +553,11 @@ end
 
 
 
-## Typography
-## If these are useful, they could easily be expanded
-immutable Bold <: Layout label end
-bold(label::AbstractString) = Bold(label)
+## connnect up Reactive with GtkInteract
+Base.push!(w::Interact.InputWidget, value) = push!(w.signal, value)
+Base.push!(w::OutputWidget, value::Interact.Signal) = push!(w, Reactive.value(value))
+Base.map(f::Function, ws::Interact.InputWidget...) = map(f, map(Interact.signal, ws)...)
 
-immutable Emph <: Layout label end
-emph(label::AbstractString) = Emph(label)
-
-immutable Code <: Layout label end
-code(label::AbstractString) = Code(label)
 
 
 ## load Gtk specific things

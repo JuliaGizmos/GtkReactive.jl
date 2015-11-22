@@ -53,28 +53,46 @@ Requires.@require Immerse begin
     eval(Expr(:using, :Gadfly))
     eval(Expr(:using, :Compose))
 
-    ## same as Plots.Plot, make canvas window
-    show_outwidget(w::GtkInteract.MainWindow, x::Gadfly.Plot) = make_canvas(w, x)
+    function gtk_widget(widget::ImmerseFigure)
+        widget.obj != nothing && return(widget.obj)
 
-    Base.push!(obj::CairoGraphic, p::Gadfly.Plot) = Winston.display(obj.obj, p)    
-    function Base.push!(c::GtkCanvas, p::Gadfly.Plot)
-        out = Immerse.render_finish(Gadfly.render_prepare(p); dynamic=false)
-        c.draw = let bad=false
-            function (_)
-                bad && return
-                # Render
-                backend = Immerse.render_backend(c)
-                try
-                    Compose.draw(backend, out)
-                catch e
-                    bad = true
-                    rethrow(e)
-                end
-            end
+        box, toolbar, cnv = Immerse.createPlotGuiComponents()
+        Gtk.G_.size_request(box, 480, 400)
+        widget.obj = box
+        widget.toolbar = toolbar
+        widget.cnv = cnv
+
+        widget.signal = Signal(widget)
+
+        ## Add figure, But should I close the next one??
+        i = Immerse.nextfig(Immerse._display)
+        f = Immerse.Figure(cnv)
+        Immerse.initialize_toolbar_callbacks(f)        
+        Immerse.addfig(Immerse._display, i, f)
+        
+        box
+    end
+        
+    
+    ## same as Plots.Plot, make canvas window
+    function show_outwidget(w::GtkInteract.MainWindow, x::Gadfly.Plot)
+        if w.cg == nothing
+            widget = immersefigure()
+            o = gtk_widget(widget)
+            w.cg = widget.cnv
+            box = w.window[1]
+            push!(box, o)
+            showall(w.window)
         end
-        Gtk.draw(c)
+        display(Immerse._display, x)
     end
 
+    ## this is used by Plots+Immerse
+    function Base.push!(c::GtkCanvas, p::Gadfly.Plot)
+        display(c, Immerse.Figure(c, p))
+    end
+
+    
 end
 
 
@@ -92,7 +110,7 @@ end
 
 ## Gadfly 
 Requires.@require Gadfly begin
-    info("Gadfly support is through Immerse")
+    info("Gadfly support is through the Immerse package. Please install that.")
 
 end
 
@@ -272,15 +290,26 @@ end
 
 
 ## textbox
+function textbox_cb(entryptr::Ptr, eventptr::Ptr, user_data)
+    widget, obj = user_data
+    txt = getproperty(obj, :text, AbstractString)
+    push!(widget.signal, txt)
+    false
+end
+
 function gtk_widget(widget::Textbox)
     obj = @GtkEntry
     setproperty!(obj, :text, string(widget.signal.value))
 
     ## widget -> signal
-    id = signal_connect(obj, :key_release_event) do obj, e, args...
-        txt = getproperty(obj, :text, AbstractString)
-        push!(widget.signal, txt)
-    end
+    id = signal_connect(textbox_cb, obj,
+                                  "key-release-event", Bool, (Ptr{Gtk.GdkEventButton},), false,
+                                  (widget, obj))
+
+    ## id = signal_connect(obj, :key_release_event) do obj, e, args...
+    ##     txt = getproperty(obj, :text, AbstractString)
+    ##     push!(widget.signal, txt)
+    ## end
 
     
     ## signal -> widget
@@ -576,7 +605,7 @@ end
 ## CairoGraphic
 function gtk_widget(widget::CairoGraphic)
     if widget.obj != nothing
-        return widget
+        return widget.obj
     end
 
     obj = @GtkCanvas(widget.width, widget.height)
@@ -640,6 +669,7 @@ end
 
 ## shared or label, textarea
 typealias TextOrLabel @compat Union{Textarea, Label}
+Base.push!(obj::TextOrLabel, value::Reactive.Node) = push!(obj, Reactive.value(value))
 Base.push!{T <: AbstractString}(obj::TextOrLabel, value::Vector{T}) = push!(obj, join(value, "\n"))
 
 function Base.push!(obj::TextOrLabel, value)
@@ -649,15 +679,15 @@ end
 ## Progress bar
 function gtk_widget(widget::Progress) 
     obj = @GtkProgressBar()
-    
     widget.obj = obj
+    
     push!(widget, widget.value)
-    #    widget.signal = Input(widget)
     widget.signal = Signal(widget)
     obj
 end
 
 ## push value in range of obj.range
+Base.push!(obj::Progress, value::Reactive.Node) = push!(obj, Reactive.value(value))
 function Base.push!(widget::Progress, value)
     frac = clamp((value - first(widget.range)) / (last(widget.range) - first(widget.range)), 0, 1)
     setproperty!(widget.obj, :fraction, frac)
@@ -678,11 +708,9 @@ end
 
 function gtk_widget(widget::Grow)
     obj = gtk_widget(widget.tile)
-    ## how to use factor?
-    if widget.factor > 0
-        Gtk.G_.hexpand(obj, true)
-        Gtk.G_.vexpand(obj, true)
-    end
+    ## how to use factor? It is in [0,1]?
+    widget.factor > 0 && :horizontal in widget.direction && Gtk.G_.hexpand(obj, true)
+    widget.factor > 0 && :vertical in widget.direction && Gtk.G_.vexpand(obj, true)
 
     obj
 end
@@ -734,7 +762,10 @@ end
 
 
 function gtk_widget(widget::Separator)
-    label("* * * * *")
+    obj = @GtkLabel("* * * * *")        # poor man's separator...
+    Gtk.G_.margin_top(obj, 5)
+    Gtk.G_.margin_bottom(obj, 5)
+    obj
 end
 
 function gtk_widget(widget::Tabs)
@@ -855,12 +886,8 @@ end
 
 ## convert object to string for display through label
 to_string(x::AbstractString) = x
-#to_string(x) = sprint(io -> writemime(io, "text/plain", x))
-function to_string(x)
-    println("to_string fallback")
-    sprint(io -> writemime(io, "text/plain", x))
-#    randstring(10)
-end
+to_string(x) = sprint(io -> writemime(io, "text/plain", x))
+
 
 
 
