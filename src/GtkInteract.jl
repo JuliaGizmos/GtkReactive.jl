@@ -9,8 +9,6 @@ using Gtk
 using Reactive
 using DataStructures
 using Requires
-using Compat
-
 
 ## selectively import pieces of `Interact`
 import Interact

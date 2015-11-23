@@ -90,7 +90,7 @@ window(vbox(hbox(n, m),
               title="Some title")
 ```
 
-We can use `Reactive.map`to propogate changes in the controls to update the graphic window:
+We can use `Reactive.map`to propagate changes in the controls to update the graphic window:
 
 ```
 map(n,m) do n,m

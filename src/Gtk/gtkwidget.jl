@@ -666,7 +666,7 @@ end
 
 
 ## shared or label, textarea
-typealias TextOrLabel @compat Union{Textarea, Label}
+typealias TextOrLabel Union{Textarea, Label}
 Base.push!(obj::TextOrLabel, value::Reactive.Node) = push!(obj, Reactive.value(value))
 Base.push!{T <: AbstractString}(obj::TextOrLabel, value::Vector{T}) = push!(obj, join(value, "\n"))
 
