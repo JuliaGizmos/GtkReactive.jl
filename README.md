@@ -44,6 +44,8 @@ using GtkInteract, Immerse
 end
 ```
 
+When used directly, the figure includes the toolbar features provided by `Immerse`.
+
 ## Text output
 
 Text output can also be displayed (though not as nicely as in `IJulia` due to a lack of HTML support):
@@ -57,6 +59,12 @@ x = symbols("x")
 end
 ```
 
+The basic idea is that an output widget is chosen based on the return
+value of the evaluation of the block within the `@manipulate`
+macro. Returning a value of `nothing` will suppress any output widget
+being chosen. In this case, the body should have side effects, such as
+explicitly creating a graph. Some of the provided `examples`
+illustrate why this might be of interest.
 
 ## basic widgets
 

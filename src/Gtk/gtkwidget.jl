@@ -190,7 +190,7 @@ function gtk_widget(widget::Button)
 
     ## widget -> signal
     id = signal_connect(obj, :clicked) do obj, args...
-        push!(widget.signal, widget.signal.value) # call
+        push!(widget.signal,Reactive.value(Interact.signal(widget))) # call
     end
 
     obj
@@ -205,7 +205,7 @@ function checkbox_cb(cbptr::Ptr,  user_data)
 end
 function gtk_widget(widget::Checkbox)
     obj = @GtkCheckButton()
-    setproperty!(obj, :active, widget.value)
+    setproperty!(obj, :active, Reactive.value(Interact.signal(widget)))
 
     ## widget -> signal
     id = signal_connect(checkbox_cb, obj, "toggled", Void, (),  false, (widget, obj))
@@ -664,6 +664,7 @@ function Base.push!(obj::Label, value::AbstractString)
     obj.value = value
 end
 
+
 ## shared or label, textarea
 typealias TextOrLabel @compat Union{Textarea, Label}
 Base.push!(obj::TextOrLabel, value::Reactive.Node) = push!(obj, Reactive.value(value))
@@ -672,6 +673,22 @@ Base.push!{T <: AbstractString}(obj::TextOrLabel, value::Vector{T}) = push!(obj,
 function Base.push!(obj::TextOrLabel, value)
     push!(obj, to_string(value))
 end
+
+## icon
+function gtk_widget(widget::Icon)
+    obj = @GtkImage()
+    setproperty!(obj, :icon_name, widget.stock_id)
+
+    if widget.tile != nothing
+        child = gtk_widget(widget.tile)
+        setproperty!(child, :always_show_image, true)
+        Gtk.G_.image(child, obj)
+        obj = child
+    end
+
+    obj
+end
+
 
 ## Progress bar
 function gtk_widget(widget::Progress) 
@@ -776,6 +793,135 @@ function gtk_widget(widget::Tabs)
     obj
 end
 
+## Toolbar
+function gtk_widget(widget::Toolbar)
+    obj = @GtkToolbar()
+    Gtk.G_.style(obj, Gtk.GConstants.GtkToolbarStyle.GTK_TOOLBAR_BOTH)
+    
+    for child in widget.children
+        tbchild = gtk_toolbar_widget(child)
+        push!(obj, tbchild)
+    end
+
+    obj
+end
+
+function gtk_toolbar_widget(widget::Button)
+    obj = @GtkToolButton(widget.label)
+    Gtk.G_.label(obj, widget.label)
+
+    ## widget -> signal
+    id = signal_connect(obj, :clicked) do obj, args...
+        push!(widget.signal, Reactive.value(Interact.signal(widget))) # call
+    end
+    
+    obj
+end
+function gtk_toolbar_widget(widget::ToggleButton)
+    obj = @GtkToggleToolButton(widget.label)
+    Gtk.G_.label(obj, widget.label)
+    
+    ## widget -> signal
+    id = signal_connect(obj, :toggled) do obj, args...
+        val = getproperty(obj, :active, Bool)
+        push!(widget.signal, val) # call
+    end
+    
+    obj
+end
+#function gtk_toolbar_widget(child::Interact.Dropdown)
+#end
+
+function gtk_toolbar_widget(child::Separator)
+    obj = @GtkSeparatorToolItem()
+    obj
+end
+
+function gtk_toolbar_widget(widget::Icon)
+    img = @GtkImage()
+    setproperty!(img, :icon_name, widget.stock_id)
+
+    obj = gtk_toolbar_widget(widget.tile)
+    Gtk.G_.icon_widget(obj, img)
+
+    obj
+end
+
+## menu
+function gtk_widget(widget::Menu)
+    obj = Gtk.@GtkMenuBar()
+    Gtk.G_.hexpand(obj, true)
+    for child in widget.children
+        push!(obj, gtk_menu_widget(child))
+    end
+
+    obj
+end
+
+function gtk_menu_widget(widget::Button)
+    obj = @GtkMenuItem(widget.label)
+
+    ## widget -> signal
+    id = signal_connect(obj, :activate) do obj, args...
+        push!(widget.signal, Reactive.value(Interact.signal(widget))) # call
+    end
+    
+    obj
+
+end
+
+function gtk_menu_widget(widget::ToggleButton)
+    error("This menu item is not implemented")
+    ## Hack to work around no GtkCheckMenuItem
+    ## XXX Doesn't work
+    ## obj = @GtkMenuItem()
+    ## ## remove
+    ## child = Gtk.G_.child(obj)
+    ## ccall((:gtk_container_remove, Gtk.libgtk), Void, (Ptr{Gtk.GObject}, Ptr{Gtk.GObject}), obj, child)
+
+    ## ## add back
+    ## child = @GtkToggleToolButton(widget.label)
+    ## Gtk.G_.label(child, widget.label)
+    ## push!(obj, child)
+    
+    ## show(child)
+    
+    ## ## widget -> signal
+    ## id = signal_connect(child, :toggled) do obj, args...
+    ##     val = getproperty(child, :active, Bool)
+    ##     push!(widget.signal, val) # call
+    ## end
+    
+    ## obj
+end
+
+function gtk_menu_widget(widget::Separator)
+    obj = @GtkSeparatorMenuItem()
+    obj
+end
+
+function gtk_menu_widget(widget::Icon)
+    ## images don't work?
+    obj = gtk_menu_widget(widget.tile)  # will haver error if no tile
+
+    img = @GtkImage()
+    setproperty!(img, :icon_name, widget.stock_id)
+
+    Gtk.G_.icon_widget(obj, img)
+end
+
+function gtk_menu_widget(widget::Menu)
+    obj = @GtkMenuItem(widget.label)
+    submenu = @GtkMenu(obj)
+    for child in widget.children
+         push!(submenu, gtk_menu_widget(child))
+    end
+    
+    obj
+end
+
+
+##
 function gtk_widget(widget::Window)
     obj = @GtkWindow(title=widget.title)
     ## interiro packing box...

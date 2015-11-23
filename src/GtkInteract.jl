@@ -1,8 +1,9 @@
+
 module GtkInteract
 
 ## TODO:
-## * more layout?
-
+## * more layout options
+## * [DONE] menubars, toolbars
 
 using Gtk
 using Reactive
@@ -21,12 +22,12 @@ import Interact: Checkbox, checkbox
 import Interact: Textbox, textbox
 import Interact: Widget, InputWidget
 import Interact: widget, signal
-import Reactive: foreach
+import Reactive: foreach, sampleon
 
 ## exports (most widgets of `Interact` and the modified `@manipulate` macro)
 export slider, button, checkbox, togglebutton, dropdown, radiobuttons, selectlist, textbox, textarea, togglebuttons
 export @manipulate
-export buttongroup, cairographic,  label, progress
+export buttongroup, cairographic,  label, icon, separator, progress
 export mainwindow
 export foreach
 
@@ -65,6 +66,10 @@ end
 A `buttongroup` is like `togglebuttons` only one can select 0, 1, or more of the items.
 """
 buttongroup(opts; kwargs...) = VectorOptions(:ButtonGroup, opts; kwargs...)
+
+
+
+
 
 ## Output widgets
 
@@ -149,6 +154,8 @@ Replace text via `push!(obj, value)`
 label(;value="") = Label(Signal{Any}, string(value), nothing)
 label(lab; kwargs...) = label(value=lab, kwargs...)
 
+
+
 type Progress <: OutputWidget
     signal
     value
@@ -164,17 +171,44 @@ function progress(;label="", value=0, range=0:100)
     Progress(nothing, value, range, nothing)
 end
 
-## We add these output widgets to `widget`
-widget_dict = Dict{Symbol, Function}()
-widget_dict[:plot]=cairographic
-widget_dict[:text] =textarea
-widget_dict[:label]=label
-widget_dict[:progress]=progress
+## Decorative widgets
+abstract DecorativeWidget <: Widget
 
-function widget(x::Symbol, args...)
-    widget_dict[x]()
+## An icon
+type Icon <: DecorativeWidget
+    stock_id
+    tile
+    obj
 end
 
+
+"""
+
+Add a static icon to a display or
+add an icon to a GUI element, such as a button.
+
+```
+icon("window-close") # creates an image to be added to a GUI
+icon("window-close", btn) # adds icon to button
+
+
+Idea is `icon(id, button("text"))` will decorate button
+
+A list of [icons](https://docs.google.com/spreadsheets/d/1HavJQRPpMuq-N0GoN1wJR-9KEGXpKy3-NEPpZZkUGJY/pub?output=html).
+"""
+icon(id::AbstractString) = Icon(id, nothing, nothing)
+icon(id::AbstractString, tile) = Icon(id, tile, nothing)
+
+## Separator
+immutable Separator <: DecorativeWidget
+    orient
+end
+"""
+
+A simple separator between text. [Currently implemented in an old school way...]
+
+"""
+separator(orient::Symbol=:horizontal) = Separator(orient)
 ##################################################
 ### Container(s) and Layout
 ##
@@ -194,6 +228,8 @@ export size,
        padding,
        vbox, hbox,
        tabs,
+       toolbar,
+       menu, 
        window
 
 
@@ -389,16 +425,7 @@ An empty container for spacing purposes
 
 """
 const empty = vbox()
-## Separator
-immutable Separator <: Layout
-    orient
-end
-"""
 
-A simple separator between text. [Currently implemented in an old school way...]
-
-"""
-separator(orient::Symbol=:horizontal) = Separator(orient)
 
 ## Tabs...
 immutable Tabs <: Layout
@@ -424,6 +451,49 @@ function tabs(tiles...; selected::Int=1)
 end
 
 
+## Toolbar
+immutable Toolbar <: Layout
+    children
+end
+
+"""
+
+Toolbar container. Holds buttons, togglebuttons, separators
+
+"""
+function toolbar(children...)
+    Toolbar(children)
+end
+
+## Menubar
+immutable Menu <: Layout
+    label
+    children
+end
+
+"""
+
+A menu bar. Children are items (buttons, separators, or other menu items)
+
+```
+btn1 = button("one")
+btn2 = button("two")
+
+mb =menu(menu(btn1, separator(), btn2,
+              menu(btn1, btn2, label="submenu"),   # submenus need a label
+              label="File"),                       # submenus need a label
+         menu(btn1, btn2, label="Edit"))
+
+map(_ -> println("do something"), btn1)            # give some action
+w = window(mb, grow(label("space")))
+```
+
+Note: toggle buttons can be supported when Gtk does.
+
+"""
+menu(children...; label="") = Menu(label, children)
+
+
 type Window <: Layout
     title
     children
@@ -440,29 +510,6 @@ Child widgets are packed into a `vbox`.
 window(children...; title::AbstractString="") = Window(title, [children...])
 window(;kwargs...) = tile -> window(tile; kwargs...)
 
-## Typography
-## If these are useful, they could easily be expanded
-immutable Bold <: Layout label end
-"""
-Make bold text in label
-"""
-bold(label::AbstractString) = Bold(label)
-
-immutable Emph <: Layout label end
-"""
-Make emphasized test in a label
-"""
-emph(label::AbstractString) = Emph(label)
-
-immutable Code <: Layout label end
-"""
-Use typewriter font in text for a label
-"""
-code(label::AbstractString) = Code(label)
-
-
-##################################################
-## Manipulate
 ##
 ## MainWindow
 ##
@@ -503,9 +550,45 @@ function mainwindow(;width::Int=300, height::Int=200, title::AbstractString="")
     widget
 end
 
+##################################################
+## Typography
+## If these are useful, they could easily be expanded
+immutable Bold <: Layout label end
+"""
+Make bold text in label
+"""
+bold(label::AbstractString) = Bold(label)
+
+immutable Emph <: Layout label end
+"""
+Make emphasized test in a label
+"""
+emph(label::AbstractString) = Emph(label)
+
+immutable Code <: Layout label end
+"""
+Use typewriter font in text for a label
+"""
+code(label::AbstractString) = Code(label)
+
+
+##################################################
+## Manipulate
 
 
 ## Modifications for @manipulate
+
+## We add these output widgets to `widget`
+widget_dict = Dict{Symbol, Function}()
+widget_dict[:plot]=cairographic
+widget_dict[:text] =textarea
+widget_dict[:label]=label
+widget_dict[:progress]=progress
+
+function widget(x::Symbol, args...)
+    widget_dict[x]()
+end
+
 
 ## Main changes come from needing to pass through a parent container in order to "display" objects
 ## in "display_widgets" we just use `push!` though we could define `display` methods but passing in the 
@@ -553,8 +636,55 @@ end
 ## connnect up Reactive with GtkInteract
 Base.push!(w::Interact.InputWidget, value) = push!(w.signal, value)
 Base.push!(w::OutputWidget, value::Interact.Signal) = push!(w, Reactive.value(value))
+
+"""
+
+The `Reactive.map(function, signals...)` function takes the signals
+passed to it and passes their values to the function each time a
+signal is changed through the GUI. (Signals are not emitted when a
+value is `push!`ed to them)
+
+This is a convenience extending the values to input widgets, as
+otherwise, their signal must be pulled out before passing to `map`
+using the `Interact.signal` function.
+
+```
+sl = slider(1:10)
+sl1 = slider(1:10)
+append!(mainwindow(), [sl, sl1])
+map(println, sl, sl1)
+```
+
+"""
+
+
 Base.map(f::Function, ws::Interact.InputWidget...) = map(f, map(Interact.signal, ws)...)
 
+"""
+
+The `sampleon` function of `Reactive.jl` passes on the values of the signals (as a
+tuple) when the button is pressed. This can be used when the effects
+of changing a GUI element can take a long time to propogate. In that
+case, a GUI can be come unresponsive. This allows the effects to be
+called only when the button is pressed.
+
+```
+sl = slider(1:10)
+sl1 = slider(1:10)
+btn = button("click me")
+w = mainwindow()
+append!(w, [sl, sl1, btn])
+
+map(println, sampleon(btn, sl, sl1))
+```
+
+This function is a convenience for the following composition:
+
+`Reactive.sampleon(btn.signal, map(tuple, map(Interact.signal, ws...)))`
+"""
+function Reactive.sampleon(btn::Button, ws::Interact.InputWidget...)
+    Reactive.sampleon(btn.signal, map(tuple, ws...))
+end
 
 
 ## load Gtk specific things

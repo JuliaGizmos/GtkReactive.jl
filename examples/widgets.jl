@@ -96,15 +96,18 @@ append!(w, [n, m, btn])
 
 ## We can connect to the button to pass along the values of the other widget:
 map(btn) do _
-    println(n.value * m.value)
+    println(Reactive.value(n.signal) * Reactive.value(m.signal))
 end
 
 
-## Notice we used `n.value` and not the more natural `n`.
-### XXX THIS PATTERN IS CURRENTLY NOT WORKING XXX
-## This pattern -- from Shasi
+## The above is cumbersome, as to extract a value from a widget
+## requires grabbing the value from its
+## signal property.
+##
+## Instead, we can leverage this pattern -- from Shasi. It is modifed from
 ## https://groups.google.com/forum/?fromgroups#!topic/julia-users/Ur5b2_dsJyA
-## -- is a much nicer way to react to a button, but not other controls:
+## as there are changes needed for the newer Reactive.jl.
+##
 
 w = mainwindow(title="Simple test")
 n = slider(1:10, label="n")
@@ -112,11 +115,26 @@ m = slider(1:10, label="m")
 btn = button("update")
 append!(w, [n, m, btn])
 
-vals = map(tuple,n, m)
+vals = map(tuple, n, m)  # not just (n,m)
 
-map(apply(println, vals), sampleon(btn, vals))
+map(vals->println(join(vals, ", ")), Reactive.sampleon(btn.signal, vals))
 
-using Reactive, GtkInteract, Winston
+## The `vals` is not just `(n,m)`, but instead `map` lifts the signals
+## from the widgets `n` and `m` and passes their values on to a tuple
+## whenever the signals changes. So `vals` reflects the current state
+## of the two widgets.
+##
+## The `sampleon` function samples the value of `vals` when the
+## button's signal is emitted, which happens when the button is
+## clicked. So `Reactive.sampleon(btn.signal, vals)` makes a new
+## signal which is emitted when the button is clicked and passes on a
+## tuple of values reflecting the state of the widgets `m` and `n`.
+##
+## In this example, the values are just printed. In the next example a
+## graph is drawn.
+
+using Reactive, GtkInteract, Plots
+backend(:immerse)
 
 α = slider(1:10, label="α")
 β = slider(1:10, label="β")
@@ -128,19 +146,26 @@ hbox(vbox(hbox(label(α.label),α),
           hbox(label(β.label), β),
           replot),
      padding(5, cg)) |> window(title="layout")
-     
-## We can then connect the button as follows:
-coeffs = sampleon(replot, map(tuple, α, β))
 
+## Our action:
 function draw_plot(α, β)
     push!(cg, plot(x -> α + sin(x + β), 0, 2pi))
 end
 
-map(coeffs) do vals
-    apply(draw_plot, vals)
-end
+## We can then connect the button as follows:
+coeffs = Reactive.sampleon(replot.signal, map(tuple, α, β))
+map(vals -> drow_plot(vals...), coeffs)
 
-## XXX THE PATTERN ABOVE IS NOT WORKING XXX
+
+## Here, unlike with `@manipulate`, the graphic is only updated when
+## the `replot` button is pressed. Changing the sliders only updates
+## the `coeffs` values, which is propogated when the button is
+## pressed.
+
+
+## For this specific pattern with a button, `GtkInteract` extends Reactive's `sampleon` function, so that
+## the first line can be just:
+coeffs = sampleon(replot, α, β)
 
 
 
