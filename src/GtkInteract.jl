@@ -20,14 +20,14 @@ import Interact: Checkbox, checkbox
 import Interact: Textbox, textbox
 import Interact: Widget, InputWidget
 import Interact: widget, signal
-import Reactive: foreach, sampleon
+import Reactive: foreach, sampleon, value
 
 ## exports (most widgets of `Interact` and the modified `@manipulate` macro)
 export slider, button, checkbox, togglebutton, dropdown, radiobuttons, selectlist, textbox, textarea, togglebuttons
 export @manipulate
 export buttongroup, cairographic,  label, icon, separator, progress
 export mainwindow
-export foreach
+export foreach, value
 
 ## Add a non-exclusive set of buttons
 ## Code is basically the Options code of Interact
@@ -53,7 +53,7 @@ function VectorOptions{T}(view::Symbol, options::AbstractArray{T};
 end
 
 function VectorOptions{K, V}(view::Symbol, options::Associative{K, V};
-                    kwargs...)
+                             kwargs...)
     opts = OrderedDict{AbstractString, V}()
     map(v->opts[string(v[1])] = v[2], options)
     VectorOptions(view, opts; kwargs...)
@@ -61,7 +61,9 @@ end
 
 
 """
-A `buttongroup` is like `togglebuttons` only one can select 0, 1, or more of the items.
+
+A `buttongroup` is like `togglebuttons` only one can select 0, 1, or more of the items. (Non-exclusive selection.)
+
 """
 buttongroup(opts; kwargs...) = VectorOptions(:ButtonGroup, opts; kwargs...)
 
@@ -186,16 +188,17 @@ Add a static icon to a display or
 add an icon to a GUI element, such as a button.
 
 ```
-icon("window-close") # creates an image to be added to a GUI
+icon("window-close", nothing) # creates an image to be added to a GUI
 icon("window-close", btn) # adds icon to button
-
+button("button") |> icon("window-close")  # Curried form
+```
 
 Idea is `icon(id, button("text"))` will decorate button
 
 A list of [icons](https://docs.google.com/spreadsheets/d/1HavJQRPpMuq-N0GoN1wJR-9KEGXpKy3-NEPpZZkUGJY/pub?output=html).
 """
-icon(id::AbstractString) = Icon(id, nothing, nothing)
 icon(id::AbstractString, tile) = Icon(id, tile, nothing)
+icon(id::AbstractString) = tile -> Icon(id, tile, nothing)
 
 ## Separator
 immutable Separator <: DecorativeWidget
@@ -228,8 +231,9 @@ export size,
        tabs,
        toolbar,
        menu, 
-       window
-
+       window,
+       messagebox, confirmbox, inputbox,
+       openfile, savefile, selectdir
 
 ## We follow Escher layout here
 immutable Length{unit}
@@ -469,22 +473,26 @@ immutable Menu <: Layout
     children
 end
 
+
 """
 
 A menu bar. Children are items (buttons, separators, or other menu items)
 
+Example:
 ```
 btn1 = button("one")
 btn2 = button("two")
 
 mb =menu(menu(btn1, separator(), btn2,
-              menu(btn1, btn2, label="submenu"),   # submenus need a label
-              label="File"),                       # submenus need a label
-         menu(btn1, btn2, label="Edit"))
+menu(btn1, btn2, label="submenu"),   
+label="File"),                       
+menu(btn1, btn2, label="Edit"))
 
-map(_ -> println("do something"), btn1)            # give some action
+do_something(args...) = println("hi")
+map(do_something, btn1)            # give some action
 w = window(mb, grow(label("space")))
 ```
+
 
 Note: toggle buttons can be supported when Gtk does.
 
@@ -496,8 +504,8 @@ type Window <: Layout
     title
     children
 end
-
-"""
+    
+    """
 A parentless container, like MainWindow, but less fuss.
 
 Child widgets are packed into a `vbox`.
@@ -548,6 +556,121 @@ function mainwindow(;width::Int=300, height::Int=200, title::AbstractString="")
     widget
 end
 
+##################################################
+    ## dialogs
+"""
+
+Dialogs are modal so that hye block until there is a returned value
+
+
+"""
+abstract Dialog <: Widget
+
+immutable MessageBox <: Dialog
+    msg
+    style
+end
+
+"""
+
+A simple modal message with a dismiss button.
+
+* `msg`: a string
+* `style`: a symbol. One of `:info`, `:warn`, `:error`
+
+```
+messagebox("my message", :info)
+```
+"""
+messagebox(msg::AbstractString, style::Symbol=:ask) = MessageBox(msg, style) |> gtk_widget
+
+immutable ConfirmBox <: Dialog
+    msg
+end
+
+"""
+
+A simple modal message with a yes/no pair of buttons. Returns boolean.
+
+* `msg`: a string
+
+```
+confirmbox("my message")
+```
+"""
+confirmbox(msg::AbstractString) = ConfirmBox(msg)  |> gtk_widget
+
+immutable InputBox <: Dialog
+    msg
+    default
+end
+
+"""
+
+Modal dialog to gather user input. Returns `""` for a cancelled query.
+
+Example:
+```
+inputbox("What is your name", "John Doe")
+```
+"""
+inputbox(msg::AbstractString, default::AbstractString="")  = InputBox(msg, default)  |> gtk_widget
+
+immutable OpenFile <: Dialog
+    title
+end
+
+"""
+
+File open dialog
+
+Example
+```
+fname = openfile("Select a file")
+```
+"""
+openfile(title::AbstractString="Select a file") = OpenFile(title)  |> gtk_widget
+
+immutable SaveFile <: Dialog
+    title
+end
+
+"""
+
+Modal dialog to select a filename for saving a file
+
+Example
+```
+fname = savefile("Select a file")
+length(fname) > 0 && "save the file to fname ..."
+```
+"""
+savefile(title::AbstractString="Save file") = SaveFile(title)  |> gtk_widget
+
+immutable SelectDir <: Dialog
+    title
+end
+
+"""
+
+Modal dialog to select a directory.
+
+Example
+```
+d = selectdir("Select a directory...")
+```
+"""
+selectdir(title::AbstractString="Save file") = SelectDir(title)  |> gtk_widget
+
+
+    
+
+
+
+    
+    
+    
+    
 ##################################################
 ## Typography
 ## If these are useful, they could easily be expanded
@@ -685,6 +808,12 @@ function Reactive.sampleon(btn::Button, ws::Interact.InputWidget...)
 end
 
 
+"""
+
+Find current value of a widget. Short hand for `Reactive.value(w.signal)`.
+
+"""
+value(w::Widget) = Reactive.value(w.signal)
 ## load Gtk specific things
 include("Gtk/gtkwidget.jl")
 

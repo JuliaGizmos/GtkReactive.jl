@@ -145,3 +145,20 @@ some machines.
 
 (To copy-and-paste code that works with `Interact` simply requires some local definition such as `withfig=GtkInteract.withfig`.)
 
+## Widget summary
+
+In addition to the widgets in `Interact`, the following new widgets are provided:
+
+*  `buttongroup`
+* `cairographic`, `immersefigure`, `textarea`, `label`, `progress`
+* `icon`, `separator`
+* `size`, `width`, `height`, `vskip`, `hskip`
+* `grow`, `shrink`, `flex`
+* `align`, `halign`, `valign`
+* `padding`
+* `vbox`, `hbox`, `tabs`
+* `toolbar`, `menu`
+* `window`, `mainwindow`
+* `messagebox`, `confirmbox`, `inputbox`, `openfile`, `savefile`, `selectdir`
+
+

@@ -1031,7 +1031,56 @@ end
 to_string(x::AbstractString) = x
 to_string(x) = sprint(io -> writemime(io, "text/plain", x))
 
+## Dialogs
+function gtk_widget(widget::MessageBox)
+    if widget.style == :warnt
+        fn = Gtk.warn_dialog
+    elseif widget.style == :error
+        fn = Gtk.error_dialog
+    else
+        fn = Gtk.info_dialog
+    end
 
+    fn(widget.msg)
+    
+end
+
+function gtk_widget(widget::ConfirmBox)
+    Gtk.ask_dialog(widget.msg)
+end
+
+function gtk_widget(widget::InputBox)
+    ret, val = Gtk.input_dialog(widget.msg, widget.default)
+    if ret == 0
+        val = utf8("")
+    end
+    val
+end
+
+function gtk_widget(widget::OpenFile)
+    open_dialog(widget.title)
+end
+
+function gtk_widget(widget::SaveFile)
+    save_dialog(widget.title)
+end
+
+function gtk_widget(widget::SelectDir)
+    dlg = @GtkFileChooserDialog(widget.title, Gtk.GtkNullContainer(),
+                                Gtk.GConstants.GtkFileChooserAction.SELECT_FOLDER,
+                                (("_Cancel", Gtk.GConstants.GtkResponseType.CANCEL),
+                                 ("_Save",   Gtk.GConstants.GtkResponseType.ACCEPT))
+                                )
+    dlgp = GtkFileChooser(dlg)
+    response = run(dlg)
+    if response == Gtk.GConstants.GtkResponseType.ACCEPT
+        selection = bytestring(GAccessor.filename(dlgp))
+    else
+        selection = utf8("")
+    end
+    destroy(dlg)
+    selection
+end
 
 
 
