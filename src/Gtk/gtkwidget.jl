@@ -667,7 +667,7 @@ end
 
 ## shared or label, textarea
 typealias TextOrLabel Union{Textarea, Label}
-Base.push!(obj::TextOrLabel, value::Reactive.Node) = push!(obj, Reactive.value(value))
+Base.push!(obj::TextOrLabel, value::Reactive.Signal) = push!(obj, Reactive.value(value))
 Base.push!{T <: AbstractString}(obj::TextOrLabel, value::Vector{T}) = push!(obj, join(value, "\n"))
 
 function Base.push!(obj::TextOrLabel, value)
@@ -701,7 +701,7 @@ function gtk_widget(widget::Progress)
 end
 
 ## push value in range of obj.range
-Base.push!(obj::Progress, value::Reactive.Node) = push!(obj, Reactive.value(value))
+Base.push!(obj::Progress, value::Reactive.Signal) = push!(obj, Reactive.value(value))
 function Base.push!(widget::Progress, value)
     frac = clamp((value - first(widget.range)) / (last(widget.range) - first(widget.range)), 0, 1)
     setproperty!(widget.obj, :fraction, frac)
