@@ -23,6 +23,7 @@ import Interact: Textbox, textbox
 import Interact: Widget, InputWidget
 import Interact: widget, signal
 import Reactive: foreach, sampleon, value
+import Gtk: destroy
 
 ## exports (most widgets of `Interact` and the modified `@manipulate` macro)
 export slider, button, checkbox, togglebutton, dropdown, radiobuttons, selectlist, textbox, textarea, togglebuttons
@@ -31,6 +32,7 @@ export buttongroup, cairographic,  label, progress
 export icon, tooltip, separator
 export mainwindow
 export foreach, value
+export destroy
 
 ## Add a non-exclusive set of buttons
 ## Code is basically the Options code of Interact
@@ -562,6 +564,7 @@ type Window <: Layout
     height::Int
     title
     children
+    obj
 end
     
     """
@@ -571,10 +574,25 @@ Child widgets are packed into a `vbox`.
 
 * `window(child1, child2, ...; title="some title")`
 
-"""
-window(children...; width::Int=400, height::Int=300, title::AbstractString="") = Window(width, height, title, [children...;])
-window(;kwargs...) = tile -> window(tile; kwargs...)
+There is no curried form. Rather, `window(kwargs...)` creates a window
+object onto which children may be pushed or appended. The window will render when
+its `display` method is called.
 
+```
+w = window(title="Title");
+push!(w, button("button"))
+append!(w, [slider(1:10), slider(1:20)])
+w
+## to destroy
+destroy(w)
+```
+
+"""
+window(children...; width::Int=-1, height::Int=-1, title::AbstractString="") = Window(width, height, title, [children...;], nothing)
+#window(;kwargs...) = tile -> window(tile; kwargs...)
+Base.push!(widget::Window, child::Widget) = push!(widget.children, child)
+Base.append!(widget::Window, children) = append!(widget.children, children)
+Gtk.destroy(widget::Window) = destroy(widget.obj)
 ##
 ## MainWindow
 ##
@@ -603,7 +621,7 @@ sl = slider(1:10, label="slider")
 rb = radiobuttons(["one", "two", "three"], label="radio")
 w = mainwindow(title="a main window");
 append!(w, [sl, rb])
-w                                       # when displayed, creates window
+w                                       # when displayed, creates window.  Call destroy(w) to close.
 ```
 
 """
@@ -613,7 +631,7 @@ function mainwindow(children...;width::Int=300, height::Int=200, title::Abstract
 end
 
 Base.display(widget::MainWindow) = Gtk.showall(gtk_widget(widget))
-
+Gtk.destroy(widget::MainWindow) = destroy(widget.obj)
 ##################################################
     ## dialogs
 """

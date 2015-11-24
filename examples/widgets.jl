@@ -35,11 +35,12 @@ Interact.widget(["one", "two", "three"]) # togglebuttons
 ## mainwindow. The `label` property of the widget, is used to label
 ## the control.
 
-w = mainwindow(title="Simple test")
+w = mainwindow(title="Simple test");
 n = slider(1:10, label="n") 
 m = slider(11:20, label="m")
 cg = cairographic()
 append!(w, [n,m,cg])
+w
 
 
 ## Other layouts are available. The style is borrowed from Escher,
@@ -94,11 +95,12 @@ end
 ## not each control is desired if the update is expensive to compute
 ## (With sliders it may be computed up to 4 times during the move).
 
-w = mainwindow(title="Simple test")
+w = mainwindow(title="Simple test");
 n = slider(1:10, label="n")
 m = slider(1:10, label="m")
 btn = button("update")
 append!(w, [n, m, btn])
+w                                       # call display() to create window
 
 ## We can connect to the button to pass along the values of the other widget:
 map(btn) do _

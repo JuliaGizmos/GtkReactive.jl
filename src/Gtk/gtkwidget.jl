@@ -986,7 +986,8 @@ end
 ##
 function gtk_widget(widget::Window)
     obj = @GtkWindow(title=widget.title)
-    resize!(obj, widget.width, widget.height)
+    widget.obj = obj
+    widget.width > 0 && widget.height > 0 && resize!(obj, widget.width, widget.height)
 
     ## interiro packing box...
     box = @GtkBox(true)
