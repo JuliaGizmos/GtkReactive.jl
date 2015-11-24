@@ -2,8 +2,10 @@
 module GtkInteract
 
 ## TODO:
-## * more layout options
+## * more layout options. (Did formlayout)
 ## * [DONE] menubars, toolbars
+## * GtkMenuButton and toolbar (one isn't there, other isn't working...)
+## * [DOne] use formlayout in MainWindow
 
 using Gtk
 using Reactive
@@ -25,7 +27,8 @@ import Reactive: foreach, sampleon, value
 ## exports (most widgets of `Interact` and the modified `@manipulate` macro)
 export slider, button, checkbox, togglebutton, dropdown, radiobuttons, selectlist, textbox, textarea, togglebuttons
 export @manipulate
-export buttongroup, cairographic,  label, icon, separator, progress
+export buttongroup, cairographic,  label, progress
+export icon, tooltip, separator
 export mainwindow
 export foreach, value
 
@@ -200,6 +203,23 @@ A list of [icons](https://docs.google.com/spreadsheets/d/1HavJQRPpMuq-N0GoN1wJR-
 icon(id::AbstractString, tile) = Icon(id, tile, nothing)
 icon(id::AbstractString) = tile -> Icon(id, tile, nothing)
 
+## tooltip
+immutable Tooltip <: DecorativeWidget
+    text
+    tile
+end
+"""
+
+Add a tooltip to a widget
+
+```
+tooltip("message", widget)
+widget |> tooltip("message")
+```
+"""
+tooltip(msg::AbstractString, tile::Widget) = Tooltip(msg, tile)
+tooltip(msg::AbstractString) = tile -> tooltip(msg, tile)
+
 ## Separator
 immutable Separator <: DecorativeWidget
     orient
@@ -229,6 +249,7 @@ export size,
        padding,
        vbox, hbox,
        tabs,
+       formlayout,
        toolbar,
        menu, 
        window,
@@ -384,7 +405,7 @@ Add padding to a widget.
 
 """
 padding(len::Int, widget) = padcontent(len, widget)
-padding(len::Int) = widget -> pad(len, widget)
+padding(len::Int) = widget -> padding(len, widget)
 padding(sides::AbstractVector, len, tile) =
     padcontent(sides, len, Container(tile))
 
@@ -452,7 +473,31 @@ function tabs(tiles...; selected::Int=1)
     Tabs(children, labels, selected)
 end
 
+immutable FormLayout <: Layout
+    children
+end
 
+"""
+
+Form layout container. There are two columns. The children are
+arranged in the second. Their `label` property runs down the first.
+
+Example:
+```
+sl = slider(1:10, label="slider")
+rb = radiobuttons(["one", "two", "three"], label="radio buttons")
+btn = button("click me")
+fl = formlayout(sl, rb, separator(), btn)
+fl |> padding(5) |> window(title="formlayout example")
+```
+"""
+formlayout(children...) = FormLayout(children)
+formlayout() = FormLayout(Any[])
+Base.push!(lyt::FormLayout, child) = push!(lyt.children, child)
+Base.append!(lyt::FormLayout, children) = append!(lyt.children, children)
+
+
+##################################################
 ## Toolbar
 immutable Toolbar <: Layout
     children
@@ -500,7 +545,21 @@ Note: toggle buttons can be supported when Gtk does.
 menu(children...; label="") = Menu(label, children)
 
 
+## XXX This isn't working, but should be
+immutable MenuButton <: Layout
+    label
+    children
+end
+"""
+
+A menu button is used like a combobox, but we can put in menu items. It can also be in a toolbar.
+
+"""
+menubutton(children...; label::AbstractString="") = MenuButton(label, children)
+
 type Window <: Layout
+    width::Int
+    height::Int
     title
     children
 end
@@ -513,7 +572,7 @@ Child widgets are packed into a `vbox`.
 * `window(child1, child2, ...; title="some title")`
 
 """
-window(children...; title::AbstractString="") = Window(title, [children...])
+window(children...; width::Int=400, height::Int=300, title::AbstractString="") = Window(width, height, title, [children...;])
 window(;kwargs...) = tile -> window(tile; kwargs...)
 
 ##
@@ -524,11 +583,8 @@ type MainWindow <: Layout
     width::Int
     height::Int
     title::AbstractString
-    window
-    label
-    cg
+    children
     obj
-    nrows::Int
 end
 
 """
@@ -545,16 +601,18 @@ Example
 ```
 sl = slider(1:10, label="slider")
 rb = radiobuttons(["one", "two", "three"], label="radio")
-w = mainwindow(title="a main window")
+w = mainwindow(title="a main window");
 append!(w, [sl, rb])
+w                                       # when displayed, creates window
 ```
 
 """
-function mainwindow(;width::Int=300, height::Int=200, title::AbstractString="") 
-    w = MainWindow(width, height, title, nothing, nothing, nothing, nothing, 1)
-    widget = init_window(w)
+function mainwindow(children...;width::Int=300, height::Int=200, title::AbstractString="")
+    widget = MainWindow(width, height, title, [children...;], nothing)
     widget
 end
+
+Base.display(widget::MainWindow) = Gtk.showall(gtk_widget(widget))
 
 ##################################################
     ## dialogs
@@ -748,10 +806,10 @@ macro manipulate(expr)
              map(Interact.make_widget, bindings)...)
 
     b = Expr(:call, :ManipulateWidget, a, w)
+#    Expr(:call, :display, b)
+#    Expr(:call, :showall, w)
     b
-
 end
-
 
 
 ## connnect up Reactive with GtkInteract

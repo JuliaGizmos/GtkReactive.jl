@@ -601,16 +601,16 @@ end
 
 ## CairoGraphic
 function gtk_widget(widget::CairoGraphic)
-    if widget.obj != nothing
-        return widget.obj
-    end
+    if widget.obj == nothing
 
-    obj = @GtkCanvas(widget.width, widget.height)
-    ## how to make winston draw here? Here we store canvas in obj and override push!
-    ## is there a more natural way??
-    widget.obj = obj
-    widget.signal = Signal(widget)
-    obj
+        obj = @GtkCanvas(widget.width, widget.height)
+        ## how to make winston draw here? Here we store canvas in obj and override push!
+        ## is there a more natural way??
+        widget.obj = obj
+        widget.signal = Signal(widget)
+    end
+    
+    widget.obj
 end
 
 
@@ -618,23 +618,25 @@ end
 ## Text area.
 ## unfortunately, setting the font doesn't seem to work.
 function gtk_widget(widget::Textarea)
-    obj = @GtkTextView()
-    block = @GtkScrolledWindow()
-    [setproperty!(obj, x, true) for  x in [:hexpand, :vexpand]]
-    push!(block, obj)
-    setproperty!(obj, :editable, false)
+    if widget.obj == nothing
+        obj = @GtkTextView()
+        block = @GtkScrolledWindow()
+        [setproperty!(obj, x, true) for  x in [:hexpand, :vexpand]]
+        push!(block, obj)
+        setproperty!(obj, :editable, false)
+        
+        if widget.buffer == nothing
+            widget.buffer = getproperty(obj, :buffer, GtkTextBuffer)
+        else
+            setproperty!(obj, :buffer, widget.buffer)
+        end
+        setproperty!(widget.buffer, :text, widget.value)
 
-    if widget.buffer == nothing
-        widget.buffer = getproperty(obj, :buffer, GtkTextBuffer)
-    else
-        setproperty!(obj, :buffer, widget.buffer)
+        widget.obj = block
+        #    widget.signal = Input(widget)
+        widget.signal = Signal(widget)
     end
-    setproperty!(widget.buffer, :text, widget.value)
-
-    widget.obj = block
-    #    widget.signal = Input(widget)
-    widget.signal = Signal(widget)
-    block
+    widget.obj
 end
 
 ## change text in view
@@ -646,16 +648,17 @@ end
 
 
 ## Label
-function gtk_widget(widget::Label) 
-    obj = @GtkLabel(widget.value)
-    setproperty!(obj, :selectable, true)
-    setproperty!(obj, :use_markup, true)
+function gtk_widget(widget::Label)
+    if widget.obj == nothing
+        obj = @GtkLabel(widget.value)
+        setproperty!(obj, :selectable, true)
+        setproperty!(obj, :use_markup, true)
+        
+        widget.obj = obj
+        widget.signal = Signal(widget)
+    end
 
-    widget.obj = obj
-    widget.signal = Signal(widget)
-
-
-    obj
+    widget.obj
 end
 
 function Base.push!(obj::Label, value::AbstractString) 
@@ -665,16 +668,16 @@ function Base.push!(obj::Label, value::AbstractString)
 end
 
 
-## shared or label, textarea
+## Catch all `push!` for non AbstractString for label or textarea
 typealias TextOrLabel Union{Textarea, Label}
-Base.push!(obj::TextOrLabel, value::Reactive.Signal) = push!(obj, Reactive.value(value))
 Base.push!{T <: AbstractString}(obj::TextOrLabel, value::Vector{T}) = push!(obj, join(value, "\n"))
+Base.push!(obj::TextOrLabel, value::Reactive.Signal) = push!(obj, Reactive.value(value))
+Base.push!(obj::TextOrLabel, value) = push!(obj, to_string(value))
 
-function Base.push!(obj::TextOrLabel, value)
-    push!(obj, to_string(value))
-end
 
-## icon
+##################################################
+
+## icon (no obj property) as we don't push onto these
 function gtk_widget(widget::Icon)
     obj = @GtkImage()
     setproperty!(obj, :icon_name, widget.stock_id)
@@ -689,6 +692,11 @@ function gtk_widget(widget::Icon)
     obj
 end
 
+function gtk_widget(widget::Tooltip)
+    obj = gtk_widget(widget.tile)
+    setproperty!(obj, :tooltip_text, widget.text)
+    obj
+end
 
 ## Progress bar
 function gtk_widget(widget::Progress) 
@@ -707,7 +715,7 @@ function Base.push!(widget::Progress, value)
     setproperty!(widget.obj, :fraction, frac)
 end
 
-
+##################################################
 ## Layouts
 
 ## Attributes
@@ -793,6 +801,34 @@ function gtk_widget(widget::Tabs)
     obj
 end
 
+formlabel(widget::Widget) = :label in fieldnames(widget) ? widget.label : ""
+formlabel(widget::Button) = ""
+formlabel(widget) = ""
+
+function gtk_widget(widget::FormLayout)
+    obj = @GtkGrid()
+    setproperty!(obj, :hexpand, true)
+    setproperty!(obj, :row_spacing, 5)
+    setproperty!(obj, :column_spacing, 5)
+
+    for (row, child) in enumerate(widget.children)
+        al = @GtkAlignment(1.0, 0.0, 0.0, 0.0)
+        setproperty!(al, :right_padding, 5)
+        setproperty!(al, :left_padding, 5)
+
+        child_widget = gtk_widget(child)
+        setproperty!(child_widget, :hexpand, true)
+        
+        push!(al, @GtkLabel(formlabel(child)))
+        
+        obj[1, row] = al
+        obj[2, row] = child_widget
+    end
+    
+    obj
+end
+    
+
 ## Toolbar
 function gtk_widget(widget::Toolbar)
     obj = @GtkToolbar()
@@ -807,7 +843,7 @@ function gtk_widget(widget::Toolbar)
 end
 
 function gtk_toolbar_widget(widget::Button)
-    obj = @GtkToolButton(widget.label)
+    obj = @GtkToolButton("")
     Gtk.G_.label(obj, widget.label)
 
     ## widget -> signal
@@ -829,8 +865,18 @@ function gtk_toolbar_widget(widget::ToggleButton)
     
     obj
 end
-#function gtk_toolbar_widget(child::Interact.Dropdown)
-#end
+
+## XXX This isn't working XXX
+function gtk_toolbar_widget(widget::MenuButton)
+    obj = @GtkMenuToolButton(widget.label)
+    Gtk.G_.label(obj, widget.label)
+
+    m = @GtkMenu()
+    Gtk.G_.menu(obj, m)
+    push!(m , gtk_menu_widget(menu(widget.children...)))
+    showall(obj)
+    obj
+end
 
 function gtk_toolbar_widget(child::Separator)
     obj = @GtkSeparatorToolItem()
@@ -841,9 +887,15 @@ function gtk_toolbar_widget(widget::Icon)
     img = @GtkImage()
     setproperty!(img, :icon_name, widget.stock_id)
 
-    obj = gtk_toolbar_widget(widget.tile)
+    obj = gtk_toolbar_widget(widget.tile) # must be non-empty or an error
     Gtk.G_.icon_widget(obj, img)
 
+    obj
+end
+
+function gtk_toolbar_widget(widget::Tooltip)
+    obj = gtk_toolbar_widget(widget.tile)
+    setproperty!(obj, :tooltip_text, widget.text)
     obj
 end
 
@@ -920,10 +972,22 @@ function gtk_menu_widget(widget::Menu)
     obj
 end
 
+## XXX This isn't working XXX
+function gtk_widget(widget::MenuButton)
+    error("GtkMenuButton is not (yet) in Gtk.jl")
+    #obj = @GtkMenuButton()              # error, not (yet) part of Gtk.jl
+    for child in widget.chldren
+        push!(obj, gtk_menu_widget(child))
+    end
+    obj
+end
+
 
 ##
 function gtk_widget(widget::Window)
     obj = @GtkWindow(title=widget.title)
+    resize!(obj, widget.width, widget.height)
+
     ## interiro packing box...
     box = @GtkBox(true)
     Gtk.G_.hexpand(box, true)
@@ -940,74 +1004,25 @@ Base.display(widget::Window) = showall(gtk_widget(widget))
 
 
 ## Main window
-function init_window(widget::MainWindow)
-    if widget.obj != nothing
-        return widget
-    end
+function gtk_widget(widget::MainWindow)
+    obj =  @GtkWindow(title=widget.title)
+    resize!(obj, widget.width, widget.height)
+    widget.obj = obj
 
-    widget.window = @GtkWindow(title=widget.title)
-    resize!(widget.window, widget.width, widget.height)
+    push!(obj, gtk_widget(formlayout(widget.children...)))
 
-    box = @GtkBox(:v)
-    push!(widget.window, box)
-
-    al = @GtkAlignment(0.0, 0.0, 1.0, 1.0)
-    for pad in [:right_padding, :top_padding, :left_padding, :bottom_padding]
-        setproperty!(al, pad, 5)
-    end
-
-    
-    widget.obj = @GtkGrid()
-    setproperty!(widget.obj, :hexpand, true)
-    setproperty!(widget.obj, :row_spacing, 5)
-    setproperty!(widget.obj, :column_spacing, 5)
-
-    push!(box, al)
-    push!(al, widget.obj)
-
-    widget                      # return widget here...
-end
-  
-## add children
-function Base.push!(parent::MainWindow, obj::InputWidget) 
-    widget = gtk_widget(obj)
-    lab = obj.label
-    
-    al = @GtkAlignment(1.0, 0.0, 0.0, 0.0)
-    setproperty!(al, :right_padding, 5)
-    setproperty!(al, :left_padding, 5)
-    setproperty!(widget, :hexpand, true)
-
-    push!(al, @GtkLabel(lab))
-    parent.obj[1, parent.nrows] = al
-    parent.obj[2, parent.nrows] = widget
-
-    parent.nrows = parent.nrows + 1
-    showall(parent.window)
+    obj
 end
 
-
-function Base.push!(parent::MainWindow, obj::Widget) 
-    widget = gtk_widget(obj)
-
-    parent.obj[2, parent.nrows] = (:obj in fieldnames(obj)) ? obj.obj : widget
-    parent.nrows = parent.nrows + 1
-    showall(parent.window)
-end
-
-
-function Base.push!(parent::MainWindow, obj::Layout) 
-    widget = gtk_widget(obj)
-
-    parent.obj[2, parent.nrows] = (:obj in fieldnames(obj)) ? obj.obj : widget
-    parent.nrows = parent.nrows + 1
-    showall(parent.window)
-end
-Base.append!(parent::MainWindow, items) = map(x -> push!(parent, x), items)
+Base.push!(widget::MainWindow, w::Widget) = push!(widget.children, w)
+Base.append!(widget::MainWindow, ws::Widget...) = append!(widget.children, ws)
 
 
 ## for displaying an @manipulate object, we need this
-Base.display(x::ManipulateWidget) = Reactive.foreach(a -> show_outwidget(x.w, a), x.a)
+function Base.display(x::ManipulateWidget)
+    Reactive.foreach(a -> show_outwidget(x.w, a), x.a)
+    display(x.w)
+end
 
 ## Catch all for showing outwidget
 function show_outwidget(w::GtkInteract.MainWindow, x)
@@ -1022,10 +1037,6 @@ function show_outwidget(w::GtkInteract.MainWindow, x)
     push!(w.label, x)
 end
 
-## add text to a label
-function Base.push!(l::Gtk.GtkLabel, x)
-    setproperty!(l, :label, to_string(x))
-end
 
 ## convert object to string for display through label
 to_string(x::AbstractString) = x

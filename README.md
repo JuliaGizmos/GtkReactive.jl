@@ -151,12 +151,12 @@ In addition to the widgets in `Interact`, the following new widgets are provided
 
 *  `buttongroup`
 * `cairographic`, `immersefigure`, `textarea`, `label`, `progress`
-* `icon`, `separator`
+* `icon`, `separator`, `tooltip`
 * `size`, `width`, `height`, `vskip`, `hskip`
 * `grow`, `shrink`, `flex`
 * `align`, `halign`, `valign`
 * `padding`
-* `vbox`, `hbox`, `tabs`
+* `vbox`, `hbox`, `tabs`, `formlayout`
 * `toolbar`, `menu`
 * `window`, `mainwindow`
 * `messagebox`, `confirmbox`, `inputbox`, `openfile`, `savefile`, `selectdir`
