@@ -18,7 +18,7 @@ backend(:immerse)
 ## basically map some data into a GUI element:
 
 n = slider(1:10, label="n")
-rb = radiobutton(["one", "two", "three"], label="radio")
+rb = radiobuttons(["one", "two", "three"], label="radio")
 cb = checkbox(true, label="checkbox")
 
 ## the `Interact.widget` function will try to read your mind:
@@ -123,6 +123,7 @@ n = slider(1:10, label="n")
 m = slider(1:10, label="m")
 btn = button("update")
 append!(w, [n, m, btn])
+w
 
 vals = map(tuple, n, m)  # not just (n,m), as map "lifts" values.
 
@@ -151,19 +152,20 @@ replot = button("replot")
 cg = cairographic()
 
 ## display
-hbox(vbox(hbox(label(α.label),α),
-          hbox(label(β.label), β),
-          replot),
-     padding(5, cg)) |> window(title="layout")
-
-## Our action:
+window(hbox(vbox(hbox(label(α.label),α),
+                 hbox(label(β.label), β),
+                 replot),
+            padding(5, cg));
+       title="layout")
+       
+       ## Our action:
 function draw_plot(α, β)
     push!(cg, plot(x -> α + sin(x + β), 0, 2pi))
 end
 
 ## We can then connect the button as follows:
 coeffs = Reactive.sampleon(replot.signal, map(tuple, α, β))
-map(vals -> drow_plot(vals...), coeffs)
+map(vals -> draw_plot(vals...), coeffs)
 
 
 ## Here, unlike with `@manipulate`, the graphic is only updated when
@@ -202,16 +204,16 @@ w = mainwindow()
 append!(w, values(l))
 
 
-## ANother out put widget
+## Another output widget
 ## progress bar
 ##
 using GtkInteract
-w = mainwindow()
+w = mainwindow();                       # don't call display until all done
 b = button("press")
 pb = progress()
 
 append!(w, [pb, b])
-
+w
 # connect button press to update
 map(b) do _
     push!(pb, floor(Integer, 100*rand()))
@@ -245,10 +247,10 @@ window(mb, tb, grow(icon("window-close", l)))
 
 
 ## We see that a toolbar just takes child widgets as its
-## arguments. The pattern `icon(icon_name, tile)` adds a tile to the
+## arguments. The pattern `icon(icon_name, item)` adds an icon to the
 ## toolbar item.
 
-## The menu bar is similar, though we add submenus using `menu`
+## The menubar is similar to the toolbar. We add submenus using `menu`
 ## again. These submenus must have a `label` value specified through a
-## keyword argument.
+## keyword argument. (These labels show up on the toolbar.)
 
