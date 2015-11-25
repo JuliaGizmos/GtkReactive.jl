@@ -2,7 +2,7 @@
 module GtkInteract
 
 ## TODO:
-## * more layout options. (Did formlayout)
+## * more layout options. (Did formlayout). Do `flex`
 ## * [DONE] menubars, toolbars
 ## * GtkMenuButton and toolbar (one isn't there, other isn't working...)
 ## * [DOne] use formlayout in MainWindow
@@ -17,7 +17,7 @@ import Interact
 import Interact: Button,  button
 import Interact: ToggleButton, togglebutton
 import Interact: Slider, slider
-import Interact: Options, dropdown, radiobuttons, togglebuttons, select
+import Interact: Options, dropdown, radiobuttons, togglebuttons
 import Interact: Checkbox, checkbox
 import Interact: Textbox, textbox
 import Interact: Widget, InputWidget
@@ -73,8 +73,12 @@ A `buttongroup` is like `togglebuttons` only one can select 0, 1, or more of the
 buttongroup(opts; kwargs...) = VectorOptions(:ButtonGroup, opts; kwargs...)
 
 
+"""
 
+The selectlist constructor is just `Interact.select`
 
+"""
+selectlist(args...;kwargs...) = Interact.select(args...; kwargs...)
 
 ## Output widgets
 
@@ -258,10 +262,10 @@ export size,
        width, #minwidth, maxwidth,
        height, #minheight, maxheight,
        vskip, hskip,
-       grow, shrink, flex,
+       grow, shrink, #flex,
        align, halign, valign,
        padding,
-       vbox, hbox,
+       vbox, hbox, 
        tabs,
        formlayout,
        toolbar,
@@ -315,7 +319,7 @@ height(px::Int) = w -> height(px, w)
 vksip(y) = size(0, y, empty)
 hskip(y) = size(y, 0, empty)
 
-## flex
+## grow, shrink, flex
 immutable Grow <: LayoutAttribute
     tile
     factor
@@ -327,12 +331,9 @@ end
 
 Have widget expand if space is available
 
-* `grow(widget)` expand
-* `grow(factor, widget)` use factor to determine growth. Only 0 and 1 are used
-
-Use a direction to constrain growth to one direction:
-
-* `grow(:horizontal, widget)` (also `:vertical`)
+* `grow(widget)` expand in both horizontal and vertical directions
+* `grow(:horizontal, widget)` (also `:vertical`). Expand in horizontal direction, no directive for vertical
+* `grow(factor, widget)` use factor in `[0,1]` to determine growth. Currently Only 0 and 1 are supported.
 
 """
 grow(factor::Real, tile) = Grow(tile, factor, [:horizontal,:vertical])
@@ -345,20 +346,35 @@ grow(direction::Symbol, tile) = grow([direction;], 1, tile)
 immutable Shrink <: LayoutAttribute
     tile
     factor
+    direction
 end
 ## factor in [0,1]
-shrink(factor::Real, tile) = Shrink(tile, factor)
+"""
+
+Have widget not expand when space is available
+
+* `shrink(widget)`
+* `shrink(:horizontal, widget)` (also `:vertical`) to not expand in a given direction
+* `shrink(factor, widget)` use factor to determine shrinking. 
+
+"""
+shrink(factor::Real, tile) = Shrink(tile, factor, [:horizontal,:vertical])
 shrink(factor::Real) = tile -> shrink(factor, tile)
 shrink(tile) = shrink(1.0, tile)
+shrink(direction::Vector{Symbol}, factor::Real, tile) = Shrink(tile, factor, direction)
+shrink(direction::Symbol, factor::Real, tile) = shrink([direction;], factor, tile)
+shrink(direction::Symbol, tile) = shrink([direction;], 1, tile)
 
-immutable Flex <: LayoutAttribute
-    tile
-    factor
-end
-## factor in [0,1]
-flex(factor::Real, tile) = Flex(tile, factor)
-flex(factor::Real) = tile -> flex(factor, tile)
-flex(tile) = flex(1.0, tile)
+## immutable Flex <: LayoutAttribute
+##     tile
+##     factor
+## end
+## ## factor in [0,1]
+## XXX implement
+## Ignore the width (in a hbox) or height (in a vbox) and stretch or shrink a tile to fill / distribute remaining space
+## flex(factor::Real, tile) = Flex(tile, factor)
+## flex(factor::Real) = tile -> flex(factor, tile)
+## flex(tile) = flex(1.0, tile)
 
 
 ## alignment
@@ -413,7 +429,6 @@ padcontent(len, tile, sides=[:left, :right, :top, :bottom]) = Pad(tile, sides, L
 
 Add padding to a widget.
 
-
 * `padding(n, widget)` add n pixels of space around each side
 * `padding([:left, :right, :top, :bottom], n, widget)` specify which sides with a vector.
 
@@ -434,7 +449,7 @@ end
 
 """
 
-vertical box for packing in children
+Vertical box for packing in children
 
 ```
 vbox(child1, child2, ...)
@@ -448,13 +463,14 @@ vbox(grow(child1), padding(10, child2))
 
 """
 vbox(children...) = FlowContainer(nothing, "vertical", [children...])
-
+vbox() = FlowContainer(nothing, "vertical", Any[])
 """
 
 Horizontal box container. See `vbox`.
 
 """
 hbox(children...) = FlowContainer(nothing, "horizontal", [children...])
+hbox() = FlowContainer(nothing, "horizontal", Any[])
 
 """
 
@@ -463,29 +479,6 @@ An empty container for spacing purposes
 """
 const empty = vbox()
 
-
-## Tabs...
-immutable Tabs <: Layout
-    children
-    labels
-    initial::Int
-end
-
-"""
-
-Use a notebook to organize pages
-
-The tab labels are specified at construction time using "pairs:"
-
-
-*  `tabs("label"=>tile, "label1"=>tile, ...; selected=1)`
-
-"""
-function tabs(tiles...; selected::Int=1)
-    labels = [label for (label, child) in tiles]
-    children = [child for (label, child) in tiles]
-    Tabs(children, labels, selected)
-end
 
 immutable FormLayout <: Layout
     children
@@ -507,9 +500,43 @@ fl |> padding(5) |> window(title="formlayout example")
 """
 formlayout(children...) = FormLayout(children)
 formlayout() = FormLayout(Any[])
-Base.push!(lyt::FormLayout, child) = push!(lyt.children, child)
-Base.append!(lyt::FormLayout, children) = append!(lyt.children, children)
+## can push children on if convenient
+## fl = formlayout
+## push!(fl, button("one"))
+Base.push!(lyt::Layout, child) = push!(lyt.children, child)
+Base.append!(lyt::Layout, children) = append!(lyt.children, children)
 
+
+## Tabs...
+immutable Tabs <: Layout
+    children
+    labels
+    initial::Int
+end
+
+"""
+
+Use a notebook to organize pages
+
+The tab labels are specified at construction time using "pairs:"
+
+*  `tabs("label"=>tile, "label1"=>tile, ...; selected=1)`
+
+"""
+function tabs(tiles...; selected::Int=1)
+    labels = [label for (label, child) in tiles]
+    children = [child for (label, child) in tiles]
+    Tabs(children, labels, selected)
+end
+tabs(;selected::Int=1) = Tabs(Any[], Any[], selected)
+function Base.push!(lyt::Tabs, child)
+    push!(lyt.labels, child[1])
+    push!(lyt.children, child[2])
+end
+function Base.append!(lyt::Tabs, children::Pair...)
+    append!(lyt.labels, [child[1] for child in children])
+    append!(lyt.children, [child[2] for child in children])
+end
 
 ##################################################
 ## Toolbar
@@ -525,6 +552,7 @@ Toolbar container. Holds buttons, togglebuttons, separators
 function toolbar(children...)
     Toolbar(children)
 end
+toolbar() = Toolbar(Any[])
 
 ## Menubar
 immutable Menu <: Layout
@@ -557,7 +585,7 @@ Note: toggle buttons can be supported when Gtk does.
 
 """
 menu(children...; label="") = Menu(label, children)
-
+menu(; label="") = Menu(label, Any[])
 
 ## XXX This isn't working, but should be
 immutable MenuButton <: Layout
@@ -586,7 +614,7 @@ Child widgets are packed into a `vbox`.
 
 * `window(child1, child2, ...; title="some title")`
 
-There is no curried form. Rather, `window(kwargs...)` creates a window
+If no children are passed in, `window(kwargs...)` creates a window
 object onto which children may be pushed or appended. The window will render when
 its `display` method is called.
 
@@ -602,9 +630,20 @@ destroy(w)
 """
 window(children...; width::Int=-1, height::Int=-1, title::AbstractString="") = Window(width, height, title, [children...;], nothing)
 #window(;kwargs...) = tile -> window(tile; kwargs...)
-Base.push!(widget::Window, child::Widget) = push!(widget.children, child)
+Base.push!(widget::Window, child) = push!(widget.children, child)
 Base.append!(widget::Window, children) = append!(widget.children, children)
-Gtk.destroy(widget::Window) = destroy(widget.obj)
+
+"""
+
+Close a GUI window.
+
+"""
+function Gtk.destroy(widget::Window)
+    if widget.obj != nothing
+        destroy(widget.obj)
+        widget.obj = nothing
+    end
+end
 ##
 ## MainWindow
 ##
@@ -614,9 +653,8 @@ type MainWindow <: Layout
     height::Int
     title::AbstractString
     children
-    obj
-    window
-    out
+    window                              # main @GtkWindow. Used by destroy()
+    out                                 # output widget
 end
 
 """
@@ -641,17 +679,25 @@ w                                       # when displayed, creates window.  Call 
 """
 function mainwindow(children...;width::Int=300, height::Int=200, title::AbstractString="")
     widget = MainWindow(width, height, title, [children...;],
-                        nothing, nothing, nothing) # obj, window, label, nothing
+                        nothing, nothing) # window, outputwidget
     widget
 end
 
+Base.push!(widget::MainWindow, w) = push!(widget.children, w)
+Base.append!(widget::MainWindow, ws) = append!(widget.children, ws)
+function Gtk.destroy(widget::MainWindow)
+    if widget.window != nothing
+        destroy(widget.window)
+        widget.window = nothing
+    end
+end
 Base.display(widget::MainWindow) = Gtk.showall(gtk_widget(widget))
-Gtk.destroy(widget::MainWindow) = destroy(widget.obj)
+
 ##################################################
     ## dialogs
 """
 
-Dialogs are modal so that hye block until there is a returned value
+Dialogs are modal so that they block until there is a returned value
 
 
 """

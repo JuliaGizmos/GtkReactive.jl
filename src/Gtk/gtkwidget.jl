@@ -16,6 +16,7 @@ function make_canvas(w::MainWindow, x)
     push!(w.out, x)    
 end
 
+
 Requires.@require Plots begin
     ## In general use a canvas to display a plot in the main window
     show_outwidget(w::GtkInteract.MainWindow, x::Plots.Plot) = make_canvas(w, x)
@@ -27,14 +28,7 @@ Requires.@require Plots begin
 
     ## ## For unicode plots we try a label, but doesn't work...
     ## function show_outwidget(w::GtkInteract.MainWindow, p::Plots.Plot{Plots.UnicodePlotsPackage})
-    ##      if w.label == nothing
-    ##         w.label = @GtkLabel("")
-    ##         setproperty!(w.label, :selectable, true)
-    ##         setproperty!(w.label, :use_markup, true)
-    ##         push!(w.window[1], w.label)
-    ##         showall(w.window)
-    ## end
-    
+    ##      .....
     ##     ## Fails!
     ##     Plots.rebuildUnicodePlot!(p)
     ##     out = sprint(io -> writemime(io, "text/plain", p.o))
@@ -182,7 +176,6 @@ end
 ##
 function gtk_widget(widget::Button)
     obj = @GtkButton(widget.label)
-#    widget.label = "" ## XXX why do I have this?
 
     ## widget -> signal
     id = signal_connect(obj, :clicked) do obj, args...
@@ -591,7 +584,7 @@ function gtk_widget(widget::Options{:Select})
 end
 
 
-
+##################################################
 ## Output widgets
 
 
@@ -629,7 +622,6 @@ function gtk_widget(widget::Textarea)
         setproperty!(widget.buffer, :text, widget.value)
 
         widget.obj = block
-        #    widget.signal = Input(widget)
         widget.signal = Signal(widget)
     end
     widget.obj
@@ -687,7 +679,7 @@ function Base.push!(widget::Image, val::AbstractString)
     Gtk.G_.file(widget.obj, val)
 end
 ##################################################
-
+## Decorative
 ## icon (no obj property) as we don't push onto these
 function gtk_widget(widget::Icon)
     obj = @GtkImage()
@@ -1019,16 +1011,12 @@ Base.display(widget::Window) = showall(gtk_widget(widget))
 function gtk_widget(widget::MainWindow)
     obj =  @GtkWindow(title=widget.title)
     resize!(obj, widget.width, widget.height)
-    widget.obj = obj
     widget.window = obj
 
     push!(obj, gtk_widget(formlayout(widget.children...)))
 
     obj
 end
-
-Base.push!(widget::MainWindow, w::Widget) = push!(widget.children, w)
-Base.append!(widget::MainWindow, ws::Vector{Widget}) = append!(widget.children, ws)
 
 
 ## for displaying an @manipulate object, we need this

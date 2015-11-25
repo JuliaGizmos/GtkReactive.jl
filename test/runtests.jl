@@ -16,7 +16,7 @@ cb = checkbox(true, label="check")      # bool
 tb = togglebutton(true, label="toggle") # bool
 dd = dropdown(opts)       # 1 of n
 rbs = radiobuttons(opts)  # 1 of n
-sel = GtkInteract.select(opts, label="select")        # 1 of n
+sel = selectlist(opts, label="select")        # 1 of n
 tbs = togglebuttons(opts) # 1 of n
 bg = buttongroup(opts)    # 0,1,...,n of n
 txtb = textbox("text goes here", label="textbox")

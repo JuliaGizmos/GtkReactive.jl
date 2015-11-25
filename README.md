@@ -149,7 +149,7 @@ some machines.
 
 In addition to the widgets in `Interact`, the following new widgets are provided:
 
-*  `buttongroup`
+* `buttongroup`, `selectlist` (just a renamed `Interact.select`)
 * `cairographic`, `immersefigure`, `textarea`, `label`, `progress`
 * `icon`, `separator`, `tooltip`
 * `size`, `width`, `height`, `vskip`, `hskip`
