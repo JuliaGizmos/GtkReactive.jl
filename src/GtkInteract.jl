@@ -108,7 +108,11 @@ type CairoGraphic <: OutputWidget
     obj
 end
 
-cairographic(;width::Int=480, height::Int=400) = CairoGraphic(width, height,nothing, nothing, nothing)
+function cairographic(;width::Int=480, height::Int=400)
+    widget = CairoGraphic(width, height,nothing, nothing, nothing)
+    widget.signal = Signal(widget)
+    widget
+end
 
 
 type ImmerseFigure <: OutputWidget
@@ -126,7 +130,11 @@ end
 Add area for an `Immerse` graphic
 
 """
-immersefigure(;width::Int=480, height::Int=400) = ImmerseFigure(width, height, nothing, nothing, nothing,nothing, nothing)
+function immersefigure(;width::Int=480, height::Int=400)
+    widget = ImmerseFigure(width, height, nothing, nothing, nothing,nothing, nothing)
+    widget.signal = Signal(widget)
+    widget
+end
 
 """
 Textarea for output
@@ -143,7 +151,9 @@ type Textarea{T <: AbstractString} <: OutputWidget
 end
 
 function textarea(;width::Int=480, height::Int=400, value::AbstractString="")
-    Textarea(width, height, Signal(Any),  value, nothing, nothing)
+    widget = Textarea(width, height, Signal(Any),  value, nothing, nothing)
+    widget.signal = Signal(widget)
+    widget
 end
 
 textarea(value; kwargs...) = textarea(value=value, kwargs...)
@@ -160,7 +170,11 @@ label.
 Like text area, but is clearly not editable and allows for PANGO markup.
 Replace text via `push!(obj, value)`
 """
-label(;value="") = Label(Signal{Any}, string(value), nothing)
+function label(;value="")
+    widget = Label(Signal(Any), string(value), nothing)
+    widget.signal = Signal(widget)
+    widget
+end
 label(lab; kwargs...) = label(value=lab, kwargs...)
 
 type Image <: OutputWidget
@@ -174,7 +188,11 @@ end
 Show an image from a file
 
 """
-image(;value="") = Image(Signal{Any}, string(value), nothing)
+function image(;value="")
+    widget = Image(Signal(Any), string(value), nothing)
+    widget.signal = Signal(widget)
+    widget
+end
 image(fname; kwargs...) = image(value=fname, kwargs...)
 
 type Progress <: OutputWidget
@@ -187,9 +205,15 @@ end
 ## Progress creates a progress bar
 ##
 ## `push!` values onto it where `value` is within `[first(range), last(range)]`
-progress(args...) = Progress(args...)
+## function progress(args...)
+##     widget = Progress(args...)
+##     widget.signal = Signal(widget)
+##     widget
+## end
 function progress(;label="", value=0, range=0:100)
-    Progress(nothing, value, range, nothing)
+    widget = Progress(nothing, value, range, nothing)
+    widget.signal = Signal(widget)
+    widget
 end
 
 ## Decorative widgets
@@ -876,15 +900,13 @@ macro manipulate(expr)
     end
     syms = Interact.symbols(bindings)
 
-
     ## Modifications
     w = mainwindow(title="@manipulate")
     a = Expr(:let, Expr(:block,
                         display_widgets(w, syms)...,
                         esc(Interact.map_block(block, syms))),
              map(Interact.make_widget, bindings)...)
-
-    b = Expr(:call, :ManipulateWidget, a, w)
+             b = Expr(:call, :ManipulateWidget, a, w)
     b
 end
 

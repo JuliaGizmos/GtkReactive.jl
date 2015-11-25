@@ -21,7 +21,11 @@ Requires.@require Plots begin
     ## In general use a canvas to display a plot in the main window
     show_outwidget(w::GtkInteract.MainWindow, x::Plots.Plot) = make_canvas(w, x)
     
-    Base.push!(obj::CairoGraphic, p::Plots.Plot) = push!(obj.obj, p)
+    function Base.push!(obj::CairoGraphic, p::Plots.Plot)
+        if obj.obj != nothing
+            push!(obj.obj, p)
+        end
+    end
     Base.push!(c::GtkCanvas, p::Plots.Plot) = push!(c, p.o[2])
 
     ## show_outwidget makes a display widget for a plot
@@ -50,8 +54,6 @@ Requires.@require Immerse begin
         widget.obj = box
         widget.toolbar = toolbar
         widget.cnv = cnv
-
-        widget.signal = Signal(widget)
 
         ## Add figure, But should I close the next one??
         i = Immerse.nextfig(Immerse._display)
@@ -90,7 +92,11 @@ Requires.@require Winston begin
 
     show_outwidget(w::GtkInteract.MainWindow, x::Winston.FramedPlot) = make_canvas(w, x)
     
-    Base.push!(obj::CairoGraphic, pc::Winston.PlotContainer) = Winston.display(obj.obj, pc)    
+    function Base.push!(obj::CairoGraphic, pc::Winston.PlotContainer)
+        if obj.obj != nothing
+            Winston.display(obj.obj, pc)
+        end
+    end
     Base.push!(c::GtkCanvas, pc::Winston.PlotContainer) = Winston.display(c, pc)
 end
 
@@ -596,7 +602,6 @@ function gtk_widget(widget::CairoGraphic)
         ## how to make winston draw here? Here we store canvas in obj and override push!
         ## is there a more natural way??
         widget.obj = obj
-        widget.signal = Signal(widget)
     end
     
     widget.obj
@@ -622,14 +627,16 @@ function gtk_widget(widget::Textarea)
         setproperty!(widget.buffer, :text, widget.value)
 
         widget.obj = block
-        widget.signal = Signal(widget)
     end
     widget.obj
 end
 
 ## change text in view
-function Base.push!(obj::Textarea, value::AbstractString) 
-    setproperty!(obj.buffer, :text, value)
+function Base.push!(obj::Textarea, value::AbstractString)
+    if obj.buffer != nothing
+        setproperty!(obj.buffer, :text, value)
+        obj.value = value
+    end
     value
 end
 
@@ -643,16 +650,18 @@ function gtk_widget(widget::Label)
         setproperty!(obj, :use_markup, true)
         
         widget.obj = obj
-        widget.signal = Signal(widget)
     end
 
     widget.obj
 end
 
-function Base.push!(widget::Label, value::AbstractString) 
-    setproperty!(widget.obj, :label, value)
-    setproperty!(widget.obj, :use_markup, true)
-    widget.value = value
+function Base.push!(widget::Label, value::AbstractString)
+    if widget.obj != nothing
+        setproperty!(widget.obj, :label, value)
+        setproperty!(widget.obj, :use_markup, true)
+        widget.value = value
+    end
+    value
 end
 
 
@@ -667,7 +676,6 @@ function gtk_widget(widget::Image)
     if widget.obj == nothing
         obj = @GtkImage()
         widget.obj = obj
-        widget.signal = Signal(widget)
     end
     if widget.value != nothing
         Gtk.G_.file(obj, widget.value)
@@ -675,8 +683,10 @@ function gtk_widget(widget::Image)
     widget.obj
 end
 function Base.push!(widget::Image, val::AbstractString)
-    widget.value = val
-    Gtk.G_.file(widget.obj, val)
+    if widget.obj != nothing
+        widget.value = val
+        Gtk.G_.file(widget.obj, val)
+    end
 end
 ##################################################
 ## Decorative
@@ -707,15 +717,16 @@ function gtk_widget(widget::Progress)
     widget.obj = obj
     
     push!(widget, widget.value)
-    widget.signal = Signal(widget)
     obj
 end
 
 ## push value in range of obj.range
 Base.push!(obj::Progress, value::Reactive.Signal) = push!(obj, Reactive.value(value))
 function Base.push!(widget::Progress, value)
-    frac = clamp((value - first(widget.range)) / (last(widget.range) - first(widget.range)), 0, 1)
-    setproperty!(widget.obj, :fraction, frac)
+    if widget.obj != nothing
+        frac = clamp((value - first(widget.range)) / (last(widget.range) - first(widget.range)), 0, 1)
+        setproperty!(widget.obj, :fraction, frac)
+    end
 end
 
 ##################################################
@@ -1022,18 +1033,21 @@ end
 ## for displaying an @manipulate object, we need this
 function Base.display(x::ManipulateWidget)
     Reactive.foreach(a -> show_outwidget(x.w, a), x.a)
-#    display(x.w)
+    ## hack to get output widgets passed in
+    tmp = filter(u->!isa(u, GtkInteract.OutputWidget), x.w.children)[1]
+    push!(tmp, value(tmp))
+    nothing
 end
 
 ## Catch all for showing outwidget
 function show_outwidget(w::GtkInteract.MainWindow, x)
-    x == nothing && return()
+
     if w.out == nothing
         w.out = label("")
         push!(w, grow(w.out))
         display(w)
     end
-    push!(w.out, to_string(x))
+    x != nothing &&  push!(w.out, to_string(x))
 end
 
 
