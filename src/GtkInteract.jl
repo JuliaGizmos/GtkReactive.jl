@@ -159,7 +159,19 @@ Replace text via `push!(obj, value)`
 label(;value="") = Label(Signal{Any}, string(value), nothing)
 label(lab; kwargs...) = label(value=lab, kwargs...)
 
+type Image <: OutputWidget
+    signal
+    value::AbstractString
+    obj
+end
 
+"""
+
+Show an image from a file
+
+"""
+image(;value="") = Image(Signal{Any}, string(value), nothing)
+image(fname; kwargs...) = image(value=fname, kwargs...)
 
 type Progress <: OutputWidget
     signal
@@ -265,7 +277,7 @@ end
 
 
 
-abstract Layout
+abstract Layout <: Widget
 abstract LayoutAttribute <: Layout
 
 immutable Size <: LayoutAttribute
@@ -603,6 +615,8 @@ type MainWindow <: Layout
     title::AbstractString
     children
     obj
+    window
+    out
 end
 
 """
@@ -626,7 +640,8 @@ w                                       # when displayed, creates window.  Call 
 
 """
 function mainwindow(children...;width::Int=300, height::Int=200, title::AbstractString="")
-    widget = MainWindow(width, height, title, [children...;], nothing)
+    widget = MainWindow(width, height, title, [children...;],
+                        nothing, nothing, nothing) # obj, window, label, nothing
     widget
 end
 
@@ -824,8 +839,6 @@ macro manipulate(expr)
              map(Interact.make_widget, bindings)...)
 
     b = Expr(:call, :ManipulateWidget, a, w)
-#    Expr(:call, :display, b)
-#    Expr(:call, :showall, w)
     b
 end
 

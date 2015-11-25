@@ -8,14 +8,12 @@
 
 ## Helper to add canvas to main window if none there
 function make_canvas(w::MainWindow, x)
-    if w.cg == nothing
-        box = w.window[1]
-        w.cg = @GtkCanvas(480, 400)
-        setproperty!(w.cg, :vexpand, true)
-        push!(box, w.cg)
-        showall(w.window)
+    if w.out == nothing
+        w.out = cairographic()
+        push!(w, grow(w.out))
+        display(w)
     end
-    push!(w.cg, x)    
+    push!(w.out, x)    
 end
 
 Requires.@require Plots begin
@@ -73,13 +71,10 @@ Requires.@require Immerse begin
     
     ## same as Plots.Plot, make canvas window
     function show_outwidget(w::GtkInteract.MainWindow, x::Gadfly.Plot)
-        if w.cg == nothing
-            widget = immersefigure()
-            o = gtk_widget(widget)
-            w.cg = widget.cnv
-            box = w.window[1]
-            push!(box, o)
-            showall(w.window)
+        if w.out == nothing
+            w.out = immersefigure()
+            push!(w, grow(w.out))
+            display(w)
         end
         display(Immerse._display, x)
     end
@@ -157,18 +152,19 @@ end
 export withfig
 
     " How to show a pyplot figure "
-    function show_outwidget(w::GtkInteract.MainWindow, x::PyPlot.Figure) 
-        if w.label == nothing
-            w.label = @GtkImage()
-            push!(w.window[1], w.label)
-            showall(w.window)
+    function show_outwidget(w::GtkInteract.MainWindow, x::PyPlot.Figure)
+        error("XXX This is broken XXX")
+        if w.out == nothing
+            w.out = image()
+            push(w, grow(w.out))
+            display(w)
         end
         
         f = tempname() * ".png"
         io = open(f, "w")
         writemime(io, "image/png", x)
         close(io)
-        Gtk.G_.from_file(w.label, f)
+        push!(w.out, f)
         rm(f)
         x[:clear]()
         nothing
@@ -661,10 +657,10 @@ function gtk_widget(widget::Label)
     widget.obj
 end
 
-function Base.push!(obj::Label, value::AbstractString) 
-    setproperty!(obj.obj, :label, value)
-    setproperty!(obj.obj, :use_markup, true)
-    obj.value = value
+function Base.push!(widget::Label, value::AbstractString) 
+    setproperty!(widget.obj, :label, value)
+    setproperty!(widget.obj, :use_markup, true)
+    widget.value = value
 end
 
 
@@ -674,7 +670,22 @@ Base.push!{T <: AbstractString}(obj::TextOrLabel, value::Vector{T}) = push!(obj,
 Base.push!(obj::TextOrLabel, value::Reactive.Signal) = push!(obj, Reactive.value(value))
 Base.push!(obj::TextOrLabel, value) = push!(obj, to_string(value))
 
-
+## Image
+function gtk_widget(widget::Image)
+    if widget.obj == nothing
+        obj = @GtkImage()
+        widget.obj = obj
+        widget.signal = Signal(widget)
+    end
+    if widget.value != nothing
+        Gtk.G_.file(obj, widget.value)
+    end
+    widget.obj
+end
+function Base.push!(widget::Image, val::AbstractString)
+    widget.value = val
+    Gtk.G_.file(widget.obj, val)
+end
 ##################################################
 
 ## icon (no obj property) as we don't push onto these
@@ -1009,6 +1020,7 @@ function gtk_widget(widget::MainWindow)
     obj =  @GtkWindow(title=widget.title)
     resize!(obj, widget.width, widget.height)
     widget.obj = obj
+    widget.window = obj
 
     push!(obj, gtk_widget(formlayout(widget.children...)))
 
@@ -1016,26 +1028,24 @@ function gtk_widget(widget::MainWindow)
 end
 
 Base.push!(widget::MainWindow, w::Widget) = push!(widget.children, w)
-Base.append!(widget::MainWindow, ws::Widget...) = append!(widget.children, ws)
+Base.append!(widget::MainWindow, ws::Vector{Widget}) = append!(widget.children, ws)
 
 
 ## for displaying an @manipulate object, we need this
 function Base.display(x::ManipulateWidget)
     Reactive.foreach(a -> show_outwidget(x.w, a), x.a)
-    display(x.w)
+#    display(x.w)
 end
 
 ## Catch all for showing outwidget
 function show_outwidget(w::GtkInteract.MainWindow, x)
     x == nothing && return()
-    if w.label == nothing
-        w.label = @GtkLabel("")
-        setproperty!(w.label, :selectable, true)
-        setproperty!(w.label, :use_markup, true)
-        push!(w.window[1], w.label)
-        showall(w.window)
+    if w.out == nothing
+        w.out = label("")
+        push!(w, grow(w.out))
+        display(w)
     end
-    push!(w.label, x)
+    push!(w.out, to_string(x))
 end
 
 
