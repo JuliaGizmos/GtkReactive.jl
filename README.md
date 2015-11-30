@@ -2,6 +2,9 @@
 
 [![Build Status](https://travis-ci.org/jverzani/GtkInteract.jl.svg?branch=master)](https://travis-ci.org/jverzani/GtkInteract.jl)
 
+> This currently requires the `master` branch of both `Reactive` and `Interact`.
+
+
 The [`Interact`](https://github.com/JuliaLang/Interact.jl) package
 brings interactive widgets to `IJulia` notebooks. In particular, the
 `@manipulate` macro makes it trivial to define simple interactive

@@ -187,6 +187,9 @@ function gtk_widget(widget::Button)
     id = signal_connect(obj, :clicked) do obj, args...
         push!(widget.signal,Reactive.value(Interact.signal(widget))) # call
     end
+    signal_connect(obj, :destroy) do args...
+        signal_handler_block(obj, id)
+    end
 
     obj
 end
@@ -490,17 +493,16 @@ function gtk_widget(widget::VectorOptions{:ButtonGroup})
     
     block = @GtkBox(false)
     
-    btns = Gtk.GtkToggleButton[]
+    btns = Dict()
     for (lab, val) in zip(labs, vals)
         btn =  Gtk.@GtkToggleButton(lab)
-        setproperty!(btn, :active, val in widget.values)
+        btns[lab] = btn
         push!(block, btn)
-        push!(btns, btn)
     end
 
     ## widget -> signal
     ids = Dict()
-    for btn in btns
+    for (lab, btn) in btns
         ids[btn] = signal_connect(buttongroup_cb, btn, "toggled", Void, (), false, (widget, btn, labs, vals))
         ## ids[btn] = signal_connect(btn, :toggled) do btn, xs...
         ##     val =  getproperty(btn, :active, Bool)
@@ -522,7 +524,7 @@ function gtk_widget(widget::VectorOptions{:ButtonGroup})
         indices = [findfirst(vals, v) for v in values]
         selectedlabs = labs[indices]
 
-        for btn in btns
+        for (lab, btn) in btns
             signal_handler_block(btn, ids[btn])
             setproperty!(btn, :active, getproperty(btn, :label, AbstractString) in selectedlabs)
             signal_handler_unblock(btn, ids[btn])
@@ -530,8 +532,11 @@ function gtk_widget(widget::VectorOptions{:ButtonGroup})
 
     end
 
-
-    
+    ## set initial *after* foreach call
+    for (lab, val) in zip(labs, vals)
+        btn =  btns[lab]
+        setproperty!(btn, :active, val in widget.values)         
+    end
 
     block
 end
@@ -862,7 +867,7 @@ function gtk_toolbar_widget(widget::Button)
 
     ## widget -> signal
     id = signal_connect(obj, :clicked) do obj, args...
-        push!(widget.signal, Reactive.value(Interact.signal(widget))) # call
+        push!(widget.signal, value(widget)) # call
     end
     
     obj
@@ -870,6 +875,7 @@ end
 function gtk_toolbar_widget(widget::ToggleButton)
     obj = @GtkToggleToolButton(widget.label)
     Gtk.G_.label(obj, widget.label)
+    setproperty!(obj, :active, widget.value)
     
     ## widget -> signal
     id = signal_connect(obj, :toggled) do obj, args...

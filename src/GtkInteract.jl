@@ -5,7 +5,7 @@ module GtkInteract
 ## * more layout options. (Did formlayout). Do `flex`
 ## * [DONE] menubars, toolbars
 ## * GtkMenuButton and toolbar (one isn't there, other isn't working...)
-## * [DOne] use formlayout in MainWindow
+## * [DONE] use formlayout in MainWindow
 
 using Gtk
 using Reactive
@@ -486,14 +486,14 @@ vbox(grow(child1), padding(10, child2))
 ```
 
 """
-vbox(children...) = FlowContainer(nothing, "vertical", [children...])
+vbox(children...) = FlowContainer(nothing, "vertical", Any[children...])
 vbox() = FlowContainer(nothing, "vertical", Any[])
 """
 
 Horizontal box container. See `vbox`.
 
 """
-hbox(children...) = FlowContainer(nothing, "horizontal", [children...])
+hbox(children...) = FlowContainer(nothing, "horizontal", Any[children...])
 hbox() = FlowContainer(nothing, "horizontal", Any[])
 
 """
@@ -522,7 +522,7 @@ fl = formlayout(sl, rb, separator(), btn)
 fl |> padding(5) |> window(title="formlayout example")
 ```
 """
-formlayout(children...) = FormLayout(children)
+formlayout(children...) = FormLayout(Any[children...;])
 formlayout() = FormLayout(Any[])
 ## can push children on if convenient
 ## fl = formlayout
@@ -548,8 +548,8 @@ The tab labels are specified at construction time using "pairs:"
 
 """
 function tabs(tiles...; selected::Int=1)
-    labels = [label for (label, child) in tiles]
-    children = [child for (label, child) in tiles]
+    labels = Any[label for (label, child) in tiles]
+    children = Any[child for (label, child) in tiles]
     Tabs(children, labels, selected)
 end
 tabs(;selected::Int=1) = Tabs(Any[], Any[], selected)
@@ -573,9 +573,7 @@ end
 Toolbar container. Holds buttons, togglebuttons, separators
 
 """
-function toolbar(children...)
-    Toolbar(children)
-end
+toolbar(children...) = Toolbar(Any[children...;])
 toolbar() = Toolbar(Any[])
 
 ## Menubar
@@ -608,7 +606,7 @@ w = window(mb, grow(label("space")))
 Note: toggle buttons can be supported when Gtk does.
 
 """
-menu(children...; label="") = Menu(label, children)
+menu(children...; label="") = Menu(label, Any[children...;])
 menu(; label="") = Menu(label, Any[])
 
 ## XXX This isn't working, but should be
@@ -621,7 +619,7 @@ end
 A menu button is used like a combobox, but we can put in menu items. It can also be in a toolbar.
 
 """
-menubutton(children...; label::AbstractString="") = MenuButton(label, children)
+menubutton(children...; label::AbstractString="") = MenuButton(label, Any[children...;])
 
 type Window <: Layout
     width::Int
@@ -652,8 +650,7 @@ destroy(w)
 ```
 
 """
-window(children...; width::Int=-1, height::Int=-1, title::AbstractString="") = Window(width, height, title, [children...;], nothing)
-#window(;kwargs...) = tile -> window(tile; kwargs...)
+window(children...; width::Int=-1, height::Int=-1, title::AbstractString="") = Window(width, height, title, Any[children...;], nothing)
 Base.push!(widget::Window, child) = push!(widget.children, child)
 Base.append!(widget::Window, children) = append!(widget.children, children)
 
@@ -702,7 +699,7 @@ w                                       # when displayed, creates window.  Call 
 
 """
 function mainwindow(children...;width::Int=300, height::Int=200, title::AbstractString="")
-    widget = MainWindow(width, height, title, [children...;],
+    widget = MainWindow(width, height, title, Any[children...;],
                         nothing, nothing) # window, outputwidget
     widget
 end
@@ -940,6 +937,23 @@ Base.map(f::Function, ws::Interact.InputWidget...) = map(f, map(Interact.signal,
 
 """
 
+We suppress the initial call when mapping to a button. This allows
+something like `destroy` to be used when a button is clicked. Set
+`initial_call` to `true` to force the initial call.
+
+"""
+function Base.map(f::Function, b::Interact.Button, initial_call::Bool=false)
+    ctr = 0
+    map(b.signal) do args...
+        ctr >= 1 && f()
+        ctr = ctr + 1
+    end
+    initial_call && f()
+end
+
+
+"""
+
 The `sampleon` function of `Reactive.jl` passes on the values of the signals (as a
 tuple) when the button is pressed. This can be used when the effects
 of changing a GUI element can take a long time to propogate. In that
@@ -971,6 +985,10 @@ Find current value of a widget. Short hand for `Reactive.value(w.signal)`.
 
 """
 value(w::Widget) = Reactive.value(w.signal)
+
+
+
+
 ## load Gtk specific things
 include("Gtk/gtkwidget.jl")
 

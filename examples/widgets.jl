@@ -3,10 +3,10 @@
 ## * create the controls
 ## * layout the controls
 ## * propagate changes in a control to some output
-
-## With `GtkInteract`, the first two are covered by using patterns from
-## `Interact` and `Escher`; the latter by patterns from `Reactive.
-
+##
+## `GtkInteract` uses the widgets of the `Interact` package, adding a few, including output widgets
+## `GtkInteract` uses layout containers using a style defined by the `Escher` package.
+## `GtkInteract` uses the `Reactive` package to propagate changes from controls.
 
 using GtkInteract, Reactive, Plots
 backend(:immerse)
@@ -63,7 +63,17 @@ w = window(hbox(vbox(hbox(label(n.label), n),
 ## to layout the slider controls. Unlike the layout with `mainwindow`,
 ## the labels must be managed by the programmer. Hence the construct
 ## `hbox(label(n.label), n)`. This pattern packs a label next to the
-## control.  To adjust layouts, there are a few
+## control.
+##
+## The layout widgets are just containers. Child widgets are added at
+## construction time, as illustrated above, or through the `push!` and
+## `append!` methods.
+##
+## The `window` container is similar. It differs in rendering
+## though. Once it is `display`ed, the child widgets are realized and
+## can no longer have children appended.
+##
+##  To adjust layouts, there are a few
 ## attributes. Illustrated above is `padding`, which adds 5 pixels of
 ## "padding" around the widget used to display the graphic; and `grow`
 ## which instructs the child to grow to fill any allocated space.
@@ -95,7 +105,7 @@ end
 ## not each control is desired if the update is expensive to compute
 ## (With sliders it may be computed up to 4 times during the move).
 
-w = mainwindow(title="Simple test");
+w = mainwindow(title="Simple test");   # suppress call to `display` with semicolon
 n = slider(1:10, label="n")
 m = slider(1:10, label="m")
 btn = button("update")
