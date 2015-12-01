@@ -183,8 +183,8 @@ end
 
 function button_cb(btnptr::Ptr, user_data)
     w, o = user_data
-    println(typeof(o))
-    println("Push value to object of type $(typeof(w))")
+#    println(typeof(o))
+#    println("Push value to object of type $(typeof(w))")
     #    push!(w.signal, Reactive.value(Interact.signal(w)))
     push!(w.signal, nothing)
 end
