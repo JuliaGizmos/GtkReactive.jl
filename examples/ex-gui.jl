@@ -1,4 +1,4 @@
-#
+## Make a simple enough GUI to plot variables in a data frame
 using GtkInteract
 using RDatasets, DataFrames
 using Plots
@@ -17,10 +17,10 @@ others = setdiff(nms, vcat(nums, bools, facs))
 
 
 
-vb = formlayout()
 nums = map(string, nums)
 xvar = dropdown(nums, label="X variable", value_label=nums[1])
 yvar = dropdown(nums, label="Y variable", value_label=nums[2])
+vb = formlayout()
 append!(vb, [xvar, yvar])
 
 fb = formlayout()
@@ -32,12 +32,22 @@ for fac in facs
     push!(fb, widget)
 end
 
+## A graphics device
 cg = cairographic()
 
+## show toolbar
+## * a togglebutton to hold state on whether titles should be displayed
+## * a button to display an "about" message
 do_titles = togglebutton(value=true, label="titles?")
 about = button("about")
-tb = toolbar(do_titles,  about)
+## what to do when a button is pressed (THIS IS FLAKY!!)
+map(about) do args...
+    messagebox("A simple GUI to explore a data set")
+end
+## layout toolbar with space between the items.
+tb = toolbar(do_titles, vskip(),  about)
 
+## layout main GUI
 b = vbox(tb);
 w = window(b, title="simple GUI");
 push!(b, hbox(vbox(halign(:start, GtkInteract.bold("Select variables: ")),
@@ -45,6 +55,7 @@ push!(b, hbox(vbox(halign(:start, GtkInteract.bold("Select variables: ")),
                  halign(:start, GtkInteract.bold("Filter by: ")),
                  fb), grow(cg)))
 
+## How to generate the graphic: first subset data, then plot
 function make_graphic(args...)
     df = copy(cars)
     for fac in facs
@@ -59,17 +70,17 @@ function make_graphic(args...)
             plot!(p, title="Cars93", xlabel = value(xvar), ylabel=value(yvar))
         end
         push!(cg, p)
-        
+    else
+        info("No cases left after selection")
     end
 end
 
+## make update happen when a widget is updated
 map(vcat(xvar, yvar, values(factors)...)...) do args...
     make_graphic()
 end
 
+## show w and its children
 display(w)
 make_graphic()                          # initial graphic
 
-#map(about.signal) do args...
-#    messagebox("A simple GUI to explore a data set")
-#end

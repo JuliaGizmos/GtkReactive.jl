@@ -28,11 +28,16 @@ import Gtk: destroy
 ## exports (most widgets of `Interact` and the modified `@manipulate` macro)
 export slider, button, checkbox, togglebutton, dropdown, radiobuttons, selectlist, textbox, textarea, togglebuttons
 export @manipulate
+#export button
 export buttongroup, cairographic,  label, progress
 export icon, tooltip, separator
 export mainwindow
 export foreach, value
 export destroy
+
+## Modify button slightly to use Signal(String), not Signal(nothing)
+#button(; value="", label="", signal=Signal(value)) = Interact.Button(signal, label, value)
+#button(label; kwargs...) = button(label=label, value=label, kwargs...)
 
 ## Add a non-exclusive set of buttons
 ## Code is basically the Options code of Interact
@@ -339,8 +344,9 @@ height(px::Int) = w -> height(px, w)
 #minheight(w, x...) = height("min", w, x...)
 #maxheight(w, x...) = height("max", w, x...)
 
-
-vksip(y) = size(0, y, empty)
+## pus int space between tiles
+vskip(y) = size(0, y, empty)
+vskip() = size(0,0, empty)              # for toolbars
 hskip(y) = size(y, 0, empty)
 
 ## grow, shrink, flex

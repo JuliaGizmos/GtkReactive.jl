@@ -180,13 +180,22 @@ end
 ##
 ## button("label") is constructor
 ##
+
+function button_cb(btnptr::Ptr, user_data)
+    w, o = user_data
+    println(typeof(o))
+    println("Push value to object of type $(typeof(w))")
+    #    push!(w.signal, Reactive.value(Interact.signal(w)))
+    push!(w.signal, nothing)
+end
 function gtk_widget(widget::Button)
     obj = @GtkButton(widget.label)
 
     ## widget -> signal
-    id = signal_connect(obj, :clicked) do obj, args...
-        push!(widget.signal,Reactive.value(Interact.signal(widget))) # call
-    end
+    id = signal_connect(button_cb, obj, "clicked", Void, (),  false, (widget, obj))
+#    id = signal_connect(obj, :clicked) do obj, args...
+#        push!(widget.signal,Reactive.value(Interact.signal(widget))) # call
+#    end
     signal_connect(obj, :destroy) do args...
         signal_handler_block(obj, id)
     end
@@ -196,9 +205,9 @@ end
 
 ## checkbox
 function checkbox_cb(cbptr::Ptr,  user_data)
-    widget, obj = user_data
-    val = getproperty(obj, :active, Bool)
-    push!(widget.signal, getproperty(obj, :active, Bool))
+    w, o = user_data
+    val = getproperty(o, :active, Bool)
+    push!(w.signal, getproperty(o, :active, Bool))
     nothing
 end
 function gtk_widget(widget::Checkbox)
@@ -225,9 +234,9 @@ end
 ## https://github.com/timholy/GtkUtilities.jl/blob/b36edfca6b4f0c0b6351f1c1409e4e2d04ca4f8f/src/link.jl#L243-L253
 ## strangely, this can not be defined within gtk_widget...
 function scale_cb(scaleptr::Ptr, user_data)
-    obj, widget = user_data
-    val = Gtk.G_.value(obj)
-    push!(widget.signal, val)
+    w, o = user_data
+    val = Gtk.G_.value(o)
+    push!(w.signal, val)
     nothing
 end
 
@@ -238,7 +247,7 @@ function gtk_widget(widget::Slider)
 
     ## widget -> signal
     ## https://github.com/JuliaLang/Gtk.jl/blob/master/doc/more_signals.md
-    id = signal_connect(scale_cb, obj, "value-changed", Void, (), false, (obj, widget))
+    id = signal_connect(scale_cb, obj, "value-changed", Void, (), false, (widget, obj))
 
     ## ## this might be an issue with #161
     ## id = signal_connect(obj, :value_changed) do obj, args...
@@ -259,9 +268,9 @@ end
 
 ## togglebutton (single one. XXX is label on button or a label? XXX)
 function togglebtn_cb(toggleptr::Ptr, user_data)
-    widget, obj = user_data
-    value = getproperty(obj, :active, Bool)
-    push!(widget.signal, value)
+    w, o = user_data
+    value = getproperty(o, :active, Bool)
+    push!(w.signal, value)
     nothing
 end
 
@@ -286,9 +295,9 @@ end
 
 ## textbox
 function textbox_cb(entryptr::Ptr, eventptr::Ptr, user_data)
-    widget, obj = user_data
-    txt = getproperty(obj, :text, AbstractString)
-    push!(widget.signal, txt)
+    w, o = user_data
+    txt = getproperty(o, :text, AbstractString)
+    push!(w.signal, txt)
     false
 end
 
@@ -319,9 +328,9 @@ end
 
 ## dropdown
 function combobox_cb(o::Ptr, user_data)
-    widget, obj = user_data
-    index = getproperty(obj, :active, Int) + 1
-    push!(widget.signal, collect(values(widget.options))[index])
+    w, o = user_data
+    index = getproperty(o, :active, Int) + 1
+    push!(w.signal, collect(values(w.options))[index])
     nothing
 end
 
@@ -358,10 +367,10 @@ end
 
 ## radiobuttons
 function radiobtn_cb(r::Ptr, user_data)
-    widget, obj = user_data
-    if getproperty(obj, :active, Bool)
-        label = getproperty(obj, :label, AbstractString)
-        push!(widget.signal, widget.options[label])
+    w, o = user_data
+    if getproperty(o, :active, Bool)
+        label = getproperty(o, :label, AbstractString)
+        push!(w.signal, w.options[label])
     end
 end
 function gtk_widget(widget::Options{:RadioButtons})
@@ -866,9 +875,10 @@ function gtk_toolbar_widget(widget::Button)
     Gtk.G_.label(obj, widget.label)
 
     ## widget -> signal
-    id = signal_connect(obj, :clicked) do obj, args...
-        push!(widget.signal, value(widget)) # call
-    end
+    id = signal_connect(button_cb, obj, "clicked", Void, (),  false, (widget, obj))    
+#    id = signal_connect(obj, :clicked) do obj, args...
+#        push!(widget.signal, value(widget)) # call
+#    end
     
     obj
 end
@@ -919,6 +929,16 @@ function gtk_toolbar_widget(widget::Tooltip)
     obj
 end
 
+## How to put in a spacer in a toolbar?
+## We use vskip() to place a spring in a toolbar
+function gtk_toolbar_widget(widget::Size)
+    obj = @GtkSeparatorToolItem()
+    Gtk.G_.draw(obj, false)
+    Gtk.G_.expand(obj, true)
+    obj
+end
+
+
 ## menu
 function gtk_widget(widget::Menu)
     obj = Gtk.@GtkMenuBar()
@@ -933,10 +953,11 @@ end
 function gtk_menu_widget(widget::Button)
     obj = @GtkMenuItem(widget.label)
 
+    id = signal_connect(button_cb, obj, "activate", Void, (),  false, (widget, obj))        
     ## widget -> signal
-    id = signal_connect(obj, :activate) do obj, args...
-        push!(widget.signal, Reactive.value(Interact.signal(widget))) # call
-    end
+#    id = signal_connect(obj, :activate) do obj, args...
+#        push!(widget.signal, Reactive.value(Interact.signal(widget))) # call
+#    end
     
     obj
 

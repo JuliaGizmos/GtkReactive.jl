@@ -69,7 +69,7 @@ being chosen. In this case, the body should have side effects, such as
 explicitly creating a graph. Some of the provided `examples`
 illustrate why this might be of interest.
 
-## basic widgets
+## Basic widgets
 
 The basic widgets can also be used by hand to create simple GUIs:
 
