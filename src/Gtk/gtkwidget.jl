@@ -90,7 +90,7 @@ end
 Requires.@require Winston begin
     ENV["WINSTON_OUTPUT"] = :gtk    
 
-    show_outwidget(w::GtkInteract.MainWindow, x::Winston.FramedPlot) = make_canvas(w, x)
+    show_outwidget(w::GtkInteract.MainWindow, x::Winston.PlotContainer) = make_canvas(w, x)
     
     function Base.push!(obj::CairoGraphic, pc::Winston.PlotContainer)
         if obj.obj != nothing
