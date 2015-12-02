@@ -41,7 +41,7 @@ cg = cairographic()
 do_titles = togglebutton(value=true, label="titles?")
 about = button("about")
 ## what to do when a button is pressed (THIS IS FLAKY!!)
-map(about) do args...
+map(about) do 
     messagebox("A simple GUI to explore a data set")
 end
 ## layout toolbar with space between the items.

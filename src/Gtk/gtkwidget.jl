@@ -90,7 +90,7 @@ end
 Requires.@require Winston begin
     ENV["WINSTON_OUTPUT"] = :gtk    
 
-    show_outwidget(w::GtkInteract.MainWindow, x::Winston.FramedPlot) = make_canvas(w, x)
+    show_outwidget(w::GtkInteract.MainWindow, x::Winston.PlotContainer) = make_canvas(w, x)
     
     function Base.push!(obj::CairoGraphic, pc::Winston.PlotContainer)
         if obj.obj != nothing
@@ -184,9 +184,11 @@ end
 function button_cb(btnptr::Ptr, user_data)
     w, o = user_data
 #    println(typeof(o))
-#    println("Push value to object of type $(typeof(w))")
+    println("Push value to object of type $(typeof(w))")
     #    push!(w.signal, Reactive.value(Interact.signal(w)))
-    push!(w.signal, nothing)
+    #    push!(w, value(w))
+    push!(w, nothing)
+    
 end
 function gtk_widget(widget::Button)
     obj = @GtkButton(widget.label)
