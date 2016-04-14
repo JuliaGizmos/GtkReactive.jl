@@ -102,8 +102,7 @@ end
 
 ## Gadfly 
 Requires.@require Gadfly begin
-    info("Gadfly support is through the Immerse package. Please install that.")
-
+    info("Gadfly support is through the Immerse package.")
 end
 
 
@@ -181,27 +180,22 @@ end
 ## button("label") is constructor
 ##
 
-function button_cb(btnptr::Ptr, user_data)
+button_cb = function(btnpr::Ptr, user_data)
     w, o = user_data
-#    println(typeof(o))
-    println("Push value to object of type $(typeof(w))")
-    #    push!(w.signal, Reactive.value(Interact.signal(w)))
-    #    push!(w, value(w))
-    push!(w, nothing)
-    
+    push!(w.signal, nothing)
+    nothing
 end
+
 function gtk_widget(widget::Button)
-    obj = @GtkButton(widget.label)
+    obj = @GtkButton()
+    Gtk.G_.label(obj, widget.label)
 
     ## widget -> signal
     id = signal_connect(button_cb, obj, "clicked", Void, (),  false, (widget, obj))
+    
 #    id = signal_connect(obj, :clicked) do obj, args...
-#        push!(widget.signal,Reactive.value(Interact.signal(widget))) # call
+#        push!(widget, nothing)
 #    end
-    signal_connect(obj, :destroy) do args...
-        signal_handler_block(obj, id)
-    end
-
     obj
 end
 
@@ -374,6 +368,7 @@ function radiobtn_cb(r::Ptr, user_data)
         label = getproperty(o, :label, AbstractString)
         push!(w.signal, w.options[label])
     end
+    nothing
 end
 function gtk_widget(widget::Options{:RadioButtons})
     obj = @GtkBox(false)
@@ -872,6 +867,8 @@ function gtk_widget(widget::Toolbar)
     obj
 end
 
+
+
 function gtk_toolbar_widget(widget::Button)
     obj = @GtkToolButton("")
     Gtk.G_.label(obj, widget.label)
@@ -879,7 +876,7 @@ function gtk_toolbar_widget(widget::Button)
     ## widget -> signal
     id = signal_connect(button_cb, obj, "clicked", Void, (),  false, (widget, obj))    
 #    id = signal_connect(obj, :clicked) do obj, args...
-#        push!(widget.signal, value(widget)) # call
+#        push!(widget, nothing)
 #    end
     
     obj

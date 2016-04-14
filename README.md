@@ -18,7 +18,7 @@ The `GtkInteract` package modifies `Interact`'s `@manipulate` macro to
 allow interactive widgets from the command-line REPL using the `Gtk`
 package for the widget toolkit. This package then allows for similarly
 easy interactive graphics from the command line. It works with the
-following packages: `Immerse`, or `Plots` with the `:immerse` backend.
+following packages: `Immerse`, or `Plots` with the `immerse` backend.
 There is some experimental, though buggy, support for using `PyPlot`
 graphics. `Winston` graphics should also work.
 
@@ -26,7 +26,7 @@ The basic syntax is the same as for `Interact`. For example,
 
 ```
 using GtkInteract, Plots
-backend(:immerse)
+immerse()
 @manipulate for ϕ = 0:π/16:4π, f = Dict(:sin=>sin, :cos=>cos)
     plot(θ -> f(θ + ϕ), 0, 25)
 end
@@ -89,8 +89,8 @@ More complicated layouts are possible using a few layouts similar to those in th
 
 ```
 window(vbox(hbox(n, m),
-                     grow(cg)),
-              title="Some title")
+            grow(cg)),
+       title="Some title")
 ```
 
 We can use `Reactive.map`to propagate changes in the controls to update the graphic window:
@@ -105,7 +105,7 @@ This basic usage follows this pattern: we map over the input widgets
 and within the function passed to map (through the `do` notation
 above), we `push!` some combination of the values onto one or more
 output widgets, such as `cg` above. The `@manipulate` macro basically
-figure out an output widget from the last value found in the code
+figures out an output widget from the last value found in the code
 block and pushes that value onto the output widget.
 
 ## Installation

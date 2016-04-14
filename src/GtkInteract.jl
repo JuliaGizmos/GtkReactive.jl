@@ -34,10 +34,7 @@ export icon, tooltip, separator
 export mainwindow
 export foreach, value
 export destroy
-
-## Modify button slightly to use Signal(String), not Signal(nothing)
-#button(; value="", label="", signal=Signal(value)) = Interact.Button(signal, label, value)
-#button(label; kwargs...) = button(label=label, value=label, kwargs...)
+export eatn
 
 ## Add a non-exclusive set of buttons
 ## Code is basically the Options code of Interact
@@ -940,6 +937,24 @@ map(println, sl, sl1)
 
 
 Base.map(f::Function, ws::Interact.InputWidget...) = map(f, map(Interact.signal, ws)...)
+
+
+"""
+Eat the first n function calls, defaulting to n=1
+"""
+function eatn(f, n::Int=1)
+    ctr = 0
+    (args... ) -> begin
+        if ctr >= n
+            f(args...)
+        end
+        ctr = ctr + 1
+        nothing
+    end
+end
+
+
+
 
 """
 

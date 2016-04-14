@@ -9,7 +9,7 @@
 ## `GtkInteract` uses the `Reactive` package to propagate changes from controls.
 
 using GtkInteract, Reactive, Plots
-backend(:immerse)
+immerse()
 
 
 ## To create controls is done by calling the constructor. The
@@ -154,7 +154,7 @@ map(vals->println(join(vals, ", ")), Reactive.sampleon(btn.signal, vals))
 ## graph is drawn.
 
 using Reactive, GtkInteract, Plots
-backend(:immerse)
+immerse()
 
 α = slider(1:10, label="α")
 β = slider(1:10, label="β")

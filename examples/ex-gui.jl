@@ -39,21 +39,21 @@ cg = cairographic()
 ## * a togglebutton to hold state on whether titles should be displayed
 ## * a button to display an "about" message
 do_titles = togglebutton(value=true, label="titles?")
-about = button("about")
-## what to do when a button is pressed (THIS IS FLAKY!!)
-map(about) do 
-    messagebox("A simple GUI to explore a data set")
-end
-## layout toolbar with space between the items.
-tb = toolbar(do_titles, vskip(),  about)
 
-## layout main GUI
+about = button("about")
+
+## layout toolbar with space between the items.
+tb = toolbar(do_titles, vskip(),  about |> tooltip("Simple GUI"))
+
+w = window(title="simple GUI");
 b = vbox(tb);
-w = window(b, title="simple GUI");
+push!(w, b)
 push!(b, hbox(vbox(halign(:start, GtkInteract.bold("Select variables: ")),
                  vb,
                  halign(:start, GtkInteract.bold("Filter by: ")),
-                 fb), grow(cg)))
+                   fb),
+              cg |> grow |> padding(5)
+              ))
 
 ## How to generate the graphic: first subset data, then plot
 function make_graphic(args...)
@@ -75,12 +75,20 @@ function make_graphic(args...)
     end
 end
 
+## actually show GUI
+display(w)
+
+## Hook up signals
+
+f(args...) = info("A simple GUI") #messagebox("a simple GUI")
+## ## XXX THIS IS FLAKY XXX 
+map(f, about)
+
+
 ## make update happen when a widget is updated
-map(vcat(xvar, yvar, values(factors)...)...) do args...
+map(vcat(do_titles, xvar, yvar, values(factors)...)...) do args...
     make_graphic()
 end
 
-## show w and its children
-display(w)
-make_graphic()                          # initial graphic
+
 
