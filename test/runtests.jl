@@ -42,3 +42,17 @@ w = window(vbox(controls...), hbox(halign(:end,padding(10, btn))))
 ##           $(string(bg))
 ##           """)  #          $(string(sel))
 ## end
+
+# test numeric-valued textboxes
+using Gtk, Interact
+w = mainwindow()
+b = textbox(1)
+push!(w, b)
+display(w)
+g = first(w.window)
+widget = first(g)
+setproperty!(widget, :text, "2")
+@test value(signal(b)) == 1
+signal_emit(widget, :activate, Void)
+sleep(0.1)
+@test value(signal(b)) == 2
