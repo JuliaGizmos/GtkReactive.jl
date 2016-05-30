@@ -1,17 +1,18 @@
-language: cpp
-compiler:
-  - clang
+language: julia
+sudo: false
+os:
+    - linux
+julia:
+    - 0.4
+    - nightly
 notifications:
-  email: false
-env:
-  matrix:
-    - JULIAVERSION="juliareleases"
-    - JULIAVERSION="julianightlies"
-before_install:
-  - sudo add-apt-repository ppa:staticfloat/julia-deps -y
-  - sudo add-apt-repository ppa:staticfloat/${JULIAVERSION} -y
-  - sudo apt-get update -qq -y
-  - sudo apt-get install libpcre3-dev julia -y
-  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+    email: false
+addons:
+    apt:
+        packages:
+            - xvfb
+            - xauth
+            - libgtk-3-0
 script:
-  - julia -e 'Pkg.init(); Pkg.clone(pwd()); Pkg.test("GtkInteract")'
+    - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+    - xvfb-run julia -e 'Pkg.clone(pwd()); Pkg.test("Gtk"; coverage=true)'
