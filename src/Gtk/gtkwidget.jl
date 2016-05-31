@@ -13,14 +13,14 @@ function make_canvas(w::MainWindow, x)
         push!(w, grow(w.out))
         display(w)
     end
-    push!(w.out, x)    
+    push!(w.out, x)
 end
 
 
 Requires.@require Plots begin
     ## In general use a canvas to display a plot in the main window
     show_outwidget(w::GtkInteract.MainWindow, x::Plots.Plot) = make_canvas(w, x)
-    
+
     function Base.push!(obj::CairoGraphic, p::Plots.Plot)
         if obj.obj != nothing
             push!(obj.obj, p)
@@ -58,13 +58,13 @@ Requires.@require Immerse begin
         ## Add figure, But should I close the next one??
         i = Immerse.nextfig(Immerse._display)
         f = Immerse.Figure(cnv)
-        Immerse.initialize_toolbar_callbacks(f)        
+        Immerse.initialize_toolbar_callbacks(f)
         Immerse.addfig(Immerse._display, i, f)
-        
+
         box
     end
-        
-    
+
+
     ## same as Plots.Plot, make canvas window
     function show_outwidget(w::GtkInteract.MainWindow, x::Gadfly.Plot)
         if w.out == nothing
@@ -80,7 +80,7 @@ Requires.@require Immerse begin
         display(c, Immerse.Figure(c, p))
     end
 
-    
+
 end
 
 
@@ -88,10 +88,10 @@ end
 ## Winston
 ## Winston is a problem if `ENV["WINSTON_OUTPUT"] = :gtk` is not set *beforehand*
 Requires.@require Winston begin
-    ENV["WINSTON_OUTPUT"] = :gtk    
+    ENV["WINSTON_OUTPUT"] = :gtk
 
     show_outwidget(w::GtkInteract.MainWindow, x::Winston.PlotContainer) = make_canvas(w, x)
-    
+
     function Base.push!(obj::CairoGraphic, pc::Winston.PlotContainer)
         if obj.obj != nothing
             Winston.display(obj.obj, pc)
@@ -100,7 +100,7 @@ Requires.@require Winston begin
     Base.push!(c::GtkCanvas, pc::Winston.PlotContainer) = Winston.display(c, pc)
 end
 
-## Gadfly 
+## Gadfly
 Requires.@require Gadfly begin
     info("Gadfly support is through the Immerse package.")
 end
@@ -108,11 +108,11 @@ end
 
 Requires.@require PyPlot begin
     info("PyPlot support is very buggy!")
-    
+
     PyPlot.pygui(false)
-    
-""" 
-    
+
+"""
+
 Overwrite `withfig` from `PyPlot` to work here. This code snippet is
 found in PyPlot, save the comment. It is licensed under the MIT
 license.
@@ -158,7 +158,7 @@ export withfig
             push(w, grow(w.out))
             display(w)
         end
-        
+
         f = tempname() * ".png"
         io = open(f, "w")
         writemime(io, "image/png", x)
@@ -216,10 +216,10 @@ function gtk_widget(widget::Checkbox)
    Reactive.foreach(widget.signal) do val
        signal_handler_block(obj, id)
        curval = getproperty(obj, :active, Bool)
-       val != curval && setproperty!(obj, :active, val) 
+       val != curval && setproperty!(obj, :active, val)
        signal_handler_unblock(obj, id)
    end
-        
+
 
     obj
 end
@@ -250,15 +250,15 @@ function gtk_widget(widget::Slider)
     ##     val = Gtk.G_.value(obj)
     ##     push!(widget.signal, val)
     ## end
-    
-    ## 
+
+    ##
     Reactive.foreach(widget.signal) do val
         signal_handler_block(obj, id)
         curval = Gtk.G_.value(obj)
         curval != val && Gtk.G_.value(obj, val)
         signal_handler_unblock(obj, id)
     end
-    
+
     obj
 end
 
@@ -290,28 +290,21 @@ end
 
 
 ## textbox
-function textbox_cb(entryptr::Ptr, eventptr::Ptr, user_data)
-    w, o = user_data
-    txt = getproperty(o, :text, AbstractString)
-    push!(w.signal, txt)
-    false
-end
-
 function gtk_widget(widget::Textbox)
     obj = @GtkEntry
     setproperty!(obj, :text, string(widget.signal.value))
 
-    ## widget -> signal
-    id = signal_connect(textbox_cb, obj,
-                                  "key-release-event", Bool, (Ptr{Gtk.GdkEventButton},), false,
-                                  (widget, obj))
+    id = signal_connect(obj, :activate) do o
+        try
+            val = Interact.parse_msg(widget, getproperty(o, :text, AbstractString))
+            push!(widget.signal, val)
+        catch
+            str = getproperty(o, :text, AbstractString)
+            messagebox("\"$str\" cannot be parsed as a $(eltype(signal(widget)))", :error)
+        end
+        false
+    end
 
-    ## id = signal_connect(obj, :key_release_event) do obj, e, args...
-    ##     txt = getproperty(obj, :text, AbstractString)
-    ##     push!(widget.signal, txt)
-    ## end
-
-    
     ## signal -> widget
     Reactive.foreach(widget.signal) do val
         signal_handler_block(obj, id)
@@ -401,12 +394,12 @@ function gtk_widget(widget::Options{:RadioButtons})
         [signal_handler_block(btn, id) for (btn,id) in ids]
         selected = findfirst(collect(values(widget.options)), val)
         setproperty!(btns[selected], :active, true)
-        [signal_handler_unblock(btn, id) for (btn,id) in ids]        
+        [signal_handler_unblock(btn, id) for (btn,id) in ids]
     end
 
 
     obj
-    
+
 end
 
 
@@ -439,8 +432,8 @@ function gtk_widget(widget::Options{:ToggleButtons})
         btn
     end
     btns = map(make_button, labs)
-    
-    
+
+
     ## widget -> signal
     ids = Dict()
     for btn in btns
@@ -472,7 +465,7 @@ function gtk_widget(widget::Options{:ToggleButtons})
             signal_handler_unblock(btn, ids[btn])
         end
     end
-    
+
     block
 end
 
@@ -496,9 +489,9 @@ end
 function gtk_widget(widget::VectorOptions{:ButtonGroup})
     labs = collect(keys(widget.options))
     vals = collect(values(widget.options))
-    
+
     block = @GtkBox(false)
-    
+
     btns = Dict()
     for (lab, val) in zip(labs, vals)
         btn =  Gtk.@GtkToggleButton(lab)
@@ -526,7 +519,7 @@ function gtk_widget(widget::VectorOptions{:ButtonGroup})
 
     ## signal -> widget
     Reactive.foreach(widget.signal) do values
-        
+
         indices = [findfirst(vals, v) for v in values]
         selectedlabs = labs[indices]
 
@@ -541,7 +534,7 @@ function gtk_widget(widget::VectorOptions{:ButtonGroup})
     ## set initial *after* foreach call
     for (lab, val) in zip(labs, vals)
         btn =  btns[lab]
-        setproperty!(btn, :active, val in widget.values)         
+        setproperty!(btn, :active, val in widget.values)
     end
 
     block
@@ -550,7 +543,7 @@ end
 
 ## select -- a grid
 function gtk_widget(widget::Options{:Select})
-    
+
     labs = collect(map(AbstractString,keys(widget.options)))
     vals = collect(map(AbstractString,values(widget.options)))
 
@@ -582,10 +575,10 @@ function gtk_widget(widget::Options{:Select})
         j = Gtk.get_string_from_iter(Gtk.GtkTreeModel(store), iter)
         i = parse(Int, j) + 1
         #map(int, split(get_string_from_iter(treeModel, iter), ":")) + 1
-#        i = Gtk.index_from_iter(store, iter)  
+#        i = Gtk.index_from_iter(store, iter)
         push!(widget.signal, vals[i])
     end
-    
+
     ## push! -> update UI
     Reactive.foreach(widget.signal) do val
         signal_handler_block(selection, id)
@@ -597,7 +590,7 @@ function gtk_widget(widget::Options{:Select})
 
     block
 
-    
+
 end
 
 
@@ -614,7 +607,7 @@ function gtk_widget(widget::CairoGraphic)
         ## is there a more natural way??
         widget.obj = obj
     end
-    
+
     widget.obj
 end
 
@@ -629,7 +622,7 @@ function gtk_widget(widget::Textarea)
         [setproperty!(obj, x, true) for  x in [:hexpand, :vexpand]]
         push!(block, obj)
         setproperty!(obj, :editable, false)
-        
+
         if widget.buffer == nothing
             widget.buffer = getproperty(obj, :buffer, GtkTextBuffer)
         else
@@ -659,7 +652,7 @@ function gtk_widget(widget::Label)
         obj = @GtkLabel(widget.value)
         setproperty!(obj, :selectable, true)
         setproperty!(obj, :use_markup, true)
-        
+
         widget.obj = obj
     end
 
@@ -723,10 +716,10 @@ function gtk_widget(widget::Tooltip)
 end
 
 ## Progress bar
-function gtk_widget(widget::Progress) 
+function gtk_widget(widget::Progress)
     obj = @GtkProgressBar()
     widget.obj = obj
-    
+
     push!(widget, widget.value)
     obj
 end
@@ -749,7 +742,7 @@ function gtk_widget(widget::Size)
     obj = gtk_widget(widget.tile)
 
     Gtk.G_.size_request(obj, widget.w_px.value, widget.h_px.value)
-    
+
     obj
 end
 
@@ -783,7 +776,7 @@ function gtk_widget(widget::Pad)
     :right in widget.sides && Gtk.G_.margin_right(obj, widget.len.value)
     :top in widget.sides    && Gtk.G_.margin_top(obj, widget.len.value)
     :bottom in widget.sides && Gtk.G_.margin_bottom(obj, widget.len.value)
-    
+
     obj
 end
 
@@ -794,7 +787,7 @@ function gtk_widget(widget::Align)
 
     Gtk.G_.halign(obj, widget.halign)
     Gtk.G_.valign(obj, widget.valign)
-    
+
     obj
 end
 
@@ -843,22 +836,22 @@ function gtk_widget(widget::FormLayout)
 
         child_widget = gtk_widget(child)
         setproperty!(child_widget, :hexpand, true)
-        
+
         push!(al, @GtkLabel(formlabel(child)))
-        
+
         obj[1, row] = al
         obj[2, row] = child_widget
     end
-    
+
     obj
 end
-    
+
 
 ## Toolbar
 function gtk_widget(widget::Toolbar)
     obj = @GtkToolbar()
     Gtk.G_.style(obj, Gtk.GConstants.GtkToolbarStyle.GTK_TOOLBAR_BOTH)
-    
+
     for child in widget.children
         tbchild = gtk_toolbar_widget(child)
         push!(obj, tbchild)
@@ -874,24 +867,24 @@ function gtk_toolbar_widget(widget::Button)
     Gtk.G_.label(obj, widget.label)
 
     ## widget -> signal
-    id = signal_connect(button_cb, obj, "clicked", Void, (),  false, (widget, obj))    
+    id = signal_connect(button_cb, obj, "clicked", Void, (),  false, (widget, obj))
 #    id = signal_connect(obj, :clicked) do obj, args...
 #        push!(widget, nothing)
 #    end
-    
+
     obj
 end
 function gtk_toolbar_widget(widget::ToggleButton)
     obj = @GtkToggleToolButton(widget.label)
     Gtk.G_.label(obj, widget.label)
     setproperty!(obj, :active, widget.value)
-    
+
     ## widget -> signal
     id = signal_connect(obj, :toggled) do obj, args...
         val = getproperty(obj, :active, Bool)
         push!(widget.signal, val) # call
     end
-    
+
     obj
 end
 
@@ -952,12 +945,12 @@ end
 function gtk_menu_widget(widget::Button)
     obj = @GtkMenuItem(widget.label)
 
-    id = signal_connect(button_cb, obj, "activate", Void, (),  false, (widget, obj))        
+    id = signal_connect(button_cb, obj, "activate", Void, (),  false, (widget, obj))
     ## widget -> signal
 #    id = signal_connect(obj, :activate) do obj, args...
 #        push!(widget.signal, Reactive.value(Interact.signal(widget))) # call
 #    end
-    
+
     obj
 
 end
@@ -975,15 +968,15 @@ function gtk_menu_widget(widget::ToggleButton)
     ## child = @GtkToggleToolButton(widget.label)
     ## Gtk.G_.label(child, widget.label)
     ## push!(obj, child)
-    
+
     ## show(child)
-    
+
     ## ## widget -> signal
     ## id = signal_connect(child, :toggled) do obj, args...
     ##     val = getproperty(child, :active, Bool)
     ##     push!(widget.signal, val) # call
     ## end
-    
+
     ## obj
 end
 
@@ -1008,7 +1001,7 @@ function gtk_menu_widget(widget::Menu)
     for child in widget.children
          push!(submenu, gtk_menu_widget(child))
     end
-    
+
     obj
 end
 
@@ -1034,7 +1027,7 @@ function gtk_widget(widget::Window)
     Gtk.G_.hexpand(box, true)
     Gtk.G_.vexpand(box, true)
     push!(obj, box)
-    
+
     for child in widget.children
         push!(box, gtk_widget(child))
     end
@@ -1092,7 +1085,7 @@ function gtk_widget(widget::MessageBox)
     end
 
     fn(widget.msg)
-    
+
 end
 
 function gtk_widget(widget::ConfirmBox)
@@ -1138,4 +1131,3 @@ end
 gtk_widget(obj::Bold) = gtk_widget(label("<b>$(obj.label)</b>"))
 gtk_widget(obj::Emph) = gtk_widget(label("<i>$(obj.label)</i>"))
 gtk_widget(obj::Code) = gtk_widget(label("<tt>$(obj.label)</tt>"))
-
