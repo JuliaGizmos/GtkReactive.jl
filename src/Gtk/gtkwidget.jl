@@ -1,5 +1,27 @@
 ## Code that is Gtk specific
 
+## We have two functions for a given type:
+## * gtk_widget(widget::T) to create a Gtk widget for the type T
+##
+## and to make an output widget
+##
+## * GtkInteract.show_outwidget(w::GtkInteract.MainWindow, x::T)
+##
+## For example, this creates a custom label:
+##
+## function GtkInteract.show_outwidget(w::GtkInteract.MainWindow, x::T)
+##     if w.out == nothing
+##         w.out = label()
+##         push!(w, grow(w.out))
+##         display(w)
+##     end
+##     push!(w.out, x.x)
+## end
+##
+## The key is setting w.out.
+
+
+
 ## Plotting code is package dependent
 ## Plots should dispatch to underlying code for Immerse, Winston or PyPlot
 

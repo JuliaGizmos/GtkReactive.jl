@@ -24,24 +24,28 @@ txtb = textbox("text goes here", label="textbox")
 btn = button("button")
 out = label()
 
-controls = [sl, cb, tb, dd, rbs,  tbs, bg, sel]
+controls = [sl, cb, tb, dd, rbs,  tbs, bg, sel, txtb]
 
-w = window(vbox(controls...), hbox(halign(:end,padding(10, btn))))
+w = window(vbox(controls...),
+           hbox(halign(:end,padding(10, btn))),
+           out)
 
 
-## This is failing
 ## using Reactive
-## Reactive.foreach(controls...) do sl, cb, tb, dd, rbs, tbs, bg #  sel,
-##     push!(out, """
-##           $(string(sl))
-##           $(string(cb))
-##           $(string(tb))
-##           $(string(dd))
-##           $(string(rbs))
-##           $(string(tbs))
-##           $(string(bg))
-##           """)  #          $(string(sel))
-## end
+Reactive.foreach([x.signal for x in controls]...) do sl, cb, tb, dd, rbs, tbs, bg, sel, txtb
+    push!(out, """
+          $(string(sl))
+          $(string(cb))
+          $(string(tb))
+          $(string(dd))
+          $(string(rbs))
+          $(string(tbs))
+          $(string(bg))
+          $(string(sel))
+          $(string(txtb))
+         
+          """)  
+end
 
 # test numeric-valued textboxes
 using Gtk, Interact
