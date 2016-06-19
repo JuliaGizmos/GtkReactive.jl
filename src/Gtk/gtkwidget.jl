@@ -1040,7 +1040,7 @@ function gtk_widget(widget::Window)
     widget.obj = obj
     widget.width > 0 && widget.height > 0 && resize!(obj, widget.width, widget.height)
 
-    ## interiro packing box...
+    ## interior packing box...
     box = @GtkBox(true)
     Gtk.G_.hexpand(box, true)
     Gtk.G_.vexpand(box, true)
@@ -1060,6 +1060,9 @@ function gtk_widget(widget::MainWindow)
     obj =  @GtkWindow(title=widget.title)
     resize!(obj, widget.width, widget.height)
     widget.window = obj
+    signal_connect(obj, :destroy) do win
+        closerefs!(widget.refs)
+    end
 
     push!(obj, gtk_widget(formlayout(widget.children...)))
 

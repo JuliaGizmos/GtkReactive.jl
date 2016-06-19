@@ -67,6 +67,16 @@ surf = cairoimagesurface(renderbuffer)
 push!(w, grow(surf))
 display(w)
 img = testimage("cameraman")
-sleep(2)
+sleep(1)
 push!(surf, img)
-sleep(2)
+
+# Cleanup of signals (especially ones that run constantly!)
+using Reactive
+frametimer = fps(10)
+w = mainwindow()
+push!(w.refs, frametimer)
+display(w)
+@test frametimer.alive == true
+destroy(w)
+yield()
+@test frametimer.alive == false

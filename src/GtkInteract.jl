@@ -717,6 +717,7 @@ type MainWindow <: Layout
     children
     window                              # main @GtkWindow. Used by destroy()
     out                                 # output widget
+    refs::Vector{Signal}                # signals to prevent from garbage collection
 end
 
 """
@@ -741,7 +742,7 @@ w                                       # when displayed, creates window.  Call 
 """
 function mainwindow(children...;width::Int=300, height::Int=200, title::AbstractString="")
     widget = MainWindow(width, height, title, Any[children...;],
-                        nothing, nothing) # window, outputwidget
+                        nothing, nothing, Signal[]) # window, outputwidget
     widget
 end
 
@@ -754,6 +755,13 @@ function Gtk.destroy(widget::MainWindow)
     end
 end
 Base.display(widget::MainWindow) = Gtk.showall(gtk_widget(widget))
+
+function closerefs!{S<:Signal}(refs::Vector{S})
+    for r in refs
+        close(r)
+    end
+    empty!(refs)
+end
 
 ##################################################
     ## dialogs
