@@ -616,6 +616,21 @@ function gtk_widget(widget::CairoGraphic)
     widget.obj
 end
 
+## CairoImageSurface
+function gtk_widget(widget::CairoImageSurface)
+    if widget.obj == nothing
+        obj = @GtkCanvas(widget.width, widget.height)
+        widget.obj = obj
+        Gtk.draw(obj) do canvas
+            ctx = Cairo.getgc(canvas)
+            Cairo.save(ctx)
+            Cairo.reset_transform(ctx)
+            Cairo.image(ctx, widget.surf, 0, 0, Cairo.width(ctx), Cairo.height(ctx))
+        end
+    end
+
+    widget.obj
+end
 
 
 ## Text area.

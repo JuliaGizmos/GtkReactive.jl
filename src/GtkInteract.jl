@@ -11,6 +11,8 @@ using Gtk
 using Reactive
 using DataStructures
 using Requires
+using Colors
+import Cairo
 
 ## selectively import pieces of `Interact`
 import Interact
@@ -29,7 +31,7 @@ import Gtk: destroy
 export slider, button, checkbox, togglebutton, dropdown, radiobuttons, selectlist, textbox, textarea, togglebuttons
 export @manipulate
 #export button
-export buttongroup, cairographic,  label, progress
+export buttongroup, cairographic, cairoimagesurface, label, progress
 export icon, tooltip, separator
 export mainwindow
 export foreach, value
@@ -44,13 +46,13 @@ export destroy
 type VectorOptions{view,T} <: InputWidget{T} # XXX This is a poor name, but it isn't exported XXX
     signal
     label::AbstractString
-    values                       
+    values
     options::OrderedDict{AbstractString, T}
 end
 
 function VectorOptions{T}(view::Symbol, options::OrderedDict{AbstractString, T};
                           label = "",
-                          value=T[],           
+                          value=T[],
                           signal=Signal(value))
     VectorOptions{view, T}(signal, label, value, options)
 end
@@ -99,7 +101,7 @@ abstract OutputWidget <: Widget
 
 Interact.signal(w::OutputWidget) = w.signal
 """
-CairoGraphic. 
+CairoGraphic.
 
 for a plot window
 
@@ -117,6 +119,39 @@ function cairographic(;width::Int=480, height::Int=400)
     widget = CairoGraphic(width, height,nothing, nothing, nothing)
     widget.signal = Signal(widget)
     widget
+end
+
+
+# """
+# CairoImageSurface.
+
+# For displaying an in-memory image
+
+# Replace the image via push!(cs, img::AbstractMatrix)
+# """
+
+type CairoImageSurface{T<:Union{UInt32,RGB24,ARGB32}} <: OutputWidget
+    width::Int
+    height::Int
+    surf::Cairo.CairoSurface{T}
+    signal
+    value
+    obj
+end
+
+function cairoimagesurface{T<:Union{UInt32,RGB24,ARGB32}}(buf::Matrix{T}; width::Int=size(buf,1), height::Int=size(buf,2))
+    surf = Cairo.CairoImageSurface(buf)
+    widget = CairoImageSurface(width, height, surf, nothing, nothing, nothing)
+    widget.signal = Signal(widget)
+    widget
+end
+
+function Base.push!(cs::CairoImageSurface, data::AbstractMatrix)
+    copy!(cs.surf.data, data)
+    if cs.obj != nothing
+        Gtk.draw(cs.obj)
+    end
+    cs
 end
 
 
@@ -143,7 +178,7 @@ end
 
 """
 Textarea for output
- 
+
 Replace text via `push!(obj, value)`
 """
 type Textarea{T <: AbstractString} <: OutputWidget
@@ -170,7 +205,7 @@ type Label <: OutputWidget
     obj
 end
 """
-label. 
+label.
 
 Like text area, but is clearly not editable and allows for PANGO markup.
 Replace text via `push!(obj, value)`
@@ -294,11 +329,11 @@ export size,
        grow, shrink, #flex,
        align, halign, valign,
        padding,
-       vbox, hbox, 
+       vbox, hbox,
        tabs,
        formlayout,
        toolbar,
-       menu, 
+       menu,
        window,
        messagebox, confirmbox, inputbox,
        openfile, savefile, selectdir
@@ -385,7 +420,7 @@ Have widget not expand when space is available
 
 * `shrink(widget)`
 * `shrink(:horizontal, widget)` (also `:vertical`) to not expand in a given direction
-* `shrink(factor, widget)` use factor to determine shrinking. 
+* `shrink(factor, widget)` use factor to determine shrinking.
 
 """
 shrink(factor::Real, tile) = Shrink(tile, factor, [:horizontal,:vertical])
@@ -599,8 +634,8 @@ btn1 = button("one")
 btn2 = button("two")
 
 mb =menu(menu(btn1, separator(), btn2,
-menu(btn1, btn2, label="submenu"),   
-label="File"),                       
+menu(btn1, btn2, label="submenu"),
+label="File"),
 menu(btn1, btn2, label="Edit"))
 
 do_something(args...) = println("hi")
@@ -634,7 +669,7 @@ type Window <: Layout
     children
     obj
 end
-    
+
     """
 A parentless container, like MainWindow, but less fuss.
 
@@ -827,14 +862,14 @@ d = selectdir("Select a directory...")
 selectdir(title::AbstractString="Save file") = SelectDir(title)  |> gtk_widget
 
 
-    
 
 
 
-    
-    
-    
-    
+
+
+
+
+
 ##################################################
 ## Typography
 ## If these are useful, they could easily be expanded
@@ -876,7 +911,7 @@ end
 
 
 ## Main changes come from needing to pass through a parent container in order to "display" objects
-## in "display_widgets" we just use `push!` though we could define `display` methods but passing in the 
+## in "display_widgets" we just use `push!` though we could define `display` methods but passing in the
 ## parent container makes that awkward.
 function display_widgets(win, widgetvars)
     map(v -> Expr(:call, esc(:push!), win, esc(v)), widgetvars)

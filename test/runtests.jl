@@ -56,3 +56,17 @@ setproperty!(widget, :text, "2")
 signal_emit(widget, :activate, Void)
 sleep(0.1)
 @test value(signal(b)) == 2
+
+# Images
+using TestImages, Colors
+w = mainwindow()
+img = testimage("mandrill")
+renderbuffer = convert(Matrix{RGB24}, img.data)
+surf = cairoimagesurface(renderbuffer)
+# Gtk.present(w.window)
+push!(w, grow(surf))
+display(w)
+img = testimage("cameraman")
+sleep(2)
+push!(surf, img)
+sleep(2)
