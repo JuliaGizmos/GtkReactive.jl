@@ -60,3 +60,27 @@ setproperty!(widget, :text, "2")
 signal_emit(widget, :activate, Void)
 sleep(0.1)
 @test value(signal(b)) == 2
+
+# Images
+using TestImages, Colors
+w = mainwindow()
+img = testimage("mandrill")
+renderbuffer = convert(Matrix{RGB24}, img.data)
+surf = cairoimagesurface(renderbuffer)
+# Gtk.present(w.window)
+push!(w, grow(surf))
+display(w)
+img = testimage("cameraman")
+sleep(1)
+push!(surf, img)
+
+# Cleanup of signals (especially ones that run constantly!)
+using Reactive
+frametimer = fps(10)
+w = mainwindow()
+push!(w.refs, frametimer)
+display(w)
+@test frametimer.alive == true
+destroy(w)
+yield()
+@test frametimer.alive == false

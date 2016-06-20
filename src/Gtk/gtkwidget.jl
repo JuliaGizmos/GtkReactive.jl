@@ -633,6 +633,21 @@ function gtk_widget(widget::CairoGraphic)
     widget.obj
 end
 
+## CairoImageSurface
+function gtk_widget(widget::CairoImageSurface)
+    if widget.obj == nothing
+        obj = @GtkCanvas(widget.width, widget.height)
+        widget.obj = obj
+        Gtk.draw(obj) do canvas
+            ctx = Cairo.getgc(canvas)
+            Cairo.save(ctx)
+            Cairo.reset_transform(ctx)
+            Cairo.image(ctx, widget.surf, 0, 0, Cairo.width(ctx), Cairo.height(ctx))
+        end
+    end
+
+    widget.obj
+end
 
 
 ## Text area.
@@ -1044,7 +1059,7 @@ function gtk_widget(widget::Window)
     widget.obj = obj
     widget.width > 0 && widget.height > 0 && resize!(obj, widget.width, widget.height)
 
-    ## interiro packing box...
+    ## interior packing box...
     box = @GtkBox(true)
     Gtk.G_.hexpand(box, true)
     Gtk.G_.vexpand(box, true)
@@ -1064,6 +1079,9 @@ function gtk_widget(widget::MainWindow)
     obj =  @GtkWindow(title=widget.title)
     resize!(obj, widget.width, widget.height)
     widget.window = obj
+    signal_connect(obj, :destroy) do win
+        closerefs!(widget.refs)
+    end
 
     push!(obj, gtk_widget(formlayout(widget.children...)))
 

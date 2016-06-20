@@ -9,7 +9,7 @@ The [`Interact`](https://github.com/JuliaLang/Interact.jl) package
 brings interactive widgets to `IJulia` notebooks. In particular, the
 `@manipulate` macro makes it trivial to define simple interactive
 graphics.  `Interact` can animate graphics using `Gadfly`, `PyPlot`,
-or `Winston`. For more fluid graphical animations, the 
+or `Winston`. For more fluid graphical animations, the
 [`Patchwork`](https://github.com/shashi/Patchwork.jl) package can be
 used to efficiently manipulate SVG graphics, including those created
 through `Gadfly`,
@@ -22,7 +22,7 @@ following packages: `Immerse`, or `Plots` with the `immerse` backend.
 There is some experimental, though buggy, support for using `PyPlot`
 graphics. `Winston` graphics should also work.
 
-The basic syntax is the same as for `Interact`. For example, 
+The basic syntax is the same as for `Interact`. For example,
 
 ```
 using GtkInteract, Plots
@@ -148,6 +148,27 @@ some machines.
 
 (To copy-and-paste code that works with `Interact` simply requires some local definition such as `withfig=GtkInteract.withfig`.)
 
+## Resource management: Signal protection and cleanup
+
+A `MainWindow` has a field, `refs`, to which you can `push!` any
+Reactive signals that you want to preserve for the lifetime of the
+window. Upon destroying the window, these signals are `close`d.
+Timers like `fps` are particularly important to "register" with
+`refs`: otherwise, you may keep using CPU resources even after you
+close the window, until the next garbage-collection event.
+
+Example:
+
+```jl
+using GtkInteract, Reactive
+frametimer = fps(10)
+w = mainwindow()
+push!(w.refs, frametimer)
+```
+
+Now if you `display` `w`, and then close the window, `frametimer` will
+no longer be active.
+
 ## Widget summary
 
 In addition to the widgets in `Interact`, the following new widgets are provided:
@@ -163,5 +184,3 @@ In addition to the widgets in `Interact`, the following new widgets are provided
 * `toolbar`, `menu`
 * `window`, `mainwindow`
 * `messagebox`, `confirmbox`, `inputbox`, `openfile`, `savefile`, `selectdir`
-
-
