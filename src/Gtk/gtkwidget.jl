@@ -102,7 +102,11 @@ Requires.@require Immerse begin
         display(c, Immerse.Figure(c, p))
     end
 
-
+    function Base.push!(obj::CairoGraphic, p::Gadfly.Plot)
+        if obj.obj != nothing
+            push!(obj.obj, p)
+        end
+    end
 end
 
 
