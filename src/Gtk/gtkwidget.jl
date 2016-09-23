@@ -99,6 +99,7 @@ Requires.@require Immerse begin
 
     ## this is used by Plots+Immerse
     function Base.push!(c::GtkCanvas, p::Gadfly.Plot)
+        c.back = Gtk.cairo_surface_for(c)
         display(c, Immerse.Figure(c, p))
     end
 
