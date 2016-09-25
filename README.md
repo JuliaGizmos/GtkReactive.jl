@@ -17,16 +17,15 @@ through `Gadfly`,
 The `GtkInteract` package modifies `Interact`'s `@manipulate` macro to
 allow interactive widgets from the command-line REPL using the `Gtk`
 package for the widget toolkit. This package then allows for similarly
-easy interactive graphics from the command line. It works with the
-following packages: `Immerse`, or `Plots` with the `immerse` backend.
-There is some experimental, though buggy, support for using `PyPlot`
-graphics. `Winston` graphics should also work.
+easy interactive graphics from the command line. It is limited to
+those packages that can write to a cairo backend. These include `Immerse` (which
+means `Gadfly` graphics can be used) and `Winston`. (The `Plots` package may not work, as the `immerse` backend is deprecated.)
+Plotting packages could also write output to graphic files which can be shown.
 
 The basic syntax is the same as for `Interact`. For example,
 
 ```
-using GtkInteract, Plots
-immerse()
+using GtkInteract, Immerse
 @manipulate for ϕ = 0:π/16:4π, f = Dict(:sin=>sin, :cos=>cos)
     plot(θ -> f(θ + ϕ), 0, 25)
 end
@@ -35,6 +34,22 @@ end
 This produces a layout along the lines of:
 
 ![Imgur](http://i.imgur.com/1MiynXf.png)
+
+[But wait! This example doesn't currently work under v0.5 of `Julia` as the function values in the toggle buttons cause issues. This should be fixed soon. But until then you can work around this if you want by using a new type, for example
+
+```
+type MyType f end
+(f::MyType)(args...;kwargs...) = f.f(args...; kwargs...)
+```
+
+and then in the above use
+
+```
+f = Dict(:sin=>MyType(sin), :cos=>MyType(cos))
+```
+
+]
+
 
 Using `Immerse` directly is also possible:
 

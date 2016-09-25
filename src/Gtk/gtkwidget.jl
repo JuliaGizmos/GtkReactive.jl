@@ -57,7 +57,7 @@ Requires.@require Plots begin
     ##      .....
     ##     ## Fails!
     ##     Plots.rebuildUnicodePlot!(p)
-    ##     out = sprint(io -> writemime(io, "text/plain", p.o))
+    ##     out = sprint(io -> show(io, "text/plain", p.o))
     ##     setproperty!(w.label, :label, out)
     ## end
 end
@@ -188,7 +188,7 @@ export withfig
 
         f = tempname() * ".png"
         io = open(f, "w")
-        writemime(io, "image/png", x)
+        show(io, "image/png", x)
         close(io)
         push!(w.out, f)
         rm(f)
@@ -1076,7 +1076,10 @@ function gtk_widget(widget::Window)
     showall(obj)
     obj
 end
-Base.display(widget::Window) = showall(gtk_widget(widget))
+function Base.display(widget::Window)
+    showall(gtk_widget(widget))
+end
+Base.display(widget::Widget) = nothing
 
 
 ## Main window
@@ -1117,7 +1120,7 @@ end
 
 ## convert object to string for display through label
 to_string(x::AbstractString) = x
-to_string(x) = sprint(io -> writemime(io, "text/plain", x))
+to_string(x) = sprint(io -> show(io, "text/plain", x))
 
 ## Dialogs
 function gtk_widget(widget::MessageBox)

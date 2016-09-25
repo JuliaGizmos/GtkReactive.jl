@@ -689,8 +689,8 @@ destroy(w)
 
 """
 window(children...; width::Int=-1, height::Int=-1, title::AbstractString="") = Window(width, height, title, Any[children...;], nothing)
-Base.push!(widget::Window, child) = push!(widget.children, child)
-Base.append!(widget::Window, children) = append!(widget.children, children)
+Base.push!(widget::Window, child) = (push!(widget.children, child); nothing)
+Base.append!(widget::Window, children) = (append!(widget.children, children); nothing)
 
 """
 
