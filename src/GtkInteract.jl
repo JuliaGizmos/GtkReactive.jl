@@ -565,8 +565,8 @@ formlayout() = FormLayout(Any[])
 ## can push children on if convenient
 ## fl = formlayout
 ## push!(fl, button("one"))
-Base.push!(lyt::Layout, child) = push!(lyt.children, child)
-Base.append!(lyt::Layout, children) = append!(lyt.children, children)
+Base.push!(lyt::Layout, child) = (push!(lyt.children, child); nothing)
+Base.append!(lyt::Layout, children) = (append!(lyt.children, children); nothing)
 
 
 ## Tabs...
@@ -594,10 +594,12 @@ tabs(;selected::Int=1) = Tabs(Any[], Any[], selected)
 function Base.push!(lyt::Tabs, child)
     push!(lyt.labels, child[1])
     push!(lyt.children, child[2])
+    nothing
 end
 function Base.append!(lyt::Tabs, children::Pair...)
     append!(lyt.labels, [child[1] for child in children])
     append!(lyt.children, [child[2] for child in children])
+    nothing
 end
 
 ##################################################
@@ -743,8 +745,8 @@ function mainwindow(children...;width::Int=300, height::Int=200, title::Abstract
     widget
 end
 
-Base.push!(widget::MainWindow, w) = push!(widget.children, w)
-Base.append!(widget::MainWindow, ws) = append!(widget.children, ws)
+Base.push!(widget::MainWindow, w) = (push!(widget.children, w); nothing)
+Base.append!(widget::MainWindow, ws) = (append!(widget.children, ws); nothing)
 function Gtk.destroy(widget::MainWindow)
     if widget.window != nothing
         destroy(widget.window)
