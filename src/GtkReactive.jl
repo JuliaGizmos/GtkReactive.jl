@@ -1,5 +1,5 @@
 
-module GtkInteract
+module GtkReactive
 
 ## TODO:
 ## * more layout options. (Did formlayout). Do `flex`
@@ -956,7 +956,7 @@ macro manipulate(expr)
 end
 
 
-## connnect up Reactive with GtkInteract
+## connnect up Reactive with GtkReactive
 Base.push!(w::Interact.InputWidget, value) = push!(w.signal, value)
 Base.push!(w::OutputWidget, value::Interact.Signal) = push!(w, Reactive.value(value))
 

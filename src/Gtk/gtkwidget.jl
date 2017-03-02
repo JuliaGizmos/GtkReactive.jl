@@ -5,11 +5,11 @@
 ##
 ## and to make an output widget
 ##
-## * GtkInteract.show_outwidget(w::GtkInteract.MainWindow, x::T)
+## * GtkReactive.show_outwidget(w::GtkReactive.MainWindow, x::T)
 ##
 ## For example, this creates a custom label:
 ##
-## function GtkInteract.show_outwidget(w::GtkInteract.MainWindow, x::T)
+## function GtkReactive.show_outwidget(w::GtkReactive.MainWindow, x::T)
 ##     if w.out == nothing
 ##         w.out = label()
 ##         push!(w, grow(w.out))
@@ -41,7 +41,7 @@ end
 
 Requires.@require Plots begin
     ## In general use a canvas to display a plot in the main window
-    show_outwidget(w::GtkInteract.MainWindow, x::Plots.Plot) = make_canvas(w, x)
+    show_outwidget(w::GtkReactive.MainWindow, x::Plots.Plot) = make_canvas(w, x)
 
     function Base.push!(obj::CairoGraphic, p::Plots.Plot)
         if obj.obj != nothing
@@ -53,7 +53,7 @@ Requires.@require Plots begin
     ## show_outwidget makes a display widget for a plot
 
     ## ## For unicode plots we try a label, but doesn't work...
-    ## function show_outwidget(w::GtkInteract.MainWindow, p::Plots.Plot{Plots.UnicodePlotsPackage})
+    ## function show_outwidget(w::GtkReactive.MainWindow, p::Plots.Plot{Plots.UnicodePlotsPackage})
     ##      .....
     ##     ## Fails!
     ##     Plots.rebuildUnicodePlot!(p)
@@ -88,7 +88,7 @@ Requires.@require Immerse begin
 
 
     ## same as Plots.Plot, make canvas window
-    function show_outwidget(w::GtkInteract.MainWindow, x::Gadfly.Plot)
+    function show_outwidget(w::GtkReactive.MainWindow, x::Gadfly.Plot)
         if w.out == nothing
             w.out = immersefigure()
             push!(w, grow(w.out))
@@ -117,7 +117,7 @@ end
 Requires.@require Winston begin
     ENV["WINSTON_OUTPUT"] = :gtk
 
-    show_outwidget(w::GtkInteract.MainWindow, x::Winston.PlotContainer) = make_canvas(w, x)
+    show_outwidget(w::GtkReactive.MainWindow, x::Winston.PlotContainer) = make_canvas(w, x)
 
     function Base.push!(obj::CairoGraphic, pc::Winston.PlotContainer)
         if obj.obj != nothing
@@ -149,7 +149,7 @@ We use this as with `Interact`:
 ```
 f = figure()
 @manipulate for n in 1:5
-    GtkInteract.withfig(f) do
+    GtkReactive.withfig(f) do
         xs = linspace(0, n*pi)
         PyPlot.plot(xs, map(sin, xs))
     end
@@ -178,7 +178,7 @@ end
 export withfig
 
     " How to show a pyplot figure "
-    function show_outwidget(w::GtkInteract.MainWindow, x::PyPlot.Figure)
+    function show_outwidget(w::GtkReactive.MainWindow, x::PyPlot.Figure)
         error("XXX This is broken XXX")
         if w.out == nothing
             w.out = image()
@@ -1101,13 +1101,13 @@ end
 function Base.display(x::ManipulateWidget)
     Reactive.foreach(a -> show_outwidget(x.w, a), x.a)
     ## hack to get output widgets passed in
-    tmp = filter(u->!isa(u, GtkInteract.OutputWidget), x.w.children)[1]
+    tmp = filter(u->!isa(u, GtkReactive.OutputWidget), x.w.children)[1]
     push!(tmp, value(tmp))
     nothing
 end
 
 ## Catch all for showing outwidget
-function show_outwidget(w::GtkInteract.MainWindow, x)
+function show_outwidget(w::GtkReactive.MainWindow, x)
 
     if w.out == nothing
         w.out = label("")

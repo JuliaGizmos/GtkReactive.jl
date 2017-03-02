@@ -4,11 +4,11 @@
 ## * layout the controls
 ## * propagate changes in a control to some output
 ##
-## `GtkInteract` uses the widgets of the `Interact` package, adding a few, including output widgets
-## `GtkInteract` uses layout containers using a style defined by the `Escher` package.
-## `GtkInteract` uses the `Reactive` package to propagate changes from controls.
+## `GtkReactive` uses the widgets of the `Interact` package, adding a few, including output widgets
+## `GtkReactive` uses layout containers using a style defined by the `Escher` package.
+## `GtkReactive` uses the `Reactive` package to propagate changes from controls.
 
-using GtkInteract, Reactive, Plots
+using GtkReactive, Reactive, Plots
 immerse()
 
 
@@ -93,7 +93,7 @@ end
 ## is, the use of `n` and `m` within the `plot` command uses the
 ## values in the controls `n` and `m`.
 ##
-## With `GtkInteract`, there are
+## With `GtkReactive`, there are
 ## two basic types of widgets: input widgets and output widgets. The
 ## graphics device is an output widget. For these, values are
 ## `push!`ed onto them. So the call `push!(cg, ...)` should update the
@@ -153,7 +153,7 @@ map(vals->println(join(vals, ", ")), Reactive.sampleon(btn.signal, vals))
 ## In this example, the values are just printed. In the next example a
 ## graph is drawn.
 
-using Reactive, GtkInteract, Plots
+using Reactive, GtkReactive, Plots
 immerse()
 
 α = slider(1:10, label="α")
@@ -184,7 +184,7 @@ map(vals -> draw_plot(vals...), coeffs)
 ## pressed.
 
 
-## For this specific pattern with a button, `GtkInteract` extends Reactive's `sampleon` function, so that
+## For this specific pattern with a button, `GtkReactive` extends Reactive's `sampleon` function, so that
 ## the first line can be just:
 coeffs = sampleon(replot, α, β)
 
@@ -217,7 +217,7 @@ append!(w, values(l))
 ## Another output widget
 ## progress bar
 ##
-using GtkInteract
+using GtkReactive
 w = mainwindow();                       # don't call display until all done
 b = button("press")
 pb = progress()

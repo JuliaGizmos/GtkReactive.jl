@@ -1,4 +1,4 @@
-using GtkInteract
+using GtkReactive
 using Base.Test
 
 ## test manipulate

@@ -1,4 +1,4 @@
-using GtkInteract
+using GtkReactive
 using Plots
 backend(:immerse)
 

@@ -1,5 +1,5 @@
 ## Make a simple enough GUI to plot variables in a data frame
-using GtkInteract
+using GtkReactive
 using RDatasets, DataFrames
 using Plots
 backend(:immerse)
@@ -48,9 +48,9 @@ tb = toolbar(do_titles, vskip(),  about |> tooltip("Simple GUI"))
 w = window(title="simple GUI");
 b = vbox(tb);
 push!(w, b)
-push!(b, hbox(vbox(halign(:start, GtkInteract.bold("Select variables: ")),
+push!(b, hbox(vbox(halign(:start, GtkReactive.bold("Select variables: ")),
                  vb,
-                 halign(:start, GtkInteract.bold("Filter by: ")),
+                 halign(:start, GtkReactive.bold("Filter by: ")),
                    fb),
               cg |> grow |> padding(5)
               ))
