@@ -1,6 +1,4 @@
-julia 0.4
-Gtk
+julia 0.5
+Gtk 0.11
 Reactive 0.3.0
-Interact 0.3.0
-DataStructures
-Requires
+Reexport
