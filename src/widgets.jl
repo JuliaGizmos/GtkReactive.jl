@@ -80,16 +80,6 @@ function slider{T}(range::Range{T};
     Gtk.G_.size_request(obj, 200, -1)
     Gtk.G_.value(obj, value)
 
-    ## signal -> widget
-    preserved = []
-    if syncsig
-        push!(preserved, map(signal) do val
-            curval = Gtk.G_.value(obj)
-            curval != val && Gtk.G_.value(obj, val)
-            nothing
-        end)
-    end
-
     ## widget -> signal
     id = signal_connect(obj, :value_changed) do widget, args...
         val = Gtk.G_.value(widget)
@@ -102,6 +92,18 @@ function slider{T}(range::Range{T};
             map(close, preserved)
             empty!(preserved)  # too dangerous to close signal itself
         end
+    end
+
+    ## signal -> widget
+    preserved = []
+    if syncsig
+        push!(preserved, map(signal) do val
+            signal_handler_block(obj, id)  # prevent "recursive firing" of the handler
+            curval = Gtk.G_.value(obj)
+            curval != val && Gtk.G_.value(obj, val)
+            signal_handler_unblock(obj, id)
+            nothing
+        end)
     end
 
     Slider(signal, obj, id, preserved)
