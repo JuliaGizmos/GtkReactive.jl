@@ -1,25 +1,18 @@
+### Input widgets
 
-# ### Layout Widgets
-# type Layout <: Widget
-#     box::Any
-# end
+"""
+    init_wsigval([T], signal, value; default=nothing) -> signal, value
 
-# type Box <: Widget
-#     layout::Any
-#     vert::Bool
-#     children::Vector{Widget}
-#     Box(layout, vert, children) = begin
-#         b = new(layout, vert, children)
-#         layout.box = b
-#         b
-#     end
-# end
+Return a suitable initial state for `signal` and `value` for a
+widget. Any but one of these argument can be `nothing`. A new `signal`
+will be created if the input `signal` is `nothing`. Passing in a
+pre-existing `signal` will return the same signal, either setting the
+signal to `value` (if specified as an input) or extracting and
+returning its current value (if the `value` input is `nothing`).
 
-# hbox(children::Vararg{Widget}) = Box(Layout(nothing), false, collect(children))
-# vbox(children::Vararg{Widget}) = Box(Layout(nothing), true, collect(children))
-
-# ### Input widgets
-"""Helps init widget's value and signal depending on which ones were set"""
+Optionally specify the element type `T`; if `signal` is a
+`Reactive.Signal`, then `T` must agree with `eltype(signal)`.
+"""
 init_wsigval(::Void, ::Void; default=nothing) = _init_wsigval(nothing, default)
 init_wsigval(::Void, value; default=nothing) = _init_wsigval(typeof(value), nothing, value)
 init_wsigval(signal, value; default=nothing) = _init_wsigval(eltype(signal), signal, value)
@@ -38,6 +31,63 @@ function _init_wsigval{T}(::Type{T}, signal::Signal{T}, value)
     signal, value
 end
 
+"""
+    gtkactions(obj::GtkWidget, signal::Signal, gtksignal, preserved, [own=true]) -> id
+
+Create callbacks for `obj` that update the value of `signal` when
+`obj` receives user input that causes firing of the Gtk signal
+`gtksignal`. The returned `id` is the identifier for handling triggers
+of `gtksignal`. (See `signal_handler_block` and
+`signal_handler_unblock`.)
+
+If `own` is true, it also cleans up when `obj` is `destroy`ed (closing
+the signals in `preserved` and emptying it). `preserved` can be
+intialized to an empty vector (`[]`) by the calling function.
+
+For example, if `btn` is a GtkButton, then
+```julia
+id = gtkactions(btn, btnsignal, "button-press-event", preserved)
+```
+would cause `btnsignal` to be updated any time the user clicked the button.
+"""
+function gtkactions(obj::Gtk.GtkWidget, signal::Signal,
+                    gtksignal::Union{Symbol,String},
+                    preserved::AbstractVector, own::Bool=true)
+    id = signal_connect(obj, gtksignal) do widget, args...
+        val = Gtk.G_.value(widget)
+        push!(signal, val)
+    end
+    # if #161 becomes and issue, use something like this instead:
+    # id = signal_connect(callback, obj, gtksignal, Void, (), false)
+    if own
+        signal_connect(obj, :destroy) do widget
+            map(close, preserved)
+            empty!(preserved)
+            # but it's too dangerous to close signal itself
+        end
+    end
+    id
+end
+
+"""
+    signalactions!(preserved, signal, obj::GtkWidget, id)
+
+Update the value of the Gtk widget `obj` whenever `signal`
+changes. `id` is the output of [`gtkactions`](@ref), and `preserved`
+is the same vector supplied as an argument to `gtkaction`.
+"""
+function signalactions!(preserved, signal, obj, id)
+    push!(preserved, map(signal) do val
+        signal_handler_block(obj, id)  # prevent "recursive firing" of the handler
+        curval = Gtk.G_.value(obj)
+        curval != val && Gtk.G_.value(obj, val)
+        signal_handler_unblock(obj, id)
+        nothing
+    end)
+    nothing
+end
+
+
 ########################## Slider ############################
 
 immutable Slider{T<:Number} <: InputWidget{T}
@@ -55,21 +105,19 @@ slider(signal::Signal, widget::GtkScaleLeaf, id, preserved = []) =
     Slider(signal, widget, id, preserved)
 
 """
-    slider(range; value, signal, label="", readout=true, continuous_update=true)
+    slider(range; value=nothing, signal=nothing, orientation="horizontal")
 
 Create a slider widget with the specified `range`. Optionally specify
 the starting `value` (defaults to the median of `range`), provide the
-(Reactive.jl) `signal` coupled to this slider, and/or specify a string
-`label` for the widget.
+(Reactive.jl) `signal` coupled to this slider, and/or specify the
+orientation of the slider.
 """
 function slider{T}(range::Range{T};
                    value=nothing,
                    signal=nothing,
-                   label="",
                    orientation="horizontal",
                    syncsig=true,
                    own=nothing)
-    isempty(label) || error("slider label must be empty, got ", label)
     signalin = signal
     signal, value = init_wsigval(T, signal, value; default=medianelement(range))
     if own == nothing
@@ -79,42 +127,18 @@ function slider{T}(range::Range{T};
                    first(range), last(range), step(range))
     Gtk.G_.size_request(obj, 200, -1)
     Gtk.G_.value(obj, value)
+    preserved = []
 
     ## widget -> signal
-    id = signal_connect(obj, :value_changed) do widget, args...
-        val = Gtk.G_.value(widget)
-        push!(signal, val)
-    end
-    # if #161 becomes and issue, use this version instead
-    # id = signal_connect(scale_cb, obj, "value-changed", Void, (), false, (widget, obj))
-    if own
-        signal_connect(obj, :destroy) do widget
-            map(close, preserved)
-            empty!(preserved)  # too dangerous to close signal itself
-        end
-    end
+    id = gtkactions(obj, signal, :value_changed, preserved, own)
 
     ## signal -> widget
-    preserved = []
     if syncsig
-        push!(preserved, map(signal) do val
-            signal_handler_block(obj, id)  # prevent "recursive firing" of the handler
-            curval = Gtk.G_.value(obj)
-            curval != val && Gtk.G_.value(obj, val)
-            signal_handler_unblock(obj, id)
-            nothing
-        end)
+        signalactions!(preserved, signal, obj, id)
     end
 
     Slider(signal, obj, id, preserved)
 end
-
-# """
-# `vslider(args...; kwargs...)`
-
-# Shorthand for `slider(args...; orientation="vertical", kwargs...)`
-# """
-# vslider(args...; kwargs...) = slider(args...; orientation="vertical", kwargs...)
 
 # ######################### Checkbox ###########################
 

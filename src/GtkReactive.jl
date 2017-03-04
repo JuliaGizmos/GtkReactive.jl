@@ -33,6 +33,7 @@ Base.show(io::IO, w::Widget) = print(io, typeof(w.widget), " with ", signal(w))
 Gtk.destroy(w::Widget) = destroy(w.widget)
 Base.push!(container::Gtk.GtkContainer, child::Widget) = push!(container, child.widget)
 Reactive.value(w::Widget) = value(signal(w))
+Base.map(f, w::Widget) = map(f, signal(w))
 
 # Now define specific widgets
 include("widgets.jl")

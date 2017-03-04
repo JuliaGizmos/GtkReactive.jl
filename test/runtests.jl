@@ -8,6 +8,7 @@ end
 
 rr() = (Reactive.run_till_now(); yield())
 
+## slider
 s = slider(1:15)
 sleep(0.01)    # For the Gtk eventloop
 @test value(s) == 8
