@@ -190,26 +190,50 @@ end
 # togglebutton(label; kwargs...) =
 #     togglebutton(label=label; kwargs...)
 
-# ######################### Button ###########################
+######################### Button ###########################
 
-# type Button{T} <: InputWidget{T}
-#     signal::Signal{T}
-#     label::AbstractString
-#     value::T
-# end
+type Button{T} <: InputWidget{T}
+    signal::Signal{T}
+    widget::GtkButtonLeaf
+    id::Culong
+    preserved::Vector{Any}
+end
 
-# button(; value=nothing, label="", signal=Signal(value)) =
-#     Button(signal, label, value)
+button(signal::Signal, widget::GtkButtonLeaf, id, preserved = []) =
+    Button(signal, widget, id, preserved)
 
-# """
-#     button(label; value=nothing, signal)
+"""
+    button(label; signal=nothing)
 
-# Create a push button. Optionally specify the `label`, the `value`
-# emitted when then button is clicked, and/or the (Reactive.jl) `signal`
-# coupled to this button.
-# """
-# button(label; kwargs...) =
-#     button(label=label; kwargs...)
+Create a push button with text-label `label`. Optionally specify the
+(Reactive.jl) `signal` coupled to this button.
+"""
+function button(label::Union{String,Symbol};
+                signal=nothing,
+                own=nothing)
+    signalin = signal
+    if signal == nothing
+        signal = Signal(nothing)
+    end
+    if own == nothing
+        own = signal != signalin
+    end
+    obj = GtkButton(label)
+    preserved = []
+
+    # Since Buttons don't have a value, do this manually
+    id = signal_connect(obj, :clicked) do widget, args...
+        push!(signal, nothing)
+    end
+    if own
+        signal_connect(obj, :destroy) do widget
+            map(close, preserved)
+            empty!(preserved)
+        end
+    end
+
+    Button(signal, obj, id, preserved)
+end
 
 # ######################## Textbox ###########################
 

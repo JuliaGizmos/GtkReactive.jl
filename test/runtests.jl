@@ -1,4 +1,4 @@
-using GtkReactive
+using GtkReactive, Gtk.ShortNames
 using Base.Test
 
 try
@@ -25,6 +25,24 @@ rr()
 destroy(s2)
 destroy(s)
 
+## button
+w = Window("Widgets")
+b = button("Click me")
+push!(w, b)
+counter = 0
+action = map(b) do val
+    global counter
+    counter::Int += 1
+end
+rr()
+cc = counter  # map seems to fire it once, so record the "new" initial value
+click(b::GtkReactive.Button) = ccall((:gtk_button_clicked,Gtk.libgtk),Void,(Ptr{Gtk.GObject},),b.widget)
+click(b)
+rr()
+@test counter == cc+1
+destroy(w)
+
+nothing
 
 # ## test manipulate
 # @manipulate for n=1:10
