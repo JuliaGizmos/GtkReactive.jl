@@ -26,7 +26,7 @@ export signal, destroy
 # A widget that gives out a signal of type T
 @compat abstract type InputWidget{T}  <: Widget end
 
-signal(w::InputWidget) = w.signal
+signal(w::Widget) = w.signal
 signal(x::Signal) = x
 
 Base.show(io::IO, w::Widget) = print(io, typeof(w.widget), " with ", signal(w))

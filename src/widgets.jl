@@ -219,9 +219,9 @@ function button(label::Union{String,Symbol};
     Button(signal, obj, id)
 end
 
-# ######################## Textbox ###########################
+######################## Textbox ###########################
 
-type Textbox{T} <: InputWidget{T}
+immutable Textbox{T} <: InputWidget{T}
     signal::Signal{T}
     widget::GtkEntryLeaf
     id::Culong
@@ -306,23 +306,6 @@ end
 
 entrysetter!(w, val) = setproperty!(w, :text, string(val))
 
-# textbox(;kwargs...) = Textbox(;kwargs...)
-
-# textbox(val; kwargs...) =
-#     Textbox(value=val; kwargs...)
-# textbox(val::String; kwargs...) =
-#     Textbox(value=val; kwargs...)
-
-# parse_msg{T<:Number}(w::Textbox{T}, val::AbstractString) = parse_msg(w, parse(T, val))
-# function parse_msg{T<:Number}(w::Textbox{T}, val::Number)
-#     v = convert(T, val)
-#     if isa(w.range, Range)
-#         # force value to stay in range
-#         v = max(first(w.range),
-#                 min(last(w.range), v))
-#     end
-#     v
-# end
 
 # ######################### Textarea ###########################
 
@@ -529,7 +512,37 @@ entrysetter!(w, val) = setproperty!(w, :text, string(val))
 #     valbest
 # end
 
-# ### Output Widgets
+### Output Widgets
+
+######################## Label #############################
+
+immutable Label <: Widget
+    signal::Signal{String}
+    widget::GtkLabel
+    preserved::Vector{Any}
+end
+
+function label(value;
+               signal=nothing,
+               syncsig=true,
+               own=nothing)
+    signalin = signal
+    signal, value = init_wsigval(String, signal, value)
+    if own == nothing
+        own = signal != signalin
+    end
+    obj = GtkLabel(value)
+    preserved = []
+    if syncsig
+        push!(preserved, map(signal) do val
+            setproperty!(obj, :label, val)
+        end)
+    end
+    if own
+        ondestroy(obj, preserved)
+    end
+    Label(signal, obj, preserved)
+end
 
 # export Latex, Progress
 

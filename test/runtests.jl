@@ -8,22 +8,12 @@ end
 
 rr() = (Reactive.run_till_now(); yield())
 
-## slider
-s = slider(1:15)
-sleep(0.01)    # For the Gtk eventloop
-@test value(s) == 8
-push!(signal(s), 3)
+## label
+l = label("Hello")
+@test getproperty(l.widget, :label, String) == "Hello"
+push!(signal(l), "world")
 rr()
-@test value(s) == 3
-
-# Use a single signal for two widgets
-s2 = slider(1:15, signal=signal(s), orientation='v')
-@test value(s2) == 3
-push!(signal(s2), 11)
-rr()
-@test value(s) == 11
-destroy(s2)
-destroy(s)
+@test getproperty(l.widget, :label, String) == "world"
 
 ## button
 w = Window("Widgets")
@@ -42,7 +32,7 @@ rr()
 @test counter == cc+1
 destroy(w)
 
-## textbox
+## textbox (aka Entry)
 txt = textbox("Type something")
 num = textbox(5, range=1:10)
 win = Window("Textboxes") |> (bx = Box(:h))
@@ -50,6 +40,23 @@ push!(bx, txt)
 push!(bx, num)
 showall(win)
 destroy(win)
+
+## slider
+s = slider(1:15)
+sleep(0.01)    # For the Gtk eventloop
+@test value(s) == 8
+push!(signal(s), 3)
+rr()
+@test value(s) == 3
+
+# Use a single signal for two widgets
+s2 = slider(1:15, signal=signal(s), orientation='v')
+@test value(s2) == 3
+push!(signal(s2), 11)
+rr()
+@test value(s) == 11
+destroy(s2)
+destroy(s)
 
 nothing
 
