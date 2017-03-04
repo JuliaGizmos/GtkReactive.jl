@@ -10,7 +10,7 @@ using Compat
 import Cairo
 
 using Reactive: foreach, sampleon, value
-using Gtk: destroy
+using Gtk: destroy, GtkWidget
 
 ## exports (most widgets of `Interact` and the modified `@manipulate` macro)
 export slider, button, checkbox, togglebutton, dropdown, radiobuttons, selectlist, textbox, textarea, togglebuttons

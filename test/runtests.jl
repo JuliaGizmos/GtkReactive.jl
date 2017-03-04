@@ -42,6 +42,15 @@ rr()
 @test counter == cc+1
 destroy(w)
 
+## textbox
+txt = textbox("Type something")
+num = textbox(5, range=1:10)
+win = Window("Textboxes") |> (bx = Box(:h))
+push!(bx, txt)
+push!(bx, num)
+showall(win)
+destroy(win)
+
 nothing
 
 # ## test manipulate

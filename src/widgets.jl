@@ -32,61 +32,49 @@ function _init_wsigval{T}(::Type{T}, signal::Signal{T}, value)
 end
 
 """
-    gtkactions(obj::GtkWidget, signal::Signal, gtksignal, preserved, [own=true]) -> id
+    init_signal2widget(obj::GtkWidget, id, signal) -> updatesignal
+    init_signal2widget(getter, setter, obj::GtkWidget, id, signal) -> updatesignal
 
-Create callbacks for `obj` that update the value of `signal` when
-`obj` receives user input that causes firing of the Gtk signal
-`gtksignal`. The returned `id` is the identifier for handling triggers
-of `gtksignal`. (See `signal_handler_block` and
-`signal_handler_unblock`.)
+Update the "display" value of the Gtk widget `obj` whenever `signal`
+changes. `id` is the signal handler id for updating `signal` from the
+widget, and is required to prevent the widget from responding to the
+update by firing `signal`.
 
-If `own` is true, it also cleans up when `obj` is `destroy`ed (closing
-the signals in `preserved` and emptying it). `preserved` can be
-intialized to an empty vector (`[]`) by the calling function.
-
-For example, if `btn` is a GtkButton, then
-```julia
-id = gtkactions(btn, btnsignal, "button-press-event", preserved)
-```
-would cause `btnsignal` to be updated any time the user clicked the button.
+If `updatesignal` is garbage-collected, the widget will no longer
+update. Most likely you should either `preserve` or store
+`updatesignal`.
 """
-function gtkactions(obj::Gtk.GtkWidget, signal::Signal,
-                    gtksignal::Union{Symbol,String},
-                    preserved::AbstractVector, own::Bool=true)
-    id = signal_connect(obj, gtksignal) do widget, args...
-        val = Gtk.G_.value(widget)
-        push!(signal, val)
-    end
-    # if #161 becomes and issue, use something like this instead:
-    # id = signal_connect(callback, obj, gtksignal, Void, (), false)
-    if own
-        signal_connect(obj, :destroy) do widget
-            map(close, preserved)
-            empty!(preserved)
-            # but it's too dangerous to close signal itself
-        end
-    end
-    id
-end
-
-"""
-    signalactions!(preserved, signal, obj::GtkWidget, id)
-
-Update the value of the Gtk widget `obj` whenever `signal`
-changes. `id` is the output of [`gtkactions`](@ref), and `preserved`
-is the same vector supplied as an argument to `gtkaction`.
-"""
-function signalactions!(preserved, signal, obj, id)
-    push!(preserved, map(signal) do val
+function init_signal2widget(getter::Function,
+                            setter!::Function,
+                            obj::GtkWidget,
+                            id, signal)
+    map(signal) do val
         signal_handler_block(obj, id)  # prevent "recursive firing" of the handler
-        curval = Gtk.G_.value(obj)
-        curval != val && Gtk.G_.value(obj, val)
+        curval = getter(obj)
+        curval != val && setter!(obj, val)
         signal_handler_unblock(obj, id)
         nothing
-    end)
+    end
+end
+init_signal2widget(obj::GtkWidget, id, signal) =
+    init_signal2widget(defaultgetter, defaultsetter!, obj, id, signal)
+
+defaultgetter(obj) = Gtk.G_.value(obj)
+defaultsetter!(obj,val) = Gtk.G_.value(obj, val)
+
+"""
+    ondestroy(obj::GtkWidget, preserved)
+
+Create a `destroy` callback for `obj` that terminates updating dependent signals.
+"""
+function ondestroy(obj::GtkWidget, preserved::AbstractVector)
+    signal_connect(obj, :destroy) do widget
+        map(close, preserved)
+        empty!(preserved)
+        # but it's too dangerous to close signal itself
+    end
     nothing
 end
-
 
 ########################## Slider ############################
 
@@ -127,14 +115,19 @@ function slider{T}(range::Range{T};
                    first(range), last(range), step(range))
     Gtk.G_.size_request(obj, 200, -1)
     Gtk.G_.value(obj, value)
-    preserved = []
 
     ## widget -> signal
-    id = gtkactions(obj, signal, :value_changed, preserved, own)
+    id = signal_connect(obj, :value_changed) do w
+        push!(signal, defaultgetter(w))
+    end
 
     ## signal -> widget
+    preserved = []
     if syncsig
-        signalactions!(preserved, signal, obj, id)
+        push!(preserved, init_signal2widget(obj, id, signal))
+    end
+    if own
+        ondestroy(obj, preserved)
     end
 
     Slider(signal, obj, id, preserved)
@@ -196,11 +189,10 @@ type Button{T} <: InputWidget{T}
     signal::Signal{T}
     widget::GtkButtonLeaf
     id::Culong
-    preserved::Vector{Any}
 end
 
-button(signal::Signal, widget::GtkButtonLeaf, id, preserved = []) =
-    Button(signal, widget, id, preserved)
+button(signal::Signal, widget::GtkButtonLeaf, id) =
+    Button(signal, widget, id)
 
 """
     button(label; signal=nothing)
@@ -219,77 +211,103 @@ function button(label::Union{String,Symbol};
         own = signal != signalin
     end
     obj = GtkButton(label)
-    preserved = []
 
-    # Since Buttons don't have a value, do this manually
-    id = signal_connect(obj, :clicked) do widget, args...
+    id = signal_connect(obj, :clicked) do w
         push!(signal, nothing)
     end
-    if own
-        signal_connect(obj, :destroy) do widget
-            map(close, preserved)
-            empty!(preserved)
-        end
-    end
 
-    Button(signal, obj, id, preserved)
+    Button(signal, obj, id)
 end
 
 # ######################## Textbox ###########################
 
-# type Textbox{T} <: InputWidget{T}
-#     signal::Signal{T}
-#     label::String
-#     @compat range::Union{Empty, Range}
-#     value::T
-# end
+type Textbox{T} <: InputWidget{T}
+    signal::Signal{T}
+    widget::GtkEntryLeaf
+    id::Culong
+    preserved::Vector{Any}
+    range
+end
 
-# function empty(t::Type)
-#     if is(t, Number) zero(t)
-#     elseif is(t, AbstractString) ""
-#     end
-# end
+textbox(signal::Signal, widget::GtkButtonLeaf, id, preserved = []) =
+    Textbox(signal, widget, id, preserved)
 
-# function Textbox(; label="",
-#                  value=nothing,
-#                  # Allow unicode characters even if initiated with ASCII
-#                  typ=Void,
-#                  range=nothing,
-#                  signal=nothing,
-#                  syncsig=true)
-#     if isa(value, AbstractString) && range != nothing
-#         throw(ArgumentError(
-#                "You cannot set a range on a string textbox"
-#              ))
-#     end
-#     signal, value = init_wsigval(signal, value; typ=typ, default="")
-#     t = Textbox(signal, label, range, value)
-#     if syncsig
-#         #keep the Textbox updated if the signal changes
-#         keep_updated(val) = begin
-#             if val != t.value
-#                 t.value = val
-#                 update_view(t)
-#             end
-#             nothing
-#         end
-#         preserve(map(keep_updated, signal; typ=Void))
-#     end
-#     t
+"""
+    textbox(value=""; range=nothing, signal=nothing)
+    textbox(T::Type; range=nothing, signal=nothing)
 
-# end
+Create a box for entering text. `value` is the starting value; if you
+don't want to provide an initial value, you can constrain the type
+with `T`. Optionally specify the allowed range (e.g., `-10:10`)
+for numeric entries, and/or provide the (Reactive.jl) `signal` coupled
+to this text box.
+"""
+function textbox{T}(::Type{T};
+                    value=nothing,
+                    range=nothing,
+                    signal=nothing,
+                    syncsig=true,
+                    own=nothing)
+    if T <: AbstractString && range != nothing
+        throw(ArgumentError("You cannot set a range on a string textbox"))
+    end
+    signalin = signal
+    signal, value = init_wsigval(T, signal, value; default="")
+    if own == nothing
+        own = signal != signalin
+    end
+    obj = GtkEntry()
+    setproperty!(obj, :text, value)
+
+    id = signal_connect(obj, :activate) do w
+        push!(signal, entrygetter(w, signal, range))
+    end
+
+    preserved = []
+    if syncsig
+        push!(preserved, init_signal2widget(w->entrygetter(w, signal, range),
+                                            entrysetter!,
+                                            obj, id, signal))
+    end
+    own && ondestroy(obj, preserved)
+
+    Textbox(signal, obj, id, preserved, range)
+end
+function textbox{T}(value::T;
+                    range=nothing,
+                    signal=nothing,
+                    syncsig=true,
+                    own=nothing)
+    textbox(T; value=value, range=range, signal=signal, syncsig=syncsig, own=own)
+end
+
+entrygetter{T<:AbstractString}(w, signal::Signal{T}, ::Void) =
+    getproperty(w, :text, String)
+function entrygetter{T}(w, signal::Signal{T}, range)
+    val = tryparse(T, getproperty(w, :text, String))
+    if isnull(val)
+        nval = value(signal)
+        # Invalid entry, restore the old value
+        entrysetter!(w, nval)
+    else
+        nv = get(val)
+        nval = nearest(nv, range)
+        if nv != nval
+            entrysetter!(w, nval)
+        end
+    end
+    nval
+end
+nearest(val, ::Void) = val
+function nearest(val, r::Range)
+    i = round(Int, (val - first(r))/step(r)) + 1
+    r[clamp(i, 1, length(r))]
+end
+
+entrysetter!(w, val) = setproperty!(w, :text, string(val))
 
 # textbox(;kwargs...) = Textbox(;kwargs...)
 
-# """
-#     textbox(value=""; label="", typ=typeof(value), range=nothing, signal)
-
-# Create a box for entering text. `value` is the starting value; if you
-# don't want to provide an initial value, you can constrain the type
-# with `typ`. Optionally provide a `label`, specify the allowed range
-# (e.g., `-10.0:10.0`) for numeric entries, and/or provide the
-# (Reactive.jl) `signal` coupled to this text box.
-# """
 # textbox(val; kwargs...) =
 #     Textbox(value=val; kwargs...)
 # textbox(val::String; kwargs...) =
