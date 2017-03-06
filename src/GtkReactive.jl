@@ -17,8 +17,10 @@ export slider, button, checkbox, togglebutton, dropdown, radiobuttons, selectlis
 export buttongroup, cairographic, cairoimagesurface, label, progress
 export icon, tooltip, separator
 export mainwindow
-export signal, destroy
+export signal, destroy, frame
 # export eatn
+
+export player
 
 # The generic Widget interface
 @compat abstract type Widget end
@@ -37,7 +39,7 @@ Base.map(f, w::Widget) = map(f, signal(w))
 
 # Now define specific widgets
 include("widgets.jl")
-
+include("extrawidgets.jl")
 
 # ## Add a non-exclusive set of buttons
 # ## Code is basically the Options code of Interact

@@ -58,6 +58,21 @@ rr()
 destroy(s2)
 destroy(s)
 
+# player widget
+s = CheckedSignal(1, 1:8)
+p = player(s)
+win = Window(frame(p))
+showall(win)
+rr()
+btn_fwd = p.widget.step_forward
+@test value(s) == 1
+push!(signal(btn_fwd), nothing)
+sleep(0.01)
+rr()
+sleep(0.01)
+@test value(s) == 2
+destroy(win)
+
 nothing
 
 # ## test manipulate
