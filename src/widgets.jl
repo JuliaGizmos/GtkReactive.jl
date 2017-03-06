@@ -24,18 +24,18 @@ init_wsigval{T}(::Type{T}, signal, value; default=nothing) =
 _init_wsigval(::Void, value) = _init_wsigval(typeof(value), nothing, value)
 _init_wsigval{T}(::Type{T}, ::Void, ::Void) = error("must supply an initial value")
 _init_wsigval{T}(::Type{T}, ::Void, value) = Signal(T, value), value
-_init_wsigval{T}(::Type{T}, signal::Signal{T}, ::Void) =
-    _init_wsigval(T, signal, signal.value)
-function _init_wsigval{T}(::Type{T}, signal::Signal{T}, value)
+_init_wsigval{T}(::Type{T}, signal::AbstractSignal{T}, ::Void) =
+    _init_wsigval(T, signal, value(signal))
+function _init_wsigval{T}(::Type{T}, signal::AbstractSignal{T}, value)
     push!(signal, value)
     signal, value
 end
 
 """
-    init_signal2widget(obj::GtkWidget, id, signal) -> updatesignal
-    init_signal2widget(getter, setter, obj::GtkWidget, id, signal) -> updatesignal
+    init_signal2widget(widget::GtkWidget, id, signal) -> updatesignal
+    init_signal2widget(getter, setter, widget::GtkWidget, id, signal) -> updatesignal
 
-Update the "display" value of the Gtk widget `obj` whenever `signal`
+Update the "display" value of the Gtk widget `widget` whenever `signal`
 changes. `id` is the signal handler id for updating `signal` from the
 widget, and is required to prevent the widget from responding to the
 update by firing `signal`.
@@ -46,29 +46,29 @@ update. Most likely you should either `preserve` or store
 """
 function init_signal2widget(getter::Function,
                             setter!::Function,
-                            obj::GtkWidget,
+                            widget::GtkWidget,
                             id, signal)
     map(signal) do val
-        signal_handler_block(obj, id)  # prevent "recursive firing" of the handler
-        curval = getter(obj)
-        curval != val && setter!(obj, val)
-        signal_handler_unblock(obj, id)
+        signal_handler_block(widget, id)  # prevent "recursive firing" of the handler
+        curval = getter(widget)
+        curval != val && setter!(widget, val)
+        signal_handler_unblock(widget, id)
         nothing
     end
 end
-init_signal2widget(obj::GtkWidget, id, signal) =
-    init_signal2widget(defaultgetter, defaultsetter!, obj, id, signal)
+init_signal2widget(widget::GtkWidget, id, signal) =
+    init_signal2widget(defaultgetter, defaultsetter!, widget, id, signal)
 
-defaultgetter(obj) = Gtk.G_.value(obj)
-defaultsetter!(obj,val) = Gtk.G_.value(obj, val)
+defaultgetter(widget) = Gtk.G_.value(widget)
+defaultsetter!(widget,val) = Gtk.G_.value(widget, val)
 
 """
-    ondestroy(obj::GtkWidget, preserved)
+    ondestroy(widget::GtkWidget, preserved)
 
-Create a `destroy` callback for `obj` that terminates updating dependent signals.
+Create a `destroy` callback for `widget` that terminates updating dependent signals.
 """
-function ondestroy(obj::GtkWidget, preserved::AbstractVector)
-    signal_connect(obj, :destroy) do widget
+function ondestroy(widget::GtkWidget, preserved::AbstractVector)
+    signal_connect(widget, :destroy) do widget
         map(close, preserved)
         empty!(preserved)
         # but it's too dangerous to close signal itself
@@ -79,7 +79,7 @@ end
 ########################## Slider ############################
 
 immutable Slider{T<:Number} <: InputWidget{T}
-    signal::Signal{T}
+    signal::AbstractSignal{T}
     widget::GtkScaleLeaf
     id::Culong
     preserved::Vector{Any}
@@ -89,18 +89,20 @@ end
 medianidx(r) = (1+length(r))>>1
 medianelement(r::Range) = r[medianidx(r)]
 
-slider(signal::Signal, widget::GtkScaleLeaf, id, preserved = []) =
+slider(signal::AbstractSignal, widget::GtkScaleLeaf, id, preserved = []) =
     Slider(signal, widget, id, preserved)
 
 """
-    slider(range; value=nothing, signal=nothing, orientation="horizontal")
+    slider(range; widget=nothing, value=nothing, signal=nothing, orientation="horizontal")
 
-Create a slider widget with the specified `range`. Optionally specify
-the starting `value` (defaults to the median of `range`), provide the
-(Reactive.jl) `signal` coupled to this slider, and/or specify the
-orientation of the slider.
+Create a slider widget with the specified `range`. Optionally specify:
+  - a previously-created GtkScale `widget` (if not provided, creates a new one)
+  - the starting `value` (defaults to the median of `range`)
+  - the (Reactive.jl) `signal` coupled to this slider
+  - the `orientation` of the slider.
 """
 function slider{T}(range::Range{T};
+                   widget=nothing,
                    value=nothing,
                    signal=nothing,
                    orientation="horizontal",
@@ -111,26 +113,33 @@ function slider{T}(range::Range{T};
     if own == nothing
         own = signal != signalin
     end
-    obj = GtkScale(lowercase(first(orientation)) == 'v',
-                   first(range), last(range), step(range))
-    Gtk.G_.size_request(obj, 200, -1)
-    Gtk.G_.value(obj, value)
+    if widget == nothing
+        widget = GtkScale(lowercase(first(orientation)) == 'v',
+                          first(range), last(range), step(range))
+        Gtk.G_.size_request(widget, 200, -1)
+    else
+        adj = Gtk.Adjustment(widget)
+        Gtk.G_.lower(adj, first(range))
+        Gtk.G_.upper(adj, last(range))
+        Gtk.G_.step_increment(adj, step(range))
+    end
+    Gtk.G_.value(widget, value)
 
     ## widget -> signal
-    id = signal_connect(obj, :value_changed) do w
+    id = signal_connect(widget, :value_changed) do w
         push!(signal, defaultgetter(w))
     end
 
     ## signal -> widget
     preserved = []
     if syncsig
-        push!(preserved, init_signal2widget(obj, id, signal))
+        push!(preserved, init_signal2widget(widget, id, signal))
     end
     if own
-        ondestroy(obj, preserved)
+        ondestroy(widget, preserved)
     end
 
-    Slider(signal, obj, id, preserved)
+    Slider(signal, widget, id, preserved)
 end
 
 # ######################### Checkbox ###########################
@@ -195,12 +204,16 @@ button(signal::Signal, widget::GtkButtonLeaf, id) =
     Button(signal, widget, id)
 
 """
-    button(label; signal=nothing)
+    button(label; widget=nothing, signal=nothing)
+    button(; label=nothing, widget=nothing, signal=nothing)
 
-Create a push button with text-label `label`. Optionally specify the
-(Reactive.jl) `signal` coupled to this button.
+Create a push button with text-label `label`. Optionally specify a
+previously-created GtkButton `widget` and/or the (Reactive.jl)
+`signal` coupled to this button.
 """
-function button(label::Union{String,Symbol};
+function button(;
+                label::Union{Void,String,Symbol}=nothing,
+                widget=nothing,
                 signal=nothing,
                 own=nothing)
     signalin = signal
@@ -210,19 +223,23 @@ function button(label::Union{String,Symbol};
     if own == nothing
         own = signal != signalin
     end
-    obj = GtkButton(label)
+    if widget == nothing
+        widget = GtkButton(label)
+    end
 
-    id = signal_connect(obj, :clicked) do w
+    id = signal_connect(widget, :clicked) do w
         push!(signal, nothing)
     end
 
-    Button(signal, obj, id)
+    Button(signal, widget, id)
 end
+button(label::Union{String,Symbol}; widget=nothing, signal=nothing, own=nothing) =
+    button(; label=label, widget=widget, signal=signal, own=own)
 
 ######################## Textbox ###########################
 
 immutable Textbox{T} <: InputWidget{T}
-    signal::Signal{T}
+    signal::AbstractSignal{T}
     widget::GtkEntryLeaf
     id::Culong
     preserved::Vector{Any}
@@ -233,8 +250,8 @@ textbox(signal::Signal, widget::GtkButtonLeaf, id, preserved = []) =
     Textbox(signal, widget, id, preserved)
 
 """
-    textbox(value=""; range=nothing, signal=nothing)
-    textbox(T::Type; range=nothing, signal=nothing)
+    textbox(value=""; widget=nothing, signal=nothing, range=nothing)
+    textbox(T::Type; widget=nothing, signal=nothing, range=nothing)
 
 Create a box for entering text. `value` is the starting value; if you
 don't want to provide an initial value, you can constrain the type
@@ -243,6 +260,7 @@ for numeric entries, and/or provide the (Reactive.jl) `signal` coupled
 to this text box.
 """
 function textbox{T}(::Type{T};
+                    widget=nothing,
                     value=nothing,
                     range=nothing,
                     signal=nothing,
@@ -256,10 +274,12 @@ function textbox{T}(::Type{T};
     if own == nothing
         own = signal != signalin
     end
-    obj = GtkEntry()
-    setproperty!(obj, :text, value)
+    if widget == nothing
+        widget = GtkEntry()
+    end
+    setproperty!(widget, :text, value)
 
-    id = signal_connect(obj, :activate) do w
+    id = signal_connect(widget, :activate) do w
         push!(signal, entrygetter(w, signal, range))
     end
 
@@ -267,23 +287,24 @@ function textbox{T}(::Type{T};
     if syncsig
         push!(preserved, init_signal2widget(w->entrygetter(w, signal, range),
                                             entrysetter!,
-                                            obj, id, signal))
+                                            widget, id, signal))
     end
-    own && ondestroy(obj, preserved)
+    own && ondestroy(widget, preserved)
 
-    Textbox(signal, obj, id, preserved, range)
+    Textbox(signal, widget, id, preserved, range)
 end
 function textbox{T}(value::T;
+                    widget=nothing,
                     range=nothing,
                     signal=nothing,
                     syncsig=true,
                     own=nothing)
-    textbox(T; value=value, range=range, signal=signal, syncsig=syncsig, own=own)
+    textbox(T; widget=widget, value=value, range=range, signal=signal, syncsig=syncsig, own=own)
 end
 
-entrygetter{T<:AbstractString}(w, signal::Signal{T}, ::Void) =
+entrygetter{T<:AbstractString}(w, signal::AbstractSignal{T}, ::Void) =
     getproperty(w, :text, String)
-function entrygetter{T}(w, signal::Signal{T}, range)
+function entrygetter{T}(w, signal::AbstractSignal{T}, range)
     val = tryparse(T, getproperty(w, :text, String))
     if isnull(val)
         nval = value(signal)
@@ -512,6 +533,7 @@ entrysetter!(w, val) = setproperty!(w, :text, string(val))
 #     valbest
 # end
 
+
 ### Output Widgets
 
 ######################## Label #############################
@@ -523,6 +545,7 @@ immutable Label <: Widget
 end
 
 function label(value;
+               widget=nothing,
                signal=nothing,
                syncsig=true,
                own=nothing)
@@ -531,17 +554,21 @@ function label(value;
     if own == nothing
         own = signal != signalin
     end
-    obj = GtkLabel(value)
+    if widget == nothing
+        widget = GtkLabel(value)
+    else
+        setproperty!(widget, :label, value)
+    end
     preserved = []
     if syncsig
         push!(preserved, map(signal) do val
-            setproperty!(obj, :label, val)
+            setproperty!(widget, :label, val)
         end)
     end
     if own
-        ondestroy(obj, preserved)
+        ondestroy(widget, preserved)
     end
-    Label(signal, obj, preserved)
+    Label(signal, widget, preserved)
 end
 
 # export Latex, Progress
