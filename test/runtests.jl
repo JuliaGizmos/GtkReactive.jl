@@ -104,7 +104,30 @@ rr()
 destroy(s2)
 destroy(s)
 
-# player widget
+## dropdown
+dd = dropdown(("Strawberry", "Vanilla", "Chocolate"))
+@test value(dd) == "Strawberry"
+push!(signal(dd), "Chocolate")
+rr()
+@test getproperty(dd.widget, :active, Int) == 2
+destroy(dd.widget)
+
+r = Ref(0)
+dd = dropdown(["Five"=>x->x[]=5, "Seven"=>x->x[]=7])
+map(f->f(r), dd.mappedsignal)
+rr()
+@test value(dd) == "Five"
+@test r[] == 5
+push!(signal(dd), "Seven")
+rr()
+@test value(dd) == "Seven"
+@test r[] == 7
+push!(signal(dd), "Five")
+rr()
+@test r[] == 5
+destroy(dd.widget)
+
+## player widget
 s = CheckedSignal(1, 1:8)
 p = player(s)
 win = Window(frame(p))

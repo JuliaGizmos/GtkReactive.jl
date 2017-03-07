@@ -96,7 +96,7 @@ slider(signal::AbstractSignal, widget::GtkScaleLeaf, id, preserved = []) =
     slider(range; widget=nothing, value=nothing, signal=nothing, orientation="horizontal")
 
 Create a slider widget with the specified `range`. Optionally provide:
-  - a GtkScale `widget` (by default, creates a new one)
+  - the GtkScale `widget` (by default, creates a new one)
   - the starting `value` (defaults to the median of `range`)
   - the (Reactive.jl) `signal` coupled to this slider (by default, creates a new one)
   - the `orientation` of the slider.
@@ -144,7 +144,7 @@ end
 
 ######################### Checkbox ###########################
 
-type Checkbox <: InputWidget{Bool}
+immutable Checkbox <: InputWidget{Bool}
     signal::Signal{Bool}
     widget::GtkCheckButtonLeaf
     id::Culong
@@ -192,7 +192,7 @@ checkbox(; value=false, widget=nothing, signal=nothing, label="", own=nothing) =
 
 ###################### ToggleButton ########################
 
-type ToggleButton <: InputWidget{Bool}
+immutable ToggleButton <: InputWidget{Bool}
     signal::Signal{Bool}
     widget::GtkToggleButtonLeaf
     id::Culong
@@ -240,7 +240,7 @@ togglebutton(; value=false, widget=nothing, signal=nothing, label="", own=nothin
 
 ######################### Button ###########################
 
-type Button{T} <: InputWidget{T}
+immutable Button{T} <: InputWidget{T}
     signal::Signal{T}
     widget::GtkButtonLeaf
     id::Culong
@@ -380,7 +380,7 @@ entrysetter!(w, val) = setproperty!(w, :text, string(val))
 
 ######################### Textarea ###########################
 
-type Textarea <: InputWidget{String}
+immutable Textarea <: InputWidget{String}
     signal::Signal{String}
     widget::GtkTextView
     id::Culong
@@ -430,119 +430,103 @@ function textarea(value::String="";
     Textarea(signal, widget, id, preserved)
 end
 
-# ##################### SelectionWidgets ######################
+##################### SelectionWidgets ######################
 
-# immutable OptionDict
-#     dict::OrderedDict
-#     invdict::Dict
-# end
-# OptionDict(d::OrderedDict) = begin
-#     T1 = eltype([keys(d)...])
-#     T2 = eltype([values(d)...])
-#     OptionDict(OrderedDict{T1,T2}(d), Dict{T2,T1}(zip(values(d), keys(d))))
-# end
+immutable Dropdown{String} <: InputWidget{String}
+    signal::Signal{String}
+    mappedsignal::Signal
+    widget::GtkComboBoxTextLeaf
+    id::Culong
+    preserved::Vector
+end
 
-# Base.getindex(x::OptionDict, y) = getindex(x.dict, y)
-# Base.haskey(x::OptionDict, y) = haskey(x.dict, y)
-# Base.keys(x::OptionDict) = keys(x.dict)
-# Base.values(x::OptionDict) = values(x.dict)
-# Base.length(x::OptionDict) = length(keys(x))
+"""
+    dropdown(choices; widget=nothing, value=first(choices), signal=nothing, label="", with_entry=true, icons, tooltips)
 
-# type Options{view, T} <: InputWidget{T}
-#     signal::Signal
-#     label::AbstractString
-#     value::T
-#     value_label::AbstractString
-#     options::OptionDict
-#     icons::AbstractArray
-#     tooltips::AbstractArray
-#     readout::Bool
-#     orientation::AbstractString
-# end
+Create a "dropdown" widget. `choices` can be a vector (or other iterable) of
+options. Optionally specify
+  - the GtkComboBoxText `widget` (by default, creates a new one)
+  - the starting `value`
+  - the (Reactive.jl) `signal` coupled to this slider (by default, creates a new one)
+  - whether the widget should allow text entry
 
-# Options(view::Symbol, options::OptionDict;
-#         label = "",
-#         value_label=first(keys(options)),
-#         value=nothing,
-#         icons=[],
-#         tooltips=[],
-#         typ=valtype(options.dict),
-#         signal=nothing,
-#         readout=true,
-#         orientation="horizontal",
-#         syncsig=true,
-#         syncnearest=true,
-#         sel_mid_idx=0) = begin
-#     #sel_mid_idx set in selection_slider(...) so default value_label is middle of range
-#     sel_mid_idx != 0 && (value_label = collect(keys(options.dict))[sel_mid_idx])
-#     signal, value = init_wsigval(signal, value; typ=typ, default=options[value_label])
-#     typ = eltype(signal)
-#     ow = Options{view, typ}(signal, label, value, value_label,
-#                     options, icons, tooltips, readout, orientation)
-#     if syncsig
-#         syncselnearest = view == :SelectionSlider && typ <: Real && syncnearest
-#         if view != :SelectMultiple
-#             #set up map that keeps the value_label in sync with the value
-#             #TODO handle SelectMultiple. Need something similar to handle_msg,
-#             #note also ow.value_label is an AbstractString whereas for SelectMultiple
-#             #it should be a Vector{AbstractString} so would want to have Tvalue and
-#             #Tlabel type parameters. Also would need to set w.value_label in handle_msg
-#             #to avoid multiple updating
-#             keep_label_updated(val) = begin
-#                 if syncselnearest
-#                     val = nearest_val(keys(ow.options.invdict), val)
-#                 end
-#                 if haskey(ow.options.invdict, val) &&
-#                   ow.value_label != ow.options.invdict[val]
-#                     ow.value_label = ow.options.invdict[val]
-#                     update_view(ow)
-#                 end
-#                 nothing
-#             end
-#             preserve(map(keep_label_updated, signal; typ=Void))
-#         end
-#         push!(signal, value)
-#     end
-#     ow
-# end
+# Examples
 
-# function Options(view::Symbol,
-#                     options::Union{Associative, AbstractArray};
-#                     kwargs...)
-#     Options(view, getoptions(options); kwargs...)
-# end
+    a = dropdown(["one", "two", "three"])
 
-# function getoptions(options)
-#     opts = OrderedDict()
-#     for el in options
-#         addoption!(opts, el)
-#     end
-#     optdict = OptionDict(opts)
-# end
+To link a callback to the dropdown, use
 
-# addoption!(opts, v::Union{Pair, NTuple{2}}) = opts[string(v[1])] = v[2]
-# addoption!(opts, v) = opts[string(v)] = v
+    f = dropdown(("turn red"=>colorize_red, "turn green"=>colorize_green))
+    map(g->g(image), f.mappedsignal)
+"""
+function dropdown(; choices=nothing,
+                  widget=nothing,
+                  value=juststring(first(choices)),
+                  signal=nothing,
+                  label="",
+                  with_entry=true,
+                  icons=nothing,
+                  tooltips=nothing,
+                  own=nothing)
+    signalin = signal
+    signal, value = init_wsigval(String, signal, value)
+    if own == nothing
+        own = signal != signalin
+    end
+    if widget == nothing
+        widget = GtkComboBoxText()
+    end
+    if choices != nothing
+        empty!(widget)
+    else
+        error("Pre-loading the widget is not yet supported")
+    end
+    allstrings = all(x->isa(x, AbstractString), choices)
+    allstrings || all(x->isa(x, Pair), choices) || throw(ArgumentError("all elements must either be strings or pairs, got $choices"))
+    str2int = Dict{String,Int}()
+    int2str = Dict{Int,String}()
+    getactive(w) = int2str[getproperty(w, :active, Int)]
+    setactive!(w, val) = setproperty!(widget, :active, str2int[val])
+    k = -1
+    for c in choices
+        str = juststring(c)
+        push!(widget, str)
+        str2int[str] = (k+=1)
+        int2str[k] = str
+    end
+    if value == nothing
+        value = juststring(first(choices))
+    end
+    setactive!(widget, value)
 
-# """
-#     dropdown(choices; label="", value, typ, icons, tooltips, signal)
+    id = signal_connect(widget, :changed) do w
+        push!(signal, getactive(w))
+    end
 
-# Create a "dropdown" widget. `choices` can be a vector of
-# options. Optionally specify the starting `value` (defaults to the
-# first choice), the `typ` of elements in `choices`, supply custom
-# `icons`, provide `tooltips`, and/or specify the (Reactive.jl) `signal`
-# coupled to this widget.
+    preserved = []
+    push!(preserved, init_signal2widget(getactive, setactive!, widget, id, signal))
+    if !allstrings
+        choicedict = Dict(choices...)
+        mappedsignal = map(val->choicedict[val], signal; typ=Any)
+    else
+        mappedsignal = Signal(nothing)
+    end
+    if own
+        ondestroy(widget, preserved)
+    end
 
-# # Examples
+    Dropdown(signal, mappedsignal, widget, id, preserved)
+end
 
-#     a = dropdown(["one", "two", "three"])
+function dropdown(choices; kwargs...)
+    dropdown(; choices=choices, kwargs...)
+end
 
-# To link a callback to the dropdown, use
+juststring(str::AbstractString) = String(str)
+juststring(p::Pair{String}) = p.first
+pairaction(str::AbstractString) = x->nothing
+pairaction{F<:Function}(p::Pair{String,F}) = p.second
 
-#     f = dropdown(["turn red"=>colorize_red, "turn green"=>colorize_green])
-#     map(g->g(image), signal(f))
-# """
-# dropdown(opts; kwargs...) =
-#     Options(:Dropdown, opts; kwargs...)
 
 # """
 # radiobuttons: see the help for `dropdown`
