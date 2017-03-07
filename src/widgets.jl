@@ -330,9 +330,13 @@ function textbox{T}(::Type{T};
     end
 
     preserved = []
+    function checked_entrysetter!(w, val)
+        val ∈ range || throw(ArgumentError("$val is not within $range"))
+        entrysetter!(w, val)
+    end
     if syncsig
         push!(preserved, init_signal2widget(w->entrygetter(w, signal, range),
-                                            entrysetter!,
+                                            range == nothing ? entrysetter! : checked_entrysetter!,
                                             widget, id, signal))
     end
     own && ondestroy(widget, preserved)
@@ -374,32 +378,57 @@ end
 entrysetter!(w, val) = setproperty!(w, :text, string(val))
 
 
-# ######################### Textarea ###########################
+######################### Textarea ###########################
 
-# type Textarea{AbstractString} <: InputWidget{AbstractString}
-#     signal::Signal{AbstractString}
-#     label::AbstractString
-#     value::AbstractString
-# end
+type Textarea <: InputWidget{String}
+    signal::Signal{String}
+    widget::GtkTextView
+    id::Culong
+    preserved::Vector
+end
 
-# textarea(args...) = Textarea(args...)
+"""
+    textarea(value=""; widget=nothing, signal=nothing)
 
-# textarea(; label="",
-#          value=nothing,
-#          signal=nothing) = begin
-#     signal, value = init_wsigval(signal, value; default="")
-#     Textarea(signal, label, value)
-# end
+Creates an extended text-entry area. Optionally provide a GtkTextView `widget`
+and/or the (Reactive.jl) `signal` associated with this widget. The
+`signal` updates when you type.
+"""
+function textarea(value::String="";
+                  widget=nothing,
+                  signal=nothing,
+                  syncsig=true,
+                  own=nothing)
+    signalin = signal
+    signal, value = init_wsigval(signal, value)
+    if own == nothing
+        own = signal != signalin
+    end
+    if widget == nothing
+        widget = GtkTextView()
+    end
+    buf = Gtk.G_.buffer(widget)
+    setproperty!(buf, :text, value)
 
-# """
-#     textarea(value=""; label="", signal)
+    id = signal_connect(buf, :changed) do w
+        push!(signal, getproperty(w, :text, String))
+    end
 
-# Creates an extended text-entry area. Optionally provide a `label`
-# and/or the (Reactive.jl) `signal` associated with this widget. The
-# `signal` updates when you type.
-# """
-# textarea(val; kwargs...) =
-#     textarea(value=val; kwargs...)
+    preserved = []
+    if syncsig
+        # GtkTextBuffer is not a GtkWdiget, so we have to do this manually
+        push!(preserved, map(signal) do val
+                  signal_handler_block(buf, id)
+                  curval = getproperty(buf, :text, String)
+                  curval != val && setproperty!(buf, :text, val)
+                  signal_handler_unblock(buf, id)
+                  nothing
+              end)
+    end
+    own && ondestroy(widget, preserved)
+
+    Textarea(signal, widget, id, preserved)
+end
 
 # ##################### SelectionWidgets ######################
 

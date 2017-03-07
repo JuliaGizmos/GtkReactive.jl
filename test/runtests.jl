@@ -65,6 +65,26 @@ win = Window("Textboxes") |> (bx = Box(:h))
 push!(bx, txt)
 push!(bx, num)
 showall(win)
+@test getproperty(txt.widget, :text, String) == "Type something"
+push!(signal(txt), "ok")
+rr()
+@test getproperty(txt.widget, :text, String) == "ok"
+@test getproperty(num.widget, :text, String) == "5"
+push!(signal(num), 11, (sig, val, capex) -> throw(capex.ex))
+@test_throws ArgumentError rr()
+push!(signal(num), 8)
+rr()
+@test getproperty(num.widget, :text, String) == "8"
+destroy(win)
+
+## textarea (aka TextView)
+v = textarea("Type something longer")
+win = Window(v.widget)
+showall(win)
+@test value(signal(v)) == "Type something longer"
+push!(signal(v), "ok")
+rr()
+@test getproperty(Gtk.G_.buffer(v.widget), :text, String) == "ok"
 destroy(win)
 
 ## slider
