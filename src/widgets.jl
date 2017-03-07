@@ -95,7 +95,7 @@ slider(signal::AbstractSignal, widget::GtkScaleLeaf, id, preserved = []) =
 """
     slider(range; widget=nothing, value=nothing, signal=nothing, orientation="horizontal")
 
-Create a slider widget with the specified `range`. Optionally specify:
+Create a slider widget with the specified `range`. Optionally provide:
   - a GtkScale `widget` (by default, creates a new one)
   - the starting `value` (defaults to the median of `range`)
   - the (Reactive.jl) `signal` coupled to this slider (by default, creates a new one)
@@ -158,8 +158,7 @@ checkbox(signal::Signal, widget::GtkCheckButtonLeaf, id, preserved=[]) =
     checkbox(value=false; widget=nothing, signal=nothing, label="")
 
 Provide a checkbox with the specified starting (boolean)
-`value`. Optional provide
-Optionally specify:
+`value`. Optionally provide:
   - a GtkCheckButton `widget` (by default, creates a new one)
   - the (Reactive.jl) `signal` coupled to this slider (by default, creates a new one)
   - a display `label` for this widget
@@ -191,30 +190,53 @@ end
 checkbox(; value=false, widget=nothing, signal=nothing, label="", own=nothing) =
     checkbox(value; widget=widget, signal=signal, label=label, own=own)
 
-# ###################### ToggleButton ########################
+###################### ToggleButton ########################
 
-# type ToggleButton <: InputWidget{Bool}
-#     signal::Signal{Bool}
-#     label::AbstractString
-#     value::Bool
-# end
+type ToggleButton <: InputWidget{Bool}
+    signal::Signal{Bool}
+    widget::GtkToggleButtonLeaf
+    id::Culong
+    preserved::Vector
+end
 
-# togglebutton(args...) = ToggleButton(args...)
+togglebutton(signal::Signal, widget::GtkCheckButtonLeaf, id, preserved=[]) =
+    ToggleButton(signal, widget, id, preserved)
 
-# togglebutton(; label="", value=nothing, signal=nothing) = begin
-#     signal, value = init_wsigval(signal, value; default=false)
-#     ToggleButton(signal, label, value)
-# end
+"""
+    togglebutton(value=false; widget=nothing, signal=nothing, label="")
 
-# """
-#     togglebutton(label=""; value=false, signal)
+Provide a togglebutton with the specified starting (boolean)
+`value`. Optionally provide:
+  - a GtkCheckButton `widget` (by default, creates a new one)
+  - the (Reactive.jl) `signal` coupled to this slider (by default, creates a new one)
+  - a display `label` for this widget
+"""
+function togglebutton(value::Bool; widget=nothing, signal=nothing, label="", own=nothing)
+    signalin = signal
+    signal, value = init_wsigval(signal, value)
+    if own == nothing
+        own = signal != signalin
+    end
+    if widget == nothing
+        widget = GtkToggleButton(label)
+    end
+    Gtk.G_.active(widget, value)
 
-# Create a toggle button. Optionally specify the `label`, the initial
-# state (`value=false` is off, `value=true` is on), and/or provide the
-# (Reactive.jl) `signal` coupled to this button.
-# """
-# togglebutton(label; kwargs...) =
-#     togglebutton(label=label; kwargs...)
+    id = signal_connect(widget, :clicked) do w
+        push!(signal, Gtk.G_.active(w))
+    end
+    preserved = []
+    push!(preserved, init_signal2widget(w->Gtk.G_.active(w),
+                                        (w,val)->Gtk.G_.active(w, val),
+                                        widget, id, signal))
+    if own
+        ondestroy(widget, preserved)
+    end
+
+    ToggleButton(signal, widget, id, preserved)
+end
+togglebutton(; value=false, widget=nothing, signal=nothing, label="", own=nothing) =
+    togglebutton(value; widget=widget, signal=signal, label=label, own=own)
 
 ######################### Button ###########################
 

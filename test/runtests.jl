@@ -45,6 +45,19 @@ rr()
 @test Gtk.G_.active(check.widget)
 destroy(w)
 
+## togglebutton
+w = Window("Togglebutton")
+tgl = togglebutton(label="click me")
+push!(w, tgl)
+showall(w)
+@test value(signal(tgl)) == false
+@test Gtk.G_.active(tgl.widget) == false
+push!(signal(tgl), true)
+rr()
+@test value(signal(tgl))
+@test Gtk.G_.active(tgl.widget)
+destroy(w)
+
 ## textbox (aka Entry)
 txt = textbox("Type something")
 num = textbox(5, range=1:10)
