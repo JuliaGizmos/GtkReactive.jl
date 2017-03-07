@@ -32,6 +32,19 @@ rr()
 @test counter == cc+1
 destroy(w)
 
+## checkbox
+w = Window("Checkbox")
+check = checkbox(label="click me")
+push!(w, check)
+showall(w)
+@test value(signal(check)) == false
+@test Gtk.G_.active(check.widget) == false
+push!(signal(check), true)
+rr()
+@test value(signal(check))
+@test Gtk.G_.active(check.widget)
+destroy(w)
+
 ## textbox (aka Entry)
 txt = textbox("Type something")
 num = textbox(5, range=1:10)

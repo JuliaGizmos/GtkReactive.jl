@@ -82,7 +82,7 @@ immutable Slider{T<:Number} <: InputWidget{T}
     signal::AbstractSignal{T}
     widget::GtkScaleLeaf
     id::Culong
-    preserved::Vector{Any}
+    preserved::Vector
 end
 
 # differs from median(r) in that it always returns an element of the range
@@ -96,9 +96,9 @@ slider(signal::AbstractSignal, widget::GtkScaleLeaf, id, preserved = []) =
     slider(range; widget=nothing, value=nothing, signal=nothing, orientation="horizontal")
 
 Create a slider widget with the specified `range`. Optionally specify:
-  - a previously-created GtkScale `widget` (if not provided, creates a new one)
+  - a GtkScale `widget` (by default, creates a new one)
   - the starting `value` (defaults to the median of `range`)
-  - the (Reactive.jl) `signal` coupled to this slider
+  - the (Reactive.jl) `signal` coupled to this slider (by default, creates a new one)
   - the `orientation` of the slider.
 """
 function slider{T}(range::Range{T};
@@ -142,31 +142,55 @@ function slider{T}(range::Range{T};
     Slider(signal, widget, id, preserved)
 end
 
-# ######################### Checkbox ###########################
+######################### Checkbox ###########################
 
-# type Checkbox <: InputWidget{Bool}
-#     signal::Signal{Bool}
-#     label::AbstractString
-#     value::Bool
-# end
+type Checkbox <: InputWidget{Bool}
+    signal::Signal{Bool}
+    widget::GtkCheckButtonLeaf
+    id::Culong
+    preserved::Vector
+end
 
-# checkbox(args...) = Checkbox(args...)
+checkbox(signal::Signal, widget::GtkCheckButtonLeaf, id, preserved=[]) =
+    Checkbox(signal, widget, id, preserved)
 
-# """
-#     checkbox(value=false; label="", signal)
+"""
+    checkbox(value=false; widget=nothing, signal=nothing, label="")
 
-# Provide a checkbox with the specified starting (boolean)
-# `value`. Optional provide a `label` for this widget and/or the
-# (Reactive.jl) `signal` coupled to this widget.
-# """
-# checkbox(value::Bool; signal=nothing, label="") = begin
-#     signal, value = init_wsigval(signal, value)
-#     Checkbox(signal, label, value)
-# end
-# checkbox(; label="", value=nothing, signal=nothing) = begin
-#     signal, value = init_wsigval(signal, value; default=false)
-#     Checkbox(signal, label, value)
-# end
+Provide a checkbox with the specified starting (boolean)
+`value`. Optional provide
+Optionally specify:
+  - a GtkCheckButton `widget` (by default, creates a new one)
+  - the (Reactive.jl) `signal` coupled to this slider (by default, creates a new one)
+  - a display `label` for this widget
+"""
+function checkbox(value::Bool; widget=nothing, signal=nothing, label="", own=nothing)
+    signalin = signal
+    signal, value = init_wsigval(signal, value)
+    if own == nothing
+        own = signal != signalin
+    end
+    if widget == nothing
+        widget = GtkCheckButton(label)
+    end
+    Gtk.G_.active(widget, value)
+
+    id = signal_connect(widget, :clicked) do w
+        push!(signal, Gtk.G_.active(w))
+    end
+    preserved = []
+    push!(preserved, init_signal2widget(w->Gtk.G_.active(w),
+                                        (w,val)->Gtk.G_.active(w, val),
+                                        widget, id, signal))
+    if own
+        ondestroy(widget, preserved)
+    end
+
+    Checkbox(signal, widget, id, preserved)
+end
+checkbox(; value=false, widget=nothing, signal=nothing, label="", own=nothing) =
+    checkbox(value; widget=widget, signal=signal, label=label, own=own)
+
 # ###################### ToggleButton ########################
 
 # type ToggleButton <: InputWidget{Bool}
