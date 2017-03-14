@@ -8,139 +8,158 @@ end
 
 rr() = (Reactive.run_till_now(); yield())
 
-## label
-l = label("Hello")
-@test getproperty(l.widget, :label, String) == "Hello"
-push!(signal(l), "world")
-rr()
-@test getproperty(l.widget, :label, String) == "world"
-
-## button
-w = Window("Widgets")
-b = button("Click me")
-push!(w, b)
 counter = 0
-action = map(b) do val
-    global counter
-    counter::Int += 1
+
+@testset "Widgets" begin
+    ## label
+    l = label("Hello")
+    @test getproperty(l.widget, :label, String) == "Hello"
+    push!(signal(l), "world")
+    rr()
+    @test getproperty(l.widget, :label, String) == "world"
+
+    ## button
+    w = Window("Widgets")
+    b = button("Click me")
+    push!(w, b)
+    action = map(b) do val
+        global counter
+        counter::Int += 1
+    end
+    rr()
+    cc = counter  # map seems to fire it once, so record the "new" initial value
+    click(b::GtkReactive.Button) = ccall((:gtk_button_clicked,Gtk.libgtk),Void,(Ptr{Gtk.GObject},),b.widget)
+    click(b)
+    rr()
+    @test counter == cc+1
+    destroy(w)
+
+    ## checkbox
+    w = Window("Checkbox")
+    check = checkbox(label="click me")
+    push!(w, check)
+    showall(w)
+    @test value(signal(check)) == false
+    @test Gtk.G_.active(check.widget) == false
+    push!(signal(check), true)
+    rr()
+    @test value(signal(check))
+    @test Gtk.G_.active(check.widget)
+    destroy(w)
+
+    ## togglebutton
+    w = Window("Togglebutton")
+    tgl = togglebutton(label="click me")
+    push!(w, tgl)
+    showall(w)
+    @test value(signal(tgl)) == false
+    @test Gtk.G_.active(tgl.widget) == false
+    push!(signal(tgl), true)
+    rr()
+    @test value(signal(tgl))
+    @test Gtk.G_.active(tgl.widget)
+    destroy(w)
+
+    ## textbox (aka Entry)
+    txt = textbox("Type something")
+    num = textbox(5, range=1:10)
+    win = Window("Textboxes") |> (bx = Box(:h))
+    push!(bx, txt)
+    push!(bx, num)
+    showall(win)
+    @test getproperty(txt.widget, :text, String) == "Type something"
+    push!(signal(txt), "ok")
+    rr()
+    @test getproperty(txt.widget, :text, String) == "ok"
+    @test getproperty(num.widget, :text, String) == "5"
+    push!(signal(num), 11, (sig, val, capex) -> throw(capex.ex))
+    @test_throws ArgumentError rr()
+    push!(signal(num), 8)
+    rr()
+    @test getproperty(num.widget, :text, String) == "8"
+    destroy(win)
+
+    ## textarea (aka TextView)
+    v = textarea("Type something longer")
+    win = Window(v.widget)
+    showall(win)
+    @test value(signal(v)) == "Type something longer"
+    push!(signal(v), "ok")
+    rr()
+    @test getproperty(Gtk.G_.buffer(v.widget), :text, String) == "ok"
+    destroy(win)
+
+    ## slider
+    s = slider(1:15)
+    sleep(0.01)    # For the Gtk eventloop
+    @test value(s) == 8
+    push!(signal(s), 3)
+    rr()
+    @test value(s) == 3
+
+    # Use a single signal for two widgets
+    s2 = slider(1:15, signal=signal(s), orientation='v')
+    @test value(s2) == 3
+    push!(signal(s2), 11)
+    rr()
+    @test value(s) == 11
+    destroy(s2)
+    destroy(s)
+
+    ## dropdown
+    dd = dropdown(("Strawberry", "Vanilla", "Chocolate"))
+    @test value(dd) == "Strawberry"
+    push!(signal(dd), "Chocolate")
+    rr()
+    @test getproperty(dd.widget, :active, Int) == 2
+    destroy(dd.widget)
+
+    r = Ref(0)
+    dd = dropdown(["Five"=>x->x[]=5, "Seven"=>x->x[]=7])
+    map(f->f(r), dd.mappedsignal)
+    rr()
+    @test value(dd) == "Five"
+    @test r[] == 5
+    push!(signal(dd), "Seven")
+    rr()
+    @test value(dd) == "Seven"
+    @test r[] == 7
+    push!(signal(dd), "Five")
+    rr()
+    @test r[] == 5
+    destroy(dd.widget)
 end
-rr()
-cc = counter  # map seems to fire it once, so record the "new" initial value
-click(b::GtkReactive.Button) = ccall((:gtk_button_clicked,Gtk.libgtk),Void,(Ptr{Gtk.GObject},),b.widget)
-click(b)
-rr()
-@test counter == cc+1
-destroy(w)
 
-## checkbox
-w = Window("Checkbox")
-check = checkbox(label="click me")
-push!(w, check)
-showall(w)
-@test value(signal(check)) == false
-@test Gtk.G_.active(check.widget) == false
-push!(signal(check), true)
-rr()
-@test value(signal(check))
-@test Gtk.G_.active(check.widget)
-destroy(w)
+@testset "Compound widgets" begin
+    ## player widget
+    s = CheckedSignal(1, 1:8)
+    p = player(s)
+    win = Window(frame(p))
+    showall(win)
+    rr()
+    btn_fwd = p.widget.step_forward
+    @test value(s) == 1
+    push!(signal(btn_fwd), nothing)
+    sleep(0.01)
+    rr()
+    sleep(0.01)
+    @test value(s) == 2
+    destroy(win)
+end
 
-## togglebutton
-w = Window("Togglebutton")
-tgl = togglebutton(label="click me")
-push!(w, tgl)
-showall(w)
-@test value(signal(tgl)) == false
-@test Gtk.G_.active(tgl.widget) == false
-push!(signal(tgl), true)
-rr()
-@test value(signal(tgl))
-@test Gtk.G_.active(tgl.widget)
-destroy(w)
-
-## textbox (aka Entry)
-txt = textbox("Type something")
-num = textbox(5, range=1:10)
-win = Window("Textboxes") |> (bx = Box(:h))
-push!(bx, txt)
-push!(bx, num)
-showall(win)
-@test getproperty(txt.widget, :text, String) == "Type something"
-push!(signal(txt), "ok")
-rr()
-@test getproperty(txt.widget, :text, String) == "ok"
-@test getproperty(num.widget, :text, String) == "5"
-push!(signal(num), 11, (sig, val, capex) -> throw(capex.ex))
-@test_throws ArgumentError rr()
-push!(signal(num), 8)
-rr()
-@test getproperty(num.widget, :text, String) == "8"
-destroy(win)
-
-## textarea (aka TextView)
-v = textarea("Type something longer")
-win = Window(v.widget)
-showall(win)
-@test value(signal(v)) == "Type something longer"
-push!(signal(v), "ok")
-rr()
-@test getproperty(Gtk.G_.buffer(v.widget), :text, String) == "ok"
-destroy(win)
-
-## slider
-s = slider(1:15)
-sleep(0.01)    # For the Gtk eventloop
-@test value(s) == 8
-push!(signal(s), 3)
-rr()
-@test value(s) == 3
-
-# Use a single signal for two widgets
-s2 = slider(1:15, signal=signal(s), orientation='v')
-@test value(s2) == 3
-push!(signal(s2), 11)
-rr()
-@test value(s) == 11
-destroy(s2)
-destroy(s)
-
-## dropdown
-dd = dropdown(("Strawberry", "Vanilla", "Chocolate"))
-@test value(dd) == "Strawberry"
-push!(signal(dd), "Chocolate")
-rr()
-@test getproperty(dd.widget, :active, Int) == 2
-destroy(dd.widget)
-
-r = Ref(0)
-dd = dropdown(["Five"=>x->x[]=5, "Seven"=>x->x[]=7])
-map(f->f(r), dd.mappedsignal)
-rr()
-@test value(dd) == "Five"
-@test r[] == 5
-push!(signal(dd), "Seven")
-rr()
-@test value(dd) == "Seven"
-@test r[] == 7
-push!(signal(dd), "Five")
-rr()
-@test r[] == 5
-destroy(dd.widget)
-
-## player widget
-s = CheckedSignal(1, 1:8)
-p = player(s)
-win = Window(frame(p))
-showall(win)
-rr()
-btn_fwd = p.widget.step_forward
-@test value(s) == 1
-push!(signal(btn_fwd), nothing)
-sleep(0.01)
-rr()
-sleep(0.01)
-@test value(s) == 2
-destroy(win)
+@testset "Canvas" begin
+    c = canvas(208, 207)
+    win = Window(c.canvas)
+    showall(win)
+    sleep(0.1)
+    @test Graphics.width(c) == 208
+    @test Graphics.height(c) == 207
+    @test isa(c, GtkReactive.Canvas{DeviceUnit})
+    destroy(win)
+    c = canvas(UserUnit, 208, 207)
+    @test isa(c, GtkReactive.Canvas{UserUnit})
+    destroy(c.canvas)
+end
 
 nothing
 

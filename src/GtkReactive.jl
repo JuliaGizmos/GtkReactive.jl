@@ -1,26 +1,28 @@
-
 module GtkReactive
 
-## TODO:
-## * GtkMenuButton and toolbar (one isn't there, other isn't working...)
+using Compat
 
 using Gtk, Colors, Reexport
 @reexport using Reactive
-using Compat
-import Cairo
+using Graphics
+using IntervalSets, RoundingIntegers
 
-using Reactive: foreach, sampleon, value
-using Gtk: destroy, GtkWidget
+using Gtk: GtkWidget
+# Constants for event analysis
+using Gtk.GConstants.GdkModifierType: SHIFT, CONTROL, MOD1
+using Gtk.GConstants.GdkScrollDirection: UP, DOWN, LEFT, RIGHT
+using Gtk.GdkEventType: BUTTON_PRESS, DOUBLE_BUTTON_PRESS, BUTTON_RELEASE
 
-## exports (most widgets of `Interact` and the modified `@manipulate` macro)
-export slider, button, checkbox, togglebutton, dropdown, radiobuttons, selectlist, textbox, textarea, togglebuttons
-export buttongroup, cairographic, cairoimagesurface, label, progress
-export icon, tooltip, separator
-export mainwindow
-export signal, destroy, frame
-# export eatn
+# Re-exports
+export set_coords, BoundingBox, SHIFT, CONTROL, MOD1, UP, DOWN, LEFT, RIGHT,
+       BUTTON_PRESS, DOUBLE_BUTTON_PRESS, destroy
 
+## Exports
+export slider, button, checkbox, togglebutton, dropdown, textbox, textarea
+export label
+export canvas, DeviceUnit, UserUnit
 export player
+export signal, frame
 
 # The generic Widget interface
 @compat abstract type Widget end
@@ -40,6 +42,7 @@ Base.map(f, w::Widget) = map(f, signal(w))
 # Now define specific widgets
 include("widgets.jl")
 include("extrawidgets.jl")
+include("graphics.jl")
 
 # ## Add a non-exclusive set of buttons
 # ## Code is basically the Options code of Interact
