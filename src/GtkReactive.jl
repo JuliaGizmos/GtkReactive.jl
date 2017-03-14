@@ -4,7 +4,8 @@ using Compat
 
 using Gtk, Colors, Reexport
 @reexport using Reactive
-using Graphics
+import Graphics
+using Graphics: set_coords, BoundingBox
 using IntervalSets, RoundingIntegers
 
 using Gtk: GtkWidget
@@ -39,10 +40,28 @@ Base.push!(container::Gtk.GtkContainer, child::Widget) = push!(container, child.
 Reactive.value(w::Widget) = value(signal(w))
 Base.map(f, w::Widget) = map(f, signal(w))
 
-# Now define specific widgets
+# Define specific widgets
 include("widgets.jl")
 include("extrawidgets.jl")
-include("graphics.jl")
+include("graphics_interaction.jl")
+
+# More convenience functions
+(::Type{GtkWindow})(c::Canvas) = GtkWindow(c.canvas)
+(::Type{GtkFrame})(c::Canvas) = GtkFrame(c.canvas)
+(::Type{GtkAspectFrame})(c::Canvas) = GtkAspectFrame(c.canvas)
+
+Graphics.getgc(c::Canvas) = Graphics.getgc(c.canvas)
+Graphics.width(c::Canvas) = Graphics.width(c.canvas)
+Graphics.height(c::Canvas) = Graphics.height(c.canvas)
+
+Graphics.set_coords(c::Canvas, user::BoundingBox) =
+    set_coords(c, BoundingBox(0, Graphics.width(c), 0, Graphics.height(c)), user)
+Graphics.set_coords(c::Canvas, device::BoundingBox, user::BoundingBox) =
+    set_coords(c.canvas, device, user)
+Graphics.set_coords(c::GtkCanvas, device::BoundingBox, user::BoundingBox) =
+    set_coords(Graphics.getgc(c), device, user)
+
+
 
 # ## Add a non-exclusive set of buttons
 # ## Code is basically the Options code of Interact

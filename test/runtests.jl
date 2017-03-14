@@ -1,4 +1,4 @@
-using GtkReactive, Gtk.ShortNames
+using GtkReactive, Gtk.ShortNames, IntervalSets
 using Base.Test
 
 try
@@ -149,7 +149,7 @@ end
 
 @testset "Canvas" begin
     c = canvas(208, 207)
-    win = Window(c.canvas)
+    win = Window(c)
     showall(win)
     sleep(0.1)
     @test Graphics.width(c) == 208
@@ -157,8 +157,58 @@ end
     @test isa(c, GtkReactive.Canvas{DeviceUnit})
     destroy(win)
     c = canvas(UserUnit, 208, 207)
+    win = Window(c)
+    showall(win)
+    sleep(0.1)
     @test isa(c, GtkReactive.Canvas{UserUnit})
-    destroy(c.canvas)
+    set_coords(c, BoundingBox(0, 1, 0, 1))
+    corner_dev = (DeviceUnit(208), DeviceUnit(207))
+    corner_usr = (UserUnit(1), UserUnit(1))
+    @test GtkReactive.convertunits(UserUnit, c, corner_dev...) == corner_usr
+    @test GtkReactive.convertunits(DeviceUnit, c, corner_dev...) == corner_dev
+    @test GtkReactive.convertunits(UserUnit, c, corner_usr...) == corner_usr
+    @test GtkReactive.convertunits(DeviceUnit, c, corner_usr...) == corner_dev
+    destroy(win)
+end
+
+@testset "Zoom/pan" begin
+    zr = GtkReactive.ZoomRegion((1:100, 1:80))
+    zrz = GtkReactive.zoom(zr, 0.5)
+    @test zrz.currentview.x == 26..75
+    @test zrz.currentview.y == 21..60
+    zrp = GtkReactive.pan_x(zrz, 0.2)
+    @test zrp.currentview.x == 36..85
+    @test zrp.currentview.y == 21..60
+    zrp = GtkReactive.pan_x(zrz, -0.2)
+    @test zrp.currentview.x == 16..65
+    @test zrp.currentview.y == 21..60
+    zrp = GtkReactive.pan_y(zrz, -0.2)
+    @test zrp.currentview.x == 26..75
+    @test zrp.currentview.y == 13..52
+    zrp = GtkReactive.pan_y(zrz, 0.2)
+    @test zrp.currentview.x == 26..75
+    @test zrp.currentview.y == 29..68
+    zrp = GtkReactive.pan_x(zrz, 1.0)
+    @test zrp.currentview.x == 51..100
+    @test zrp.currentview.y == 21..60
+    zrp = GtkReactive.pan_y(zrz, -1.0)
+    @test zrp.currentview.x == 26..75
+    @test zrp.currentview.y == 1..40
+    zrz2 = GtkReactive.zoom(zrz, 2.0001)
+    @test zrz2 == zr
+    zrz2 = GtkReactive.zoom(zrz, 3)
+    @test zrz2 == zr
+    zrz2 = GtkReactive.zoom(zrz, 1.9)
+    @test zrz2.currentview.x == 4..97
+    @test zrz2.currentview.y == 3..78
+    zrz = GtkReactive.zoom(zr, 0.5, GtkReactive.MousePosition{DeviceUnit}(50.5, 40.5))
+    @test zrz.currentview.x == 26..75
+    @test zrz.currentview.y == 21..60
+    zrz = GtkReactive.zoom(zr, 0.5, GtkReactive.MousePosition{DeviceUnit}(60.5, 30.5))
+    @test zrz.currentview.x == 31..80
+    @test zrz.currentview.y == 16..55
+    zrr = GtkReactive.reset(zrz)
+    @test zrr == zr
 end
 
 nothing

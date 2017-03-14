@@ -181,66 +181,117 @@ end
 canvas{U<:CairoUnit}(::Type{U}=DeviceUnit, w::Integer=-1, h::Integer=-1) = Canvas{U}(w, h)
 canvas(w::Integer, h::Integer) = canvas(DeviceUnit, w, h)
 
-Graphics.getgc(c::Canvas) = Graphics.getgc(c.canvas)
-Graphics.width(c::Canvas) = Graphics.width(c.canvas)
-Graphics.height(c::Canvas) = Graphics.height(c.canvas)
+
+immutable XY{T}
+    x::T
+    y::T
+end
+# Coordiantes could be AbstractFloat without an implied step, so let's
+# use intervals instead of ranges
+immutable ZoomRegion{T}
+    fullview::XY{ClosedInterval{T}}
+    currentview::XY{ClosedInterval{T}}
+end
+
+function ZoomRegion{I<:Integer}(inds::Tuple{AbstractUnitRange{I},AbstractUnitRange{I}})
+    fullview = XY(map(ClosedInterval{RInt}, inds)...)
+    ZoomRegion(fullview, fullview)
+end
+ZoomRegion(img::AbstractMatrix) = ZoomRegion(indices(img))
+function ZoomRegion(fullview::XY, bb::BoundingBox)
+    xview = oftype(fullview.x, bb.xmin..bb.xmax)
+    yview = oftype(fullview.y, bb.ymin..bb.ymax)
+    ZoomRegion(fullview, XY(xview, yview))
+end
+
+reset(zr::ZoomRegion) = ZoomRegion(zr.fullview, zr.fullview)
+
+function interior(iv::ClosedInterval, limits::AbstractInterval)
+    imin, imax = minimum(iv), maximum(iv)
+    lmin, lmax = minimum(limits), maximum(limits)
+    if imin < lmin
+        imin = lmin
+        imax = imin + IntervalSets.width(iv)
+    elseif imax > lmax
+        imax = lmax
+        imin = imax - IntervalSets.width(iv)
+    end
+    oftype(limits, (imin..imax) ∩ limits)
+end
+
+function pan(iv::ClosedInterval, frac::Real, limits)
+    s = frac*IntervalSets.width(iv)
+    interior(minimum(iv)+s..maximum(iv)+s, limits)
+end
+
+"""
+    pan_x(zr::ZoomRegion, frac) -> zr_new
+
+Pan the x-axis by a fraction `frac` of the current x-view. `frac>0` means
+that the coordinates shift right, which corresponds to a leftward
+shift of objects.
+"""
+pan_x(zr::ZoomRegion, s) =
+    ZoomRegion(zr.fullview, XY(pan(zr.currentview.x, s, zr.fullview.x), zr.currentview.y))
+
+"""
+    pan_y(zr::ZoomRegion, frac) -> zr_new
+
+Pan the y-axis by a fraction `frac` of the current x-view. `frac>0` means
+that the coordinates shift downward, which corresponds to an upward
+shift of objects.
+"""
+pan_y(zr::ZoomRegion, s) =
+    ZoomRegion(zr.fullview, XY(zr.currentview.x, pan(zr.currentview.y, s, zr.fullview.y)))
+
+function zoom(iv::ClosedInterval, s::Real, limits)
+    dw = 0.5*(s - 1)*IntervalSets.width(iv)
+    interior(minimum(iv)-dw..maximum(iv)+dw, limits)
+end
+
+"""
+    zoom(zr::ZoomRegion, scaleview, pos::MousePosition) -> zr_new
+
+Zooms in (`scaleview` < 1) or out (`scaleview` > 1) by a scaling
+factor `scaleview`, in a manner centered on `pos`.
+"""
+function zoom(zr::ZoomRegion, s, pos::MousePosition)
+    xview, yview = zr.currentview.x, zr.currentview.y
+    xviewlimits, yviewlimits = zr.fullview.x, zr.fullview.y
+    centerx, centery = pos.x.val, pos.y.val
+    w, h = IntervalSets.width(xview), IntervalSets.width(yview)
+    fx, fy = (centerx-minimum(xview))/w, (centery-minimum(yview))/h
+    wbb, hbb = s*w, s*h
+    xview = interior(ClosedInterval(centerx-fx*wbb,centerx+(1-fx)*wbb), xviewlimits)
+    yview = interior(ClosedInterval(centery-fy*hbb,centery+(1-fy)*hbb), yviewlimits)
+    ZoomRegion(zr.fullview, XY(xview, yview))
+end
+
+"""
+    zoom(zr::ZoomRegion, scaleview)
+
+Zooms in (`scaleview` < 1) or out (`scaleview` > 1) by a scaling
+factor `scaleview`, in a manner centered around the current view
+region.
+"""
+function zoom(zr::ZoomRegion, s)
+    xview, yview = zr.currentview.x, zr.currentview.y
+    xviewlimits, yviewlimits = zr.fullview.x, zr.fullview.y
+    xview = zoom(xview, s, xviewlimits)
+    yview = zoom(yview, s, yviewlimits)
+    ZoomRegion(zr.fullview, XY(xview, yview))
+end
 
 
-# # Coordiantes could be AbstractFloat without an implied step, so let's
-# # use intervals instead of ranges
-# immutable ZoomInfo{T}
-#     fullview::Tuple{ClosedInterval{T},ClosedInterval{T}}
-#     currentview::Tuple{ClosedInterval{T},ClosedInterval{T}}
-# end
+"""
+    zoom_rubberband!(zr::Signal{ZoomRegion}, canvas::Canvas, event::MouseButton)
 
-# function ZoomInfo{I<:Integer}(inds::Tuple{AbstractUnitRange{I},AbstractUnitRange{I}})
-#     fullview = map(ClosedInterval{RInt}, inds)
-#     current = Signal(fullview)
-#     ZoomInfo(fullview, current)
-# end
-# ZoomInfo(img::AbstractMatrix) = ZoomInfo(indices(img))
-
-# reset(zi::ZoomInfo) = ZoomInfo(zi.fullview, zi.fullview)
-
-# function panzoom_scroll(zi::ZoomInfo, event::MouseScroll;
-#                         # Panning
-#                         xpan = SHIFT,
-#                         ypan  = 0,
-#                         xpanflip = false,
-#                         ypanflip  = false,
-#                         # Zooming
-#                         zoom = CONTROL,
-#                         focus::Symbol = :pointer,
-#                         factor = 2.0)
-#     focus == :pointer || focus == :center || error("focus must be :pointer or :center")
-#     yview, xview = zi.currentview
-#     yviewlimits, xviewlimits = zi.fullview
-#     s = 0.1*scrollpm(event.direction)
-#     xscroll = (event.direction == LEFT) || (event.direction == RIGHT)
-#     if xpan != nothing && (xscroll || event.modifiers == UInt32(xpan))
-#         xview = pan(xview, (xpanflip ? -1 : 1) * s, xviewlimits)
-#     elseif ypan != nothing && event.modifiers == UInt32(ypan)
-#         yview = pan(yview, (ypanflip  ? -1 : 1) * s, yviewlimits)
-#     elseif zoom != nothing && event.modifiers == UInt32(zoom)
-#         s = factor
-#         if event.direction == UP
-#             s = 1/s
-#         end
-#         return zoom_focus(zi, s, event.position; focus=focus)
-#     end
-#     ZoomInfo(zi.fullview, (yview, xview))
-# end
-
-# function zoom_click(zi::ZoomInfo, event::MouseButton;
-#                     initiate = BUTTON_PRESS,
-#                     reset = DOUBLE_BUTTON_PRESS)
-#     if event.clicktype == initiate
-#         # FIXME
-#         rubberband_start(widget, event.x, event.y, (widget, bb) -> zoom_bb(widget, bb, user_to_data))
-#     elseif event.clicktype == reset
-#         reset(zi)
-#     end
-# end
+Initiate a rubber-band selection and, when finished, update `zr`.
+"""
+function zoom_rubberband!(zr::Signal{ZoomRegion}, canvas::Canvas, event::MouseButton)
+    rubberband_start(canvas, event.position, (widget, bb) -> push!(zr, ZoomRegion(value(zr).fullview, bb)))
+    zr
+end
 
 
 ##### Callbacks #####
@@ -275,3 +326,34 @@ function mousescroll_cb{U}(ptr::Ptr, eventp::Ptr, handler::MouseHandler{U})
     push!(handler.scroll, MouseScroll{U}(handler.widget, evt))
     Int32(false)
 end
+
+## Junk
+
+# function panzoom_scroll(zr::ZoomRegion, event::MouseScroll;
+#                         # Panning
+#                         xpan = SHIFT,
+#                         ypan  = 0,
+#                         xpanflip = false,
+#                         ypanflip  = false,
+#                         # Zooming
+#                         zoom = CONTROL,
+#                         focus::Symbol = :pointer,
+#                         factor = 2.0)
+#     focus == :pointer || focus == :center || error("focus must be :pointer or :center")
+#     xview, yview = zr.currentview.x, zr.currentview.y
+#     xviewlimits, yviewlimits = zr.fullview.x, zr.fullview.y
+#     s = 0.1*scrollpm(event.direction)
+#     xscroll = (event.direction == LEFT) || (event.direction == RIGHT)
+#     if xpan != nothing && (xscroll || event.modifiers == UInt32(xpan))
+#         xview = pan(xview, (xpanflip ? -1 : 1) * s, xviewlimits)
+#     elseif ypan != nothing && event.modifiers == UInt32(ypan)
+#         yview = pan(yview, (ypanflip  ? -1 : 1) * s, yviewlimits)
+#     elseif zoom != nothing && event.modifiers == UInt32(zoom)
+#         s = factor
+#         if event.direction == UP
+#             s = 1/s
+#         end
+#         return zoom_focus(zr, s, event.position; focus=focus)
+#     end
+#     ZoomRegion(zr.fullview, XY(xview, yview))
+# end
