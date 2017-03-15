@@ -132,8 +132,8 @@ end
 
 @testset "Compound widgets" begin
     ## player widget
-    s = CheckedSignal(1, 1:8)
-    p = player(s)
+    s = Signal(1)
+    p = player(s, 1:8)
     win = Window(frame(p))
     showall(win)
     rr()

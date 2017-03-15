@@ -24,9 +24,9 @@ init_wsigval{T}(::Type{T}, signal, value; default=nothing) =
 _init_wsigval(::Void, value) = _init_wsigval(typeof(value), nothing, value)
 _init_wsigval{T}(::Type{T}, ::Void, ::Void) = error("must supply an initial value")
 _init_wsigval{T}(::Type{T}, ::Void, value) = Signal(T, value), value
-_init_wsigval{T}(::Type{T}, signal::AbstractSignal{T}, ::Void) =
+_init_wsigval{T}(::Type{T}, signal::Signal{T}, ::Void) =
     _init_wsigval(T, signal, value(signal))
-function _init_wsigval{T}(::Type{T}, signal::AbstractSignal{T}, value)
+function _init_wsigval{T}(::Type{T}, signal::Signal{T}, value)
     push!(signal, value)
     signal, value
 end
@@ -79,7 +79,7 @@ end
 ########################## Slider ############################
 
 immutable Slider{T<:Number} <: InputWidget{T}
-    signal::AbstractSignal{T}
+    signal::Signal{T}
     widget::GtkScaleLeaf
     id::Culong
     preserved::Vector
@@ -89,7 +89,7 @@ end
 medianidx(r) = (1+length(r))>>1
 medianelement(r::Range) = r[medianidx(r)]
 
-slider(signal::AbstractSignal, widget::GtkScaleLeaf, id, preserved = []) =
+slider(signal::Signal, widget::GtkScaleLeaf, id, preserved = []) =
     Slider(signal, widget, id, preserved)
 
 """
@@ -285,7 +285,7 @@ button(label::Union{String,Symbol}; widget=nothing, signal=nothing, own=nothing)
 ######################## Textbox ###########################
 
 immutable Textbox{T} <: InputWidget{T}
-    signal::AbstractSignal{T}
+    signal::Signal{T}
     widget::GtkEntryLeaf
     id::Culong
     preserved::Vector{Any}
@@ -352,9 +352,9 @@ function textbox{T}(value::T;
     textbox(T; widget=widget, value=value, range=range, signal=signal, syncsig=syncsig, own=own)
 end
 
-entrygetter{T<:AbstractString}(w, signal::AbstractSignal{T}, ::Void) =
+entrygetter{T<:AbstractString}(w, signal::Signal{T}, ::Void) =
     getproperty(w, :text, String)
-function entrygetter{T}(w, signal::AbstractSignal{T}, range)
+function entrygetter{T}(w, signal::Signal{T}, range)
     val = tryparse(T, getproperty(w, :text, String))
     if isnull(val)
         nval = value(signal)

@@ -4,8 +4,8 @@ frame(f::GtkFrame) = f
 
 ################# A movie-player widget ##################
 
-immutable Player{P,R<:Range} <: Widget
-    signal::CheckedSignal{Int,R}
+immutable Player{P} <: Widget
+    signal::Signal{Int}
     widget::P
     preserved::Vector
 end
@@ -28,9 +28,8 @@ end
 
 frame(p::PlayerWithTextbox) = p.frame
 
-function PlayerWithTextbox(builder, index::CheckedSignal, id::Integer=1)
+function PlayerWithTextbox(builder, index::Signal, range::AbstractUnitRange, id::Integer=1)
     1 <= id <= 2 || error("only 2 player widgets are defined in player.glade")
-    range = index.bounds
     direction = Signal(Int8(0))
     frame = Gtk.G_.object(builder,"player_frame$id")
     scale = slider(range; widget=Gtk.G_.object(builder,"index_scale$id"), signal=index)
@@ -69,17 +68,17 @@ function PlayerWithTextbox(builder, index::CheckedSignal, id::Integer=1)
     # Create the player object
     PlayerWithTextbox(range, direction, frame, scale, entry, play_back, step_back, stop, step_forward, play_forward), preserved
 end
-function PlayerWithTextbox(index::CheckedSignal, id::Integer=1)
+function PlayerWithTextbox(index::Signal, range::AbstractUnitRange, id::Integer=1)
     builder = GtkBuilder(filename=joinpath(splitdir(@__FILE__)[1], "player.glade"))
-    PlayerWithTextbox(builder, index, id)
+    PlayerWithTextbox(builder, index, range, id)
 end
 
 player(range::Range{Int}; style="with-textbox", id::Int=1) =
-    player(CheckedSignal(first(range), range); style=style)
+    player(Signal(first(range)), range; style=style, id=id)
 
-function player(cs::CheckedSignal; style="with-textbox", id::Int=1)
+function player(cs::Signal, range::AbstractUnitRange; style="with-textbox", id::Int=1)
     if style == "with-textbox"
-        widget, preserved = PlayerWithTextbox(cs, id)
+        widget, preserved = PlayerWithTextbox(cs, range, id)
         return Player(cs, widget, preserved)
     end
     error("style $style not recognized")
