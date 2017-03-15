@@ -3,7 +3,19 @@
 using Gtk.GConstants: GDK_KEY_Left, GDK_KEY_Right, GDK_KEY_Up, GDK_KEY_Down
 using Gtk.GConstants.GdkEventMask: KEY_PRESS, SCROLL
 
-@compat abstract type CairoUnit end
+@compat abstract type CairoUnit <: Number end
+
+Base.:+{U<:CairoUnit}(x::U, y::U) = U(x.val + y.val)
+Base.:-{U<:CairoUnit}(x::U, y::U) = U(x.val - y.val)
+Base.abs{U<:CairoUnit}(x::U) = U(abs(x.val))
+Base.min{U<:CairoUnit}(x::U, y::U) = U(min(x.val, y.val))
+Base.max{U<:CairoUnit}(x::U, y::U) = U(max(x.val, y.val))
+Base.:<{U<:CairoUnit}(x::U, y::U) = x.val < y.val
+Base.:<(x::CairoUnit, y::Number) = x.val < y
+Base.:<(x::Number, y::CairoUnit) = x < y.val
+Base.convert{T<:Number}(::Type{T}, x::CairoUnit) = T(x.val)
+Base.promote_rule{T<:Number,U<:CairoUnit}(::Type{T}, ::Type{U}) = promote_type(T, Float64)
+
 """
     DeviceUnit(x)
 
@@ -26,7 +38,7 @@ immutable UserUnit <: CairoUnit
 end
 
 function convertunits(::Type{UserUnit}, c, x::DeviceUnit, y::DeviceUnit)
-    xu, yu = Graphics.device_to_user(Graphics.getgc(c), x.val, y.val)
+    xu, yu = device_to_user(getgc(c), x.val, y.val)
     UserUnit(xu), UserUnit(yu)
 end
 function convertunits(::Type{UserUnit}, c, x::UserUnit, y::UserUnit)
@@ -36,11 +48,12 @@ function convertunits(::Type{DeviceUnit}, c, x::DeviceUnit, y::DeviceUnit)
     x, y
 end
 function convertunits(::Type{DeviceUnit}, c, x::UserUnit, y::UserUnit)
-    xd, yd = Graphics.user_to_device(Graphics.getgc(c), x.val, y.val)
+    xd, yd = user_to_device(getgc(c), x.val, y.val)
     DeviceUnit(xd), DeviceUnit(yd)
 end
-convert{T<:Number}(::Type{T}, x::CairoUnit) = T(x.val)
-Base.promote_rule{T<:Number,C<:CairoUnit}(::Type{T}, ::Type{C}) = promote_type(T, Float64)
+
+Graphics.rectangle(r::GraphicsContext, x::UserUnit, y::UserUnit, w::UserUnit, h::UserUnit) =
+    rectangle(r, x.val, y.val, w.val, h.val)
 
 """
     MousePosition(x, y)
@@ -164,6 +177,7 @@ Create a canvas for drawing and interaction. The fields are:
 immutable Canvas{U}
     canvas::GtkCanvas
     mouse::MouseHandler{U}
+    preserved::Vector{Any}
 
     function (::Type{Canvas{U}}){U}(w::Integer=-1, h::Integer=-1)
         canvas = GtkCanvas(w, h)
@@ -175,11 +189,44 @@ immutable Canvas{U}
         # Initialize our own handlers
         mouse = MouseHandler{U}(canvas)
         setproperty!(canvas, :is_focus, true)
-        new{U}(canvas, mouse)
+        preserved = []
+        new{U}(canvas, mouse, preserved)
     end
 end
 canvas{U<:CairoUnit}(::Type{U}=DeviceUnit, w::Integer=-1, h::Integer=-1) = Canvas{U}(w, h)
 canvas(w::Integer, h::Integer) = canvas(DeviceUnit, w, h)
+
+function Gtk.draw(drawfun::Function, c::Canvas, signals::Signal...)
+    draw(c.canvas) do widget
+        yield()  # allow the Gtk event queue to run
+        drawfun(widget, map(value, signals)...)
+    end
+    map((values...)->draw(c.canvas), signals...)
+end
+
+# Painting an image to a canvas
+function Base.copy!{C<:Union{Colorant,Number}}(ctx::GraphicsContext, img::AbstractArray{C})
+    save(ctx)
+    reset_transform(ctx)
+    Cairo.image(ctx, image_surface(img), 0, 0, Graphics.width(ctx), Graphics.height(ctx))
+    restore(ctx)
+end
+Base.copy!(c::Union{GtkCanvas,Canvas}, img) = copy!(getgc(c), img)
+function Base.fill!(c::Union{GtkCanvas,Canvas}, color::Colorant)
+    ctx = getgc(c)
+    w, h = Graphics.width(c), Graphics.height(c)
+    rectangle(ctx, 0, 0, w, h)
+    set_source(ctx, color)
+    fill(ctx)
+end
+
+image_surface(img::Matrix{Gray24}) = Cairo.CairoImageSurface(reinterpret(UInt32, img), Cairo.FORMAT_RGB24)
+image_surface(img::Matrix{RGB24})  = Cairo.CairoImageSurface(reinterpret(UInt32, img), Cairo.FORMAT_RGB24)
+image_surface(img::Matrix{ARGB32}) = Cairo.CairoImageSurface(reinterpret(UInt32, img), Cairo.FORMAT_ARGB32)
+
+image_surface{T<:Number}(img::AbstractArray{T}) = image_surface(convert(Matrix{Gray24}, img))
+image_surface{C<:Color}(img::AbstractArray{C}) = image_surface(convert(Matrix{RGB24}, img))
+image_surface{C<:Colorant}(img::AbstractArray{C}) = image_surface(convert(Matrix{ARGB32}, img))
 
 
 immutable XY{T}
@@ -194,7 +241,8 @@ immutable ZoomRegion{T}
 end
 
 function ZoomRegion{I<:Integer}(inds::Tuple{AbstractUnitRange{I},AbstractUnitRange{I}})
-    fullview = XY(map(ClosedInterval{RInt}, inds)...)
+    ci = map(ClosedInterval{RInt}, inds)
+    fullview = XY(ci[2], ci[1])
     ZoomRegion(fullview, fullview)
 end
 ZoomRegion(img::AbstractMatrix) = ZoomRegion(indices(img))
@@ -283,17 +331,6 @@ function zoom(zr::ZoomRegion, s)
 end
 
 
-"""
-    zoom_rubberband!(zr::Signal{ZoomRegion}, canvas::Canvas, event::MouseButton)
-
-Initiate a rubber-band selection and, when finished, update `zr`.
-"""
-function zoom_rubberband!(zr::Signal{ZoomRegion}, canvas::Canvas, event::MouseButton)
-    rubberband_start(canvas, event.position, (widget, bb) -> push!(zr, ZoomRegion(value(zr).fullview, bb)))
-    zr
-end
-
-
 ##### Callbacks #####
 function mousedown_cb{U}(ptr::Ptr, eventp::Ptr, handler::MouseHandler{U})
     evt = unsafe_load(eventp)
@@ -326,34 +363,3 @@ function mousescroll_cb{U}(ptr::Ptr, eventp::Ptr, handler::MouseHandler{U})
     push!(handler.scroll, MouseScroll{U}(handler.widget, evt))
     Int32(false)
 end
-
-## Junk
-
-# function panzoom_scroll(zr::ZoomRegion, event::MouseScroll;
-#                         # Panning
-#                         xpan = SHIFT,
-#                         ypan  = 0,
-#                         xpanflip = false,
-#                         ypanflip  = false,
-#                         # Zooming
-#                         zoom = CONTROL,
-#                         focus::Symbol = :pointer,
-#                         factor = 2.0)
-#     focus == :pointer || focus == :center || error("focus must be :pointer or :center")
-#     xview, yview = zr.currentview.x, zr.currentview.y
-#     xviewlimits, yviewlimits = zr.fullview.x, zr.fullview.y
-#     s = 0.1*scrollpm(event.direction)
-#     xscroll = (event.direction == LEFT) || (event.direction == RIGHT)
-#     if xpan != nothing && (xscroll || event.modifiers == UInt32(xpan))
-#         xview = pan(xview, (xpanflip ? -1 : 1) * s, xviewlimits)
-#     elseif ypan != nothing && event.modifiers == UInt32(ypan)
-#         yview = pan(yview, (ypanflip  ? -1 : 1) * s, yviewlimits)
-#     elseif zoom != nothing && event.modifiers == UInt32(zoom)
-#         s = factor
-#         if event.direction == UP
-#             s = 1/s
-#         end
-#         return zoom_focus(zr, s, event.position; focus=focus)
-#     end
-#     ZoomRegion(zr.fullview, XY(xview, yview))
-# end

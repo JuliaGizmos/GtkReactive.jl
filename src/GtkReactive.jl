@@ -4,9 +4,11 @@ using Compat
 
 using Gtk, Colors, Reexport
 @reexport using Reactive
-import Graphics
+using Graphics
 using Graphics: set_coords, BoundingBox
 using IntervalSets, RoundingIntegers
+# There's a conflict for width, so we have to scope those calls
+import Cairo
 
 using Gtk: GtkWidget
 # Constants for event analysis
@@ -24,6 +26,8 @@ export label
 export canvas, DeviceUnit, UserUnit
 export player
 export signal, frame
+# Zoom/pan
+export ZoomRegion, zoom, pan_x, pan_y, init_zoom_rubberband
 
 # The generic Widget interface
 @compat abstract type Widget end
@@ -44,24 +48,33 @@ Base.map(f, w::Widget) = map(f, signal(w))
 include("widgets.jl")
 include("extrawidgets.jl")
 include("graphics_interaction.jl")
+include("rubberband.jl")
 
 # More convenience functions
 (::Type{GtkWindow})(c::Canvas) = GtkWindow(c.canvas)
 (::Type{GtkFrame})(c::Canvas) = GtkFrame(c.canvas)
 (::Type{GtkAspectFrame})(c::Canvas) = GtkAspectFrame(c.canvas)
 
-Graphics.getgc(c::Canvas) = Graphics.getgc(c.canvas)
+Graphics.getgc(c::Canvas) = getgc(c.canvas)
 Graphics.width(c::Canvas) = Graphics.width(c.canvas)
-Graphics.height(c::Canvas) = Graphics.height(c.canvas)
+Graphics.height(c::Canvas) = height(c.canvas)
 
-Graphics.set_coords(c::Canvas, user::BoundingBox) =
+Graphics.set_coords(c::Union{GtkCanvas,Canvas}, device::BoundingBox, user::BoundingBox) =
+    set_coords(getgc(c), device, user)
+Graphics.set_coords(c::Union{GtkCanvas,Canvas}, user::BoundingBox) =
     set_coords(c, BoundingBox(0, Graphics.width(c), 0, Graphics.height(c)), user)
-Graphics.set_coords(c::Canvas, device::BoundingBox, user::BoundingBox) =
-    set_coords(c.canvas, device, user)
-Graphics.set_coords(c::GtkCanvas, device::BoundingBox, user::BoundingBox) =
-    set_coords(Graphics.getgc(c), device, user)
+function Graphics.set_coords(c::Union{Canvas,GtkCanvas}, zr::ZoomRegion)
+    xy = zr.currentview
+    bb = BoundingBox(minimum(xy.x), maximum(xy.x), minimum(xy.y), maximum(xy.y))
+    set_coords(c, bb)
+end
+function Graphics.set_coords(c::Union{Canvas,GtkCanvas}, inds::Tuple{AbstractUnitRange,AbstractUnitRange})
+    y, x = inds
+    bb = BoundingBox(first(x), last(x), first(y), last(y))
+    set_coords(c, bb)
+end
 
-
+Gtk.reveal(c::Canvas, args...) = reveal(c.canvas, args...)
 
 # ## Add a non-exclusive set of buttons
 # ## Code is basically the Options code of Interact

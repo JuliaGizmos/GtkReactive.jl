@@ -172,7 +172,7 @@ end
 end
 
 @testset "Zoom/pan" begin
-    zr = GtkReactive.ZoomRegion((1:100, 1:80))
+    zr = GtkReactive.ZoomRegion((1:80, 1:100))  # y, x order
     zrz = GtkReactive.zoom(zr, 0.5)
     @test zrz.currentview.x == 26..75
     @test zrz.currentview.y == 21..60
@@ -209,6 +209,11 @@ end
     @test zrz.currentview.y == 16..55
     zrr = GtkReactive.reset(zrz)
     @test zrr == zr
+end
+
+@testset "Demos" begin
+    examplepath = joinpath(dirname(dirname(@__FILE__)), "examples")
+    include(joinpath(examplepath, "imageviewer.jl"))
 end
 
 nothing
