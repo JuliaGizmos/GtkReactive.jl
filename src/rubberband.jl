@@ -1,8 +1,8 @@
 """
-    signals = init_zoom_rubberband(canvas::Canvas,
+    signals = init_zoom_rubberband(canvas::GtkReactive.Canvas,
                                    zr::Signal{ZoomRegion},
-                                   initiate = btn->(btn.button == 1 && btn.clicktype == BUTTON_PRESS),
-                                   reset = btn->(btn.button == 1 && btn.clicktype == DOUBLE_BUTTON_PRESS),
+                                   initiate = btn->(btn.button == 1 && btn.clicktype == BUTTON_PRESS && btn.modifiers == CONTROL),
+                                   reset = btn->(btn.button == 1 && btn.clicktype == DOUBLE_BUTTON_PRESS && btn.modifiers == CONTROL),
                                    minpixels = 2)
 
 Initiate a rubber-band selection and, when finished, update
@@ -14,9 +14,10 @@ garbage-collected (which would turn off rubberbanding).
 
 `initiate(btn)` returns `true` when the condition for starting a
 rubber-band selection has been met (by default, clicking mouse button
-1). `reset(btn)` returns true when restoring the full view (by
-default, double-clicking mouse button 1). `minpixels` can be used for
-aborting rubber-band selections smaller than some threshold.
+1). The argument `btn` is a [`MouseButton`](@ref) event. `reset(btn)`
+returns true when restoring the full view (by default, double-clicking
+mouse button 1). `minpixels` can be used for aborting rubber-band
+selections smaller than some threshold.
 """
 function init_zoom_rubberband{U,T}(canvas::Canvas{U},
                                    zr::Signal{ZoomRegion{T}},
@@ -56,8 +57,8 @@ function init_zoom_rubberband{U,T}(canvas::Canvas{U},
     Dict("enabled"=>enabled, "active"=>active, "init"=>init, "drag"=>drag, "finish"=>finish)
 end
 
-zrb_init_default(btn) = btn.button == 1 && btn.clicktype == BUTTON_PRESS
-zrb_reset_default(btn) = btn.button == 1 && btn.clicktype == DOUBLE_BUTTON_PRESS
+zrb_init_default(btn) = btn.button == 1 && btn.clicktype == BUTTON_PRESS && btn.modifiers == CONTROL
+zrb_reset_default(btn) = btn.button == 1 && btn.clicktype == DOUBLE_BUTTON_PRESS && btn.modifiers == CONTROL
 
 # For rubberband, we draw the selection region on the front canvas, and repair
 # by copying from the back.

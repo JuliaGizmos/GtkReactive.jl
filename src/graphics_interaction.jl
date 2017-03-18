@@ -175,33 +175,37 @@ Create a canvas for drawing and interaction. The fields are:
   - `mouse`: the [`MouseHandler{U}`](@ref) for this canvas.
 """
 immutable Canvas{U}
-    canvas::GtkCanvas
+    widget::GtkCanvas
     mouse::MouseHandler{U}
     preserved::Vector{Any}
 
-    function (::Type{Canvas{U}}){U}(w::Integer=-1, h::Integer=-1)
-        canvas = GtkCanvas(w, h)
+    function (::Type{Canvas{U}}){U}(w::Integer=-1, h::Integer=-1; own::Bool=true)
+        gtkcanvas = GtkCanvas(w, h)
         # Delete the Gtk handlers
-        for id in canvas.mouse.ids
-            signal_handler_disconnect(canvas, id)
+        for id in gtkcanvas.mouse.ids
+            signal_handler_disconnect(gtkcanvas, id)
         end
-        empty!(canvas.mouse.ids)
+        empty!(gtkcanvas.mouse.ids)
         # Initialize our own handlers
-        mouse = MouseHandler{U}(canvas)
-        setproperty!(canvas, :is_focus, true)
+        mouse = MouseHandler{U}(gtkcanvas)
+        setproperty!(gtkcanvas, :is_focus, true)
         preserved = []
-        new{U}(canvas, mouse, preserved)
+        canvas = new{U}(gtkcanvas, mouse, preserved)
+        gc_preserve(gtkcanvas, canvas)
+        canvas
     end
 end
 canvas{U<:CairoUnit}(::Type{U}=DeviceUnit, w::Integer=-1, h::Integer=-1) = Canvas{U}(w, h)
 canvas(w::Integer, h::Integer) = canvas(DeviceUnit, w, h)
 
 function Gtk.draw(drawfun::Function, c::Canvas, signals::Signal...)
-    draw(c.canvas) do widget
+    draw(c.widget) do widget
         yield()  # allow the Gtk event queue to run
         drawfun(widget, map(value, signals)...)
     end
-    map((values...)->draw(c.canvas), signals...)
+    drawsig = map((values...)->draw(c.widget), signals...)
+    push!(c.preserved, drawsig)
+    drawsig
 end
 
 # Painting an image to a canvas
@@ -330,6 +334,109 @@ function zoom(zr::ZoomRegion, s)
     ZoomRegion(zr.fullview, XY(xview, yview))
 end
 
+"""
+    signals = init_pan_scroll(canvas::GtkReactive.Canvas,
+                              zr::Signal{ZoomRegion},
+                              filter_x::Function = evt->evt.modifiers == SHIFT || event.direction == LEFT || event.direction == RIGHT,
+                              filter_y::Function = evt->evt.modifiers == 0 || event.direction == UP || event.direction == DOWN,
+                              xpanflip = false,
+                              ypanflip  = false)
+
+Initialize panning-by-mouse-scroll for `canvas` and update
+`zr`. `signals` is a dictionary holding the Reactive.jl signals needed
+for scroll-panning; you can push `true/false` to `signals["enabled"]`
+to turn scroll-panning on and off, respectively. Your application is
+responsible for making sure that `signals` does not get
+garbage-collected (which would turn off scroll-panning).
+
+`filter_x` and `filter_y` are functions that return `true` when the
+conditions for x- and y-scrolling are met; the argument is a
+[`MouseScroll`](@ref) event. The defaults are that vertical scrolling
+is triggered with an unmodified scroll, whereas horizontal scrolling
+is triggered by scrolling while holding down the SHIFT key.
+
+You can flip the direction of either pan operation with `xpanflip` and
+`ypanflip`, respectively.
+"""
+function init_pan_scroll{U,T}(canvas::Canvas{U},
+                              zr::Signal{ZoomRegion{T}},
+                              filter_x::Function = evt->evt.modifiers == SHIFT || evt.direction == LEFT || evt.direction == RIGHT,
+                              filter_y::Function = evt->evt.modifiers == 0 || evt.direction == UP || evt.direction == DOWN,
+                              xpanflip = false,
+                              ypanflip  = false)
+    enabled = Signal(true)
+    dummyscroll = MouseScroll(MousePosition{U}(-1, -1), 0, 0)
+    pan = map(filterwhen(enabled, dummyscroll, canvas.mouse.scroll)) do event
+        s = 0.1*scrollpm(event.direction)
+        if filter_x(event)
+            push!(zr, pan_x(value(zr), s))
+        elseif filter_y(event)
+            push!(zr, pan_y(value(zr), s))
+        end
+        nothing
+    end
+    Dict("enabled"=>enabled, "pan"=>pan)
+end
+
+"""
+    signals = init_zoom_scroll(canvas::GtkReactive.Canvas,
+                               zr::Signal{ZoomRegion},
+                               filter::Function = evt->evt.modifiers == CONTROL,
+                               focus::Symbol = :pointer,
+                               factor = 2.0,
+                               flip = false)
+
+Initialize zooming-by-mouse-scroll for `canvas` and update
+`zr`. `signals` is a dictionary holding the Reactive.jl signals needed
+for scroll-zooming; you can push `true/false` to `signals["enabled"]`
+to turn scroll-zooming on and off, respectively. Your application is
+responsible for making sure that `signals` does not get
+garbage-collected (which would turn off scroll-zooming).
+
+`filter` is a function that returns `true` when the conditions for
+scroll-zooming are met; the argument is a [`MouseScroll`](@ref)
+event. The default is to hold down the CONTROL key while scrolling the
+mouse.
+
+The `focus` keyword controls how the zooming progresses as you scroll
+the mouse wheel. `:pointer` means that whatever feature of the canvas
+is under the pointer will stay there as you zoom in or out. The other
+choice, `:center`, keeps the canvas centered on its current location.
+
+You can change the amount of zooming via `factor` and the direction of
+zooming with `flip`.
+"""
+function init_zoom_scroll{U,T}(canvas::Canvas{U},
+                               zr::Signal{ZoomRegion{T}},
+                               filter::Function = evt->evt.modifiers == CONTROL,
+                               focus::Symbol = :pointer,
+                               factor = 2.0,
+                               flip = false)
+    focus == :pointer || focus == :center || error("focus must be :pointer or :center")
+    enabled = Signal(true)
+    dummyscroll = MouseScroll(MousePosition{U}(-1, -1), 0, 0)
+    zm = map(filterwhen(enabled, dummyscroll, canvas.mouse.scroll)) do event
+        s = factor
+        if event.direction == UP
+            s = 1/s
+        end
+        if flip
+            s = 1/s
+        end
+        if focus == :pointer
+            push!(zr, zoom(value(zr), s, event.position))
+        else
+            push!(zr, zoom(value(zr), s))
+        end
+    end
+    Dict("enabled"=>enabled, "zoom"=>zm)
+end
+
+scrollpm(direction::Integer) =
+    direction == UP ? -1 :
+    direction == DOWN ? 1 :
+    direction == RIGHT ? 1 :
+    direction == LEFT ? -1 : error("Direction ", direction, " not recognized")
 
 ##### Callbacks #####
 function mousedown_cb{U}(ptr::Ptr, eventp::Ptr, handler::MouseHandler{U})

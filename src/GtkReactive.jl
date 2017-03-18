@@ -1,3 +1,5 @@
+__precompile__(true)
+
 module GtkReactive
 
 using Compat
@@ -27,7 +29,8 @@ export canvas, DeviceUnit, UserUnit
 export player
 export signal, frame
 # Zoom/pan
-export ZoomRegion, zoom, pan_x, pan_y, init_zoom_rubberband
+export ZoomRegion, zoom, pan_x, pan_y, init_zoom_rubberband, init_zoom_scroll,
+       init_pan_scroll
 
 # The generic Widget interface
 @compat abstract type Widget end
@@ -51,13 +54,13 @@ include("graphics_interaction.jl")
 include("rubberband.jl")
 
 # More convenience functions
-(::Type{GtkWindow})(c::Canvas) = GtkWindow(c.canvas)
-(::Type{GtkFrame})(c::Canvas) = GtkFrame(c.canvas)
-(::Type{GtkAspectFrame})(c::Canvas) = GtkAspectFrame(c.canvas)
+(::Type{GtkWindow})(c::Canvas) = GtkWindow(c.widget)
+(::Type{GtkFrame})(c::Canvas) = GtkFrame(c.widget)
+(::Type{GtkAspectFrame})(c::Canvas) = GtkAspectFrame(c.widget)
 
-Graphics.getgc(c::Canvas) = getgc(c.canvas)
-Graphics.width(c::Canvas) = Graphics.width(c.canvas)
-Graphics.height(c::Canvas) = height(c.canvas)
+Graphics.getgc(c::Canvas) = getgc(c.widget)
+Graphics.width(c::Canvas) = Graphics.width(c.widget)
+Graphics.height(c::Canvas) = height(c.widget)
 
 Graphics.set_coords(c::Union{GtkCanvas,Canvas}, device::BoundingBox, user::BoundingBox) =
     set_coords(getgc(c), device, user)
@@ -74,7 +77,16 @@ function Graphics.set_coords(c::Union{Canvas,GtkCanvas}, inds::Tuple{AbstractUni
     set_coords(c, bb)
 end
 
-Gtk.reveal(c::Canvas, args...) = reveal(c.canvas, args...)
+Gtk.reveal(c::Canvas, args...) = reveal(c.widget, args...)
+
+# Prevent garbage collection until the on-screen widget has been destroyed
+const _ref_dict = ObjectIdDict()
+function gc_preserve(widget::Union{GtkWidget,GtkCanvas}, obj)
+    _ref_dict[obj] = true
+    signal_connect(widget, :destroy) do w
+        delete!(_ref_dict, obj)
+    end
+end
 
 # ## Add a non-exclusive set of buttons
 # ## Code is basically the Options code of Interact

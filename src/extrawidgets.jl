@@ -76,6 +76,18 @@ end
 player(range::Range{Int}; style="with-textbox", id::Int=1) =
     player(Signal(first(range)), range; style=style, id=id)
 
+"""
+    player(range; style="with-textbox", id=1)
+    player(slice::Signal{Int}, range; style="with-textbox", id=1)
+
+Create a movie-player widget. This includes the standard play and stop
+buttons and a slider; style "with-textbox" also includes play
+backwards, step forward/backward, and a textbox for entering a
+particular slice.
+
+You can create up to two player widgets for the same GUI, as long as
+you pass `id=1` and `id=2`, respectively.
+"""
 function player(cs::Signal, range::AbstractUnitRange; style="with-textbox", id::Int=1)
     if style == "with-textbox"
         widget, preserved = PlayerWithTextbox(cs, range, id)
