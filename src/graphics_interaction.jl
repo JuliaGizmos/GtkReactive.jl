@@ -416,17 +416,22 @@ function init_zoom_scroll{U,T}(canvas::Canvas{U},
     enabled = Signal(true)
     dummyscroll = MouseScroll(MousePosition{U}(-1, -1), 0, 0)
     zm = map(filterwhen(enabled, dummyscroll, canvas.mouse.scroll)) do event
-        s = factor
-        if event.direction == UP
-            s = 1/s
-        end
-        if flip
-            s = 1/s
-        end
-        if focus == :pointer
-            push!(zr, zoom(value(zr), s, event.position))
-        else
-            push!(zr, zoom(value(zr), s))
+        if filter(event)
+            # println("zoom scroll: ", event)
+            s = factor
+            if event.direction == UP
+                s = 1/s
+            end
+            if flip
+                s = 1/s
+            end
+            if focus == :pointer
+                # println("zoom focus: ", event)
+                push!(zr, zoom(value(zr), s, event.position))
+            else
+                # println("zoom center: ", event)
+                push!(zr, zoom(value(zr), s))
+            end
         end
     end
     Dict("enabled"=>enabled, "zoom"=>zm)
