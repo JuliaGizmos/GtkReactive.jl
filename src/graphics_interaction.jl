@@ -134,10 +134,9 @@ end
     MouseHandler{U<:CairoUnit}
 
 A type with `Signal` fields for which you can `map` callback actions. The fields are:
-  - `button1press` and similar for buttons 2 and 3 (of type [`MouseButton`](@ref));
-  - `button1release` and similar for buttons 2 and 3 (of type [`MousePosition`](@ref));
-  - `button1motion` and similar for buttons 2 and 3 for drag events (of type [`MousePosition`](@ref));
-  - `motion` for tracking continuous movement (of type [`MousePosition`](@ref));
+  - `buttonpress` for clicks (of type [`MouseButton`](@ref));
+  - `buttonrelease` for release events (of type [`MouseButton`](@ref));
+  - `motion` for move and drag events (of type [`MouseButton`](@ref));
   - `scroll` for wheelmouse or track-pad actions (of type [`MouseScroll`](@ref));
 
 `U` should be either [`DeviceUnit`](@ref) or [`UserUnit`](@ref) and
