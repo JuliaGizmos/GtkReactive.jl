@@ -5,12 +5,12 @@
                                    reset = btn->(btn.button == 1 && btn.clicktype == DOUBLE_BUTTON_PRESS && btn.modifiers == CONTROL),
                                    minpixels = 2)
 
-Initiate a rubber-band selection and, when finished, update
-`zr`. `signals` is a dictionary holding the Reactive.jl signals needed
-for rubber-banding; you can push `true/false` to `signals["enabled"]`
-to turn rubber banding on and off, respectively. Your application is
-responsible for making sure that `signals` does not get
-garbage-collected (which would turn off rubberbanding).
+Initialize rubber-band selection that updates `zr`. `signals` is a
+dictionary holding the Reactive.jl signals needed for rubber-banding;
+you can push `true/false` to `signals["enabled"]` to turn rubber
+banding on and off, respectively. Your application is responsible for
+making sure that `signals` does not get garbage-collected (which would
+turn off rubberbanding).
 
 `initiate(btn)` returns `true` when the condition for starting a
 rubber-band selection has been met (by default, clicking mouse button

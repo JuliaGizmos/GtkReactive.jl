@@ -361,7 +361,7 @@ You can flip the direction of either pan operation with `xpanflip` and
 function init_pan_scroll{U,T}(canvas::Canvas{U},
                               zr::Signal{ZoomRegion{T}},
                               filter_x::Function = evt->evt.modifiers == SHIFT || evt.direction == LEFT || evt.direction == RIGHT,
-                              filter_y::Function = evt->evt.modifiers == 0 || evt.direction == UP || evt.direction == DOWN,
+                              filter_y::Function = evt->evt.modifiers == 0 && (evt.direction == UP || evt.direction == DOWN),
                               xpanflip = false,
                               ypanflip  = false)
     enabled = Signal(true)
@@ -369,14 +369,71 @@ function init_pan_scroll{U,T}(canvas::Canvas{U},
     pan = map(filterwhen(enabled, dummyscroll, canvas.mouse.scroll)) do event
         s = 0.1*scrollpm(event.direction)
         if filter_x(event)
+            # println("pan_x: ", event)
             push!(zr, pan_x(value(zr), s))
         elseif filter_y(event)
+            # println("pan_y: ", event)
             push!(zr, pan_y(value(zr), s))
         end
         nothing
     end
     Dict("enabled"=>enabled, "pan"=>pan)
 end
+
+"""
+    signals = init_pan_drag(canvas::GtkReactive.Canvas,
+                            zr::Signal{ZoomRegion},
+                            initiate = btn->(btn.button == 1 && btn.clicktype == BUTTON_PRESS && btn.modifiers == 0))
+
+Initialize click-drag panning that updates `zr`. `signals` is a
+dictionary holding the Reactive.jl signals needed for pan-drag; you
+can push `true/false` to `signals["enabled"]` to turn it on and off,
+respectively. Your application is responsible for making sure that
+`signals` does not get garbage-collected (which would turn off
+pan-dragging).
+
+`initiate(btn)` returns `true` when the condition for starting
+click-drag panning has been met (by default, clicking mouse button
+1). The argument `btn` is a [`MouseButton`](@ref) event.
+"""
+function init_pan_drag{U,T}(canvas::Canvas{U},
+                            zr::Signal{ZoomRegion{T}},
+                            initiate::Function = pandrag_init_default)
+    enabled = Signal(true)
+    active = Signal(false)
+    dummybtn = MouseButton(MousePosition{U}(-1, -1), 0, 0, 0)
+    local pos1, zr1, mtrx
+    init = map(filterwhen(enabled, dummybtn, canvas.mouse.buttonpress)) do btn
+        if initiate(btn)
+            push!(active, true)
+            # Because the user coordinates will change during panning,
+            # convert to absolute position
+            pos1 = XY(convertunits(DeviceUnit, canvas, btn.position.x, btn.position.y)...)
+            zr1 = value(zr).currentview
+            m = Cairo.get_matrix(getgc(canvas))
+            mtrx = inv([m.xx m.xy 0; m.yx m.yy 0; m.x0 m.y0 1])
+        end
+        nothing
+    end
+    drag = map(filterwhen(active, dummybtn, canvas.mouse.motion)) do btn
+        btn.button == 0 && return nothing
+        xd, yd = convertunits(DeviceUnit, canvas, btn.position.x, btn.position.y)
+        dx, dy, _ = mtrx*[xd-pos1.x, yd-pos1.y, 1]
+        fv = value(zr).fullview
+        cv = XY(interior(minimum(zr1.x)-dx..maximum(zr1.x)-dx, fv.x),
+                interior(minimum(zr1.y)-dy..maximum(zr1.y)-dy, fv.y))
+        if cv != value(zr).currentview
+            push!(zr, ZoomRegion(fv, cv))
+        end
+    end
+    finish = map(filterwhen(active, dummybtn, canvas.mouse.buttonrelease)) do btn
+        btn.button == 0 && return nothing
+        push!(active, false)
+    end
+    Dict("enabled"=>enabled, "active"=>active, "init"=>init, "drag"=>drag, "finish"=>finish)
+end
+pandrag_button(btn) = btn.button == 1 && btn.modifiers == 0
+pandrag_init_default(btn) = btn.clicktype == BUTTON_PRESS && pandrag_button(btn)
 
 """
     signals = init_zoom_scroll(canvas::GtkReactive.Canvas,

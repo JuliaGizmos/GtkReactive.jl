@@ -30,7 +30,7 @@ export player
 export signal, frame
 # Zoom/pan
 export ZoomRegion, zoom, pan_x, pan_y, init_zoom_rubberband, init_zoom_scroll,
-       init_pan_scroll
+       init_pan_scroll, init_pan_drag
 
 # The generic Widget interface
 @compat abstract type Widget end
