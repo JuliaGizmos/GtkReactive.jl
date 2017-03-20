@@ -1,4 +1,4 @@
-using GtkReactive, Gtk.ShortNames, IntervalSets
+using GtkReactive, Gtk.ShortNames, IntervalSets, Graphics, Colors, TestImages, FileIO
 using Base.Test
 
 try
@@ -168,6 +168,34 @@ end
     @test GtkReactive.convertunits(DeviceUnit, c, corner_dev...) == corner_dev
     @test GtkReactive.convertunits(UserUnit, c, corner_usr...) == corner_usr
     @test GtkReactive.convertunits(DeviceUnit, c, corner_usr...) == corner_dev
+    destroy(win)
+end
+
+@testset "Drawing" begin
+    img = testimage("lighthouse")
+    c = canvas(UserUnit, size(img, 2), size(img, 1))
+    win = Window(c)
+    xsig, ysig = Signal(20), Signal(20)
+    draw(c, xsig, ysig) do cnvs, x, y
+        copy!(c, img)
+        ctx = getgc(cnvs)
+        set_source(ctx, colorant"red")
+        set_line_width(ctx, 2)
+        circle(ctx, x, y, 5)
+        stroke(ctx)
+    end
+    showall(win)
+    rr()
+    push!(xsig, 100)
+    rr()
+    sleep(0.5)
+    # Check that we get the right answer
+    fn = tempname()
+    Cairo.write_to_png(getgc(c).surface, fn)
+    imgout = load(fn)
+    rm(fn)
+    @test imgout[25,100] == imgout[16,100] == imgout[20,105] == colorant"red"
+    @test imgout[20,100] == img[20,100]
     destroy(win)
 end
 

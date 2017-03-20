@@ -197,6 +197,31 @@ end
 canvas{U<:CairoUnit}(::Type{U}=DeviceUnit, w::Integer=-1, h::Integer=-1) = Canvas{U}(w, h)
 canvas(w::Integer, h::Integer) = canvas(DeviceUnit, w, h)
 
+"""
+    draw(f, c::GtkReactive.Canvas, signals...)
+
+Supply a draw function `f` for `c`. This will be called whenever the
+canvas is resized or whenever any of the input `signals` update. `f`
+should be of the form `f(cnvs, sigs...)`, where the number of
+arguments is equal to 1 + `length(signals)`.
+
+`f` can be defined as a named function, an anonymous function, or
+using `do`-block notation:
+
+    using Graphics, Colors
+
+    draw(c, imgsig, xsig, ysig) do cnvs, img, x, y
+        copy!(cnvs, img)
+        ctx = getgc(cnvs)
+        set_source(ctx, colorant"red")
+        set_line_width(ctx, 2)
+        circle(ctx, x, y, 5)
+        stroke(ctx)
+    end
+
+This would paint an image-Signal `imgsig` onto the canvas and then
+draw a red circle centered on `xsig`, `ysig`.
+"""
 function Gtk.draw(drawfun::Function, c::Canvas, signals::Signal...)
     draw(c.widget) do widget
         yield()  # allow the Gtk event queue to run
