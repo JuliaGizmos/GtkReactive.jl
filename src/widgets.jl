@@ -98,7 +98,7 @@ slider(signal::Signal, widget::GtkScaleLeaf, id, preserved = []) =
 Create a slider widget with the specified `range`. Optionally provide:
   - the GtkScale `widget` (by default, creates a new one)
   - the starting `value` (defaults to the median of `range`)
-  - the (Reactive.jl) `signal` coupled to this slider (by default, creates a new one)
+  - the (Reactive.jl) `signal` coupled to this slider (by default, creates a new signal)
   - the `orientation` of the slider.
 """
 function slider{T}(range::Range{T};
@@ -160,7 +160,7 @@ checkbox(signal::Signal, widget::GtkCheckButtonLeaf, id, preserved=[]) =
 Provide a checkbox with the specified starting (boolean)
 `value`. Optionally provide:
   - a GtkCheckButton `widget` (by default, creates a new one)
-  - the (Reactive.jl) `signal` coupled to this slider (by default, creates a new one)
+  - the (Reactive.jl) `signal` coupled to this checkbox (by default, creates a new signal)
   - a display `label` for this widget
 """
 function checkbox(value::Bool; widget=nothing, signal=nothing, label="", own=nothing)
@@ -208,7 +208,7 @@ togglebutton(signal::Signal, widget::GtkCheckButtonLeaf, id, preserved=[]) =
 Provide a togglebutton with the specified starting (boolean)
 `value`. Optionally provide:
   - a GtkCheckButton `widget` (by default, creates a new one)
-  - the (Reactive.jl) `signal` coupled to this slider (by default, creates a new one)
+  - the (Reactive.jl) `signal` coupled to this button (by default, creates a new signal)
   - a display `label` for this widget
 """
 function togglebutton(value::Bool; widget=nothing, signal=nothing, label="", own=nothing)
@@ -253,9 +253,9 @@ button(signal::Signal, widget::GtkButtonLeaf, id) =
     button(label; widget=nothing, signal=nothing)
     button(; label=nothing, widget=nothing, signal=nothing)
 
-Create a push button with text-label `label`. Optionally specify a
-previously-created GtkButton `widget` and/or the (Reactive.jl)
-`signal` coupled to this button.
+Create a push button with text-label `label`. Optionally provide:
+  - a GtkButton `widget` (by default, creates a new one)
+  - the (Reactive.jl) `signal` coupled to this button (by default, creates a new signal)
 """
 function button(;
                 label::Union{Void,String,Symbol}=nothing,
@@ -447,7 +447,7 @@ Create a "dropdown" widget. `choices` can be a vector (or other iterable) of
 options. Optionally specify
   - the GtkComboBoxText `widget` (by default, creates a new one)
   - the starting `value`
-  - the (Reactive.jl) `signal` coupled to this slider (by default, creates a new one)
+  - the (Reactive.jl) `signal` coupled to this slider (by default, creates a new signal)
   - whether the widget should allow text entry
 
 # Examples
@@ -603,6 +603,14 @@ immutable Label <: Widget
     preserved::Vector{Any}
 end
 
+"""
+    label(value; widget=nothing, signal=nothing)
+
+Create a text label displaying `value` as a string; new values may
+displayed by pushing to the widget. Optionally specify
+  - the GtkLabel `widget` (by default, creates a new one)
+  - the (Reactive.jl) `signal` coupled to this label (by default, creates a new signal)
+"""
 function label(value;
                widget=nothing,
                signal=nothing,

@@ -166,12 +166,13 @@ immutable MouseHandler{U<:CairoUnit}
 end
 
 """
-    GtkReactive.Canvas{U}(w=-1, h=-1)
-    canvas(U=DeviceUnit, w=-1, h=-1)
+    GtkReactive.Canvas{U}(w=-1, h=-1, own=true)
 
-Create a canvas for drawing and interaction. The fields are:
-  - `canvas`: the Gtk widget. Access this for purposes of layout.
+Create a canvas for drawing and interaction. The relevant fields are:
+  - `canvas`: the "raw" Gtk widget (from Gtk.jl)
   - `mouse`: the [`MouseHandler{U}`](@ref) for this canvas.
+
+See also [`canvas`](@ref).
 """
 immutable Canvas{U}
     widget::GtkCanvas
@@ -194,6 +195,15 @@ immutable Canvas{U}
         canvas
     end
 end
+
+"""
+    canvas(U=DeviceUnit, w=-1, h=-1) - c::GtkReactive.Canvas
+
+Create a canvas for drawing and interaction. Optionally specify the
+width `w` and height `h`. `U` refers to the units for the canvas (for
+both drawing and reporting mouse pointer positions), see
+[`DeviceUnit`](@ref) and [`UserUnit`](@ref). See also [`GtkReactive.Canvas`](@ref).
+"""
 canvas{U<:CairoUnit}(::Type{U}=DeviceUnit, w::Integer=-1, h::Integer=-1) = Canvas{U}(w, h)
 canvas(w::Integer, h::Integer) = canvas(DeviceUnit, w, h)
 
@@ -268,6 +278,20 @@ immutable ZoomRegion{T}
     currentview::XY{ClosedInterval{T}}
 end
 
+"""
+    ZoomRegion(inds) -> zr
+    ZoomRegion(img::AbstractMatrix) -> zr
+
+Create a `ZoomRegion` object `zr` for selecting a rectangular
+region-of-interest for zooming and panning. `inds` should be a pair
+`(yrange, xrange)` of indices, or pass a matrix `img` from which the
+indices will be taken.
+
+`zr.currentview` holds the currently-active region of
+interest. `zr.fullview` stores the original `inds` from which `zr` was
+constructed; these are used to reset to the original limits and to
+confine `zr.currentview`.
+"""
 function ZoomRegion{I<:Integer}(inds::Tuple{AbstractUnitRange{I},AbstractUnitRange{I}})
     ci = map(ClosedInterval{RInt}, inds)
     fullview = XY(ci[2], ci[1])

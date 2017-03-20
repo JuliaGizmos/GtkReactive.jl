@@ -1,5 +1,10 @@
 # Widgets built on top of more basic widgets
 
+"""
+    frame(w) -> f
+
+Return the GtkFrame `f` associated with widget `w`.
+"""
 frame(f::GtkFrame) = f
 
 ################# A movie-player widget ##################
@@ -83,7 +88,7 @@ player(range::Range{Int}; style="with-textbox", id::Int=1) =
 Create a movie-player widget. This includes the standard play and stop
 buttons and a slider; style "with-textbox" also includes play
 backwards, step forward/backward, and a textbox for entering a
-particular slice.
+slice by keyboard.
 
 You can create up to two player widgets for the same GUI, as long as
 you pass `id=1` and `id=2`, respectively.

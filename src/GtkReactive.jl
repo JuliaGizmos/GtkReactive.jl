@@ -38,6 +38,11 @@ export ZoomRegion, zoom, pan_x, pan_y, init_zoom_rubberband, init_zoom_scroll,
 # A widget that gives out a signal of type T
 @compat abstract type InputWidget{T}  <: Widget end
 
+"""
+    signal(w) -> s
+
+Return the Reactive.jl Signal `s` associated with widget `w`.
+"""
 signal(w::Widget) = w.signal
 signal(x::Signal) = x
 
