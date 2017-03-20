@@ -27,7 +27,7 @@ GtkReactive.Canvas
 GtkReactive.MouseHandler
 DeviceUnit
 UserUnit
-GtkReactive.MousePosition
+GtkReactive.XY
 GtkReactive.MouseButton
 GtkReactive.MouseScroll
 ```

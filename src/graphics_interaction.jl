@@ -55,25 +55,23 @@ end
 Graphics.rectangle(r::GraphicsContext, x::UserUnit, y::UserUnit, w::UserUnit, h::UserUnit) =
     rectangle(r, x.val, y.val, w.val, h.val)
 
-"""
-    MousePosition(x, y)
 
-A type to hold mouse positions. Units of `x` and `y` are either
+"""
+    XY(x, y)
+
+A type to hold `x` (horizontal), `y` (vertical) coordinates, where the
+number increases to the right and downward. If used to encode mouse
+pointer positions, the units of `x` and `y` are either
 [`DeviceUnit`](@ref) or [`UserUnit`](@ref).
 """
-immutable MousePosition{U<:CairoUnit}
-    x::U
-    y::U
-
-    # Curiously, this is required for ambiguity resolution
-    function (::Type{MousePosition{U}}){U<:CairoUnit}(x::U, y::U)
-        new{U}(x, y)
-    end
+immutable XY{T}
+    x::T
+    y::T
 end
-MousePosition{U<:CairoUnit}(x::U, y::U) = MousePosition{U}(x, y)
-(::Type{MousePosition{U}}){U}(x::Real, y::Real) = MousePosition{U}(U(x), U(y))
-function (::Type{MousePosition{U}}){U}(w::GtkCanvas, evt::Gtk.GdkEvent)
-    MousePosition{U}(convertunits(U, w, DeviceUnit(evt.x), DeviceUnit(evt.y))...)
+
+(::Type{XY{U}}){U}(x::Real, y::Real) = XY{U}(U(x), U(y))
+function (::Type{XY{U}}){U<:CairoUnit}(w::GtkCanvas, evt::Gtk.GdkEvent)
+    XY{U}(convertunits(U, w, DeviceUnit(evt.x), DeviceUnit(evt.y))...)
 end
 
 """
@@ -81,7 +79,7 @@ end
 
 A type to hold information about a mouse button event (e.g., a
 click). `position` is the canvas position of the pointer (see
-[`MousePosition`](@ref)). `button` is an integer identifying the
+[`XY`](@ref)). `button` is an integer identifying the
 button, where 1=left button, 2=middle button, 3=right
 button. `clicktype` may be `BUTTON_PRESS` or
 `DOUBLE_BUTTON_PRESS`. `modifiers` indicates whether any keys were
@@ -92,16 +90,16 @@ SHIFT`).
 The fieldnames are the same as the argument names above.
 """
 immutable MouseButton{U<:CairoUnit}
-    position::MousePosition{U}
+    position::XY{U}
     button::UInt32
     clicktype::typeof(BUTTON_PRESS)
     modifiers::typeof(SHIFT)
 end
-function MouseButton{U}(pos::MousePosition{U}, button::Integer, clicktype::Integer, modifiers::Integer)
+function MouseButton{U}(pos::XY{U}, button::Integer, clicktype::Integer, modifiers::Integer)
     MouseButton{U}(pos, UInt32(button), oftype(BUTTON_PRESS, clicktype), oftype(SHIFT, modifiers))
 end
 function (::Type{MouseButton{U}}){U}(w::GtkCanvas, evt::Gtk.GdkEvent)
-    MouseButton{U}(MousePosition{U}(w, evt), evt.button, evt.event_type, evt.state)
+    MouseButton{U}(XY{U}(w, evt), evt.button, evt.event_type, evt.state)
 end
 
 """
@@ -109,21 +107,21 @@ end
 
 A type to hold information about a mouse wheel scroll. `position` is the
 canvas position of the pointer (see
-[`MousePosition`](@ref)). `direction` may be `UP`, `DOWN`, `LEFT`, or
+[`XY`](@ref)). `direction` may be `UP`, `DOWN`, `LEFT`, or
 `RIGHT`. `modifiers` indicates whether any keys were held down during
 the click; they may be 0 (no modifiers) or any combination of `SHIFT`,
 `CONTROL`, or `MOD1` stored as a bitfield.
 """
 immutable MouseScroll{U<:CairoUnit}
-    position::MousePosition{U}
+    position::XY{U}
     direction::typeof(UP)
     modifiers::typeof(SHIFT)
 end
-function MouseScroll{U}(pos::MousePosition{U}, direction::Integer, modifiers::Integer)
+function MouseScroll{U}(pos::XY{U}, direction::Integer, modifiers::Integer)
     MouseScroll{U}(pos, oftype(UP, direction), oftype(SHIFT, modifiers))
 end
 function (::Type{MouseScroll{U}}){U}(w::GtkCanvas, evt::Gtk.GdkEvent)
-    MouseScroll{U}(MousePosition{U}(w, evt), evt.direction, evt.state)
+    MouseScroll{U}(XY{U}(w, evt), evt.direction, evt.state)
 end
 
 # immutable KeyEvent
@@ -151,7 +149,7 @@ immutable MouseHandler{U<:CairoUnit}
     widget::GtkCanvas
 
     function (::Type{MouseHandler{U}}){U<:CairoUnit}(canvas::GtkCanvas)
-        pos = MousePosition(U(-1), U(-1))
+        pos = XY(U(-1), U(-1))
         btn = MouseButton(pos, 0, BUTTON_PRESS, SHIFT)
         scroll = MouseScroll(pos, UP, SHIFT)
         ids = Vector{Culong}(0)
@@ -267,10 +265,6 @@ image_surface{C<:Color}(img::AbstractArray{C}) = image_surface(convert(Matrix{RG
 image_surface{C<:Colorant}(img::AbstractArray{C}) = image_surface(convert(Matrix{ARGB32}, img))
 
 
-immutable XY{T}
-    x::T
-    y::T
-end
 # Coordiantes could be AbstractFloat without an implied step, so let's
 # use intervals instead of ranges
 immutable ZoomRegion{T}
@@ -350,12 +344,12 @@ function zoom(iv::ClosedInterval, s::Real, limits)
 end
 
 """
-    zoom(zr::ZoomRegion, scaleview, pos::MousePosition) -> zr_new
+    zoom(zr::ZoomRegion, scaleview, pos::XY) -> zr_new
 
 Zooms in (`scaleview` < 1) or out (`scaleview` > 1) by a scaling
 factor `scaleview`, in a manner centered on `pos`.
 """
-function zoom(zr::ZoomRegion, s, pos::MousePosition)
+function zoom(zr::ZoomRegion, s, pos::XY)
     xview, yview = zr.currentview.x, zr.currentview.y
     xviewlimits, yviewlimits = zr.fullview.x, zr.fullview.y
     centerx, centery = pos.x.val, pos.y.val
@@ -413,7 +407,7 @@ function init_pan_scroll{U,T}(canvas::Canvas{U},
                               xpanflip = false,
                               ypanflip  = false)
     enabled = Signal(true)
-    dummyscroll = MouseScroll(MousePosition{U}(-1, -1), 0, 0)
+    dummyscroll = MouseScroll(XY{U}(-1, -1), 0, 0)
     pan = map(filterwhen(enabled, dummyscroll, canvas.mouse.scroll)) do event
         s = 0.1*scrollpm(event.direction)
         if filter_x(event)
@@ -449,7 +443,7 @@ function init_pan_drag{U,T}(canvas::Canvas{U},
                             initiate::Function = pandrag_init_default)
     enabled = Signal(true)
     active = Signal(false)
-    dummybtn = MouseButton(MousePosition{U}(-1, -1), 0, 0, 0)
+    dummybtn = MouseButton(XY{U}(-1, -1), 0, 0, 0)
     local pos1, zr1, mtrx
     init = map(filterwhen(enabled, dummybtn, canvas.mouse.buttonpress)) do btn
         if initiate(btn)
@@ -519,7 +513,7 @@ function init_zoom_scroll{U,T}(canvas::Canvas{U},
                                flip = false)
     focus == :pointer || focus == :center || error("focus must be :pointer or :center")
     enabled = Signal(true)
-    dummyscroll = MouseScroll(MousePosition{U}(-1, -1), 0, 0)
+    dummyscroll = MouseScroll(XY{U}(-1, -1), 0, 0)
     zm = map(filterwhen(enabled, dummyscroll, canvas.mouse.scroll)) do event
         if filter(event)
             # println("zoom scroll: ", event)
@@ -561,7 +555,7 @@ function mouseup_cb{U}(ptr::Ptr, eventp::Ptr, handler::MouseHandler{U})
 end
 function mousemove_cb{U}(ptr::Ptr, eventp::Ptr, handler::MouseHandler{U})
     evt = unsafe_load(eventp)
-    pos = MousePosition{U}(handler.widget, evt)
+    pos = XY{U}(handler.widget, evt)
     # This doesn't support multi-button moves well, but those are rare in most GUIs and
     # users can examine `modifiers` directly.
     button = 0

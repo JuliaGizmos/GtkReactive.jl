@@ -31,8 +31,8 @@ function init_zoom_rubberband{U,T}(canvas::Canvas{U},
         push!(zr, ZoomRegion(value(zr).fullview, bb))
         nothing
     end
-    rb = RubberBand(MousePosition{U}(-1,-1), MousePosition{U}(-1,-1), false, minpixels)
-    dummybtn = MouseButton(MousePosition{U}(-1, -1), 0, 0, 0)
+    rb = RubberBand(XY{U}(-1,-1), XY{U}(-1,-1), false, minpixels)
+    dummybtn = MouseButton(XY{U}(-1, -1), 0, 0, 0)
     local ctxcopy
     init = map(filterwhen(enabled, dummybtn, canvas.mouse.buttonpress)) do btn
         if initiate(btn)
@@ -63,8 +63,8 @@ zrb_reset_default(btn) = btn.button == 1 && btn.clicktype == DOUBLE_BUTTON_PRESS
 # For rubberband, we draw the selection region on the front canvas, and repair
 # by copying from the back.
 type RubberBand{U}
-    pos1::MousePosition{U}
-    pos2::MousePosition{U}
+    pos1::XY{U}
+    pos2::XY{U}
     moved::Bool
     minpixels::Int
 end

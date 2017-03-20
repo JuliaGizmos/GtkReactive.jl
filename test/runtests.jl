@@ -231,10 +231,10 @@ end
     zrz2 = GtkReactive.zoom(zrz, 1.9)
     @test zrz2.currentview.x == 4..97
     @test zrz2.currentview.y == 3..78
-    zrz = GtkReactive.zoom(zr, 0.5, GtkReactive.MousePosition{DeviceUnit}(50.5, 40.5))
+    zrz = GtkReactive.zoom(zr, 0.5, GtkReactive.XY{DeviceUnit}(50.5, 40.5))
     @test zrz.currentview.x == 26..75
     @test zrz.currentview.y == 21..60
-    zrz = GtkReactive.zoom(zr, 0.5, GtkReactive.MousePosition{DeviceUnit}(60.5, 30.5))
+    zrz = GtkReactive.zoom(zr, 0.5, GtkReactive.XY{DeviceUnit}(60.5, 30.5))
     @test zrz.currentview.x == 31..80
     @test zrz.currentview.y == 16..55
     zrr = GtkReactive.reset(zrz)
