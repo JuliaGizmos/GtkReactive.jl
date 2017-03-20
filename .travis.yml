@@ -15,4 +15,4 @@ addons:
             - libgtk-3-0
 script:
     - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-    - xvfb-run julia -e 'Pkg.clone(pwd()); Pkg.test("Gtk"; coverage=true)'
+    - xvfb-run julia -e 'Pkg.clone(pwd()); Pkg.test("GtkReactive"; coverage=true)'

@@ -1,6 +1,6 @@
 # GtkReactive
 
-[![Build Status](https://travis-ci.org/JuliaGraphics/GtkReactive.jl.svg?branch=master)](https://travis-ci.org/JuliaGraphics/GtkReactive.jl)
+[![Build Status](https://travis-ci.org/JuliaGizmos/GtkReactive.jl.svg?branch=master)](https://travis-ci.org/JuliaGizmos/GtkReactive.jl)
 
 This is WIP a fork of [GtkInteract](https://github.com/jverzani/GtkInteract.jl), but aims to be different in the following ways:
 - Rather than use Interact.jl (which is oriented towards Jupyter), this re-implements similar features natively
