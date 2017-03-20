@@ -27,7 +27,7 @@ export slider, button, checkbox, togglebutton, dropdown, textbox, textarea
 export label
 export canvas, DeviceUnit, UserUnit
 export player
-export signal, frame
+export signal, widget, frame
 # Zoom/pan
 export ZoomRegion, zoom, pan_x, pan_y, init_zoom_rubberband, init_zoom_scroll,
        init_pan_scroll, init_pan_drag
@@ -46,9 +46,18 @@ Return the Reactive.jl Signal `s` associated with widget `w`.
 signal(w::Widget) = w.signal
 signal(x::Signal) = x
 
-Base.show(io::IO, w::Widget) = print(io, typeof(w.widget), " with ", signal(w))
-Gtk.destroy(w::Widget) = destroy(w.widget)
-Base.push!(container::Gtk.GtkContainer, child::Widget) = push!(container, child.widget)
+"""
+    widget(w) -> gtkw::GtkWidget
+
+Return the GtkWidget `gtkw` associated with widget `w`.
+"""
+widget(w::Widget) = w.widget
+
+Base.push!(w::Widget, val) = push!(signal(w), val)
+
+Base.show(io::IO, w::Widget) = print(io, typeof(widget(w)), " with ", signal(w))
+Gtk.destroy(w::Widget) = destroy(widget(w))
+Base.push!(container::Gtk.GtkContainer, child::Widget) = push!(container, widget(child))
 Reactive.value(w::Widget) = value(signal(w))
 Base.map(f, w::Widget) = map(f, signal(w))
 
@@ -58,11 +67,15 @@ include("extrawidgets.jl")
 include("graphics_interaction.jl")
 include("rubberband.jl")
 
-# More convenience functions
+## More convenience functions
+# Containers
 (::Type{GtkWindow})(c::Canvas) = GtkWindow(c.widget)
 (::Type{GtkFrame})(c::Canvas) = GtkFrame(c.widget)
 (::Type{GtkAspectFrame})(c::Canvas) = GtkAspectFrame(c.widget)
 
+Base.push!(container::Gtk.GtkContainer, child::Canvas) = push!(container, widget(child))
+
+widget(c::Canvas) = c.widget
 Graphics.getgc(c::Canvas) = getgc(c.widget)
 Graphics.width(c::Canvas) = Graphics.width(c.widget)
 Graphics.height(c::Canvas) = height(c.widget)
@@ -80,6 +93,19 @@ function Graphics.set_coords(c::Union{Canvas,GtkCanvas}, inds::Tuple{AbstractUni
     y, x = inds
     bb = BoundingBox(first(x), last(x), first(y), last(y))
     set_coords(c, bb)
+end
+
+function Base.push!{T}(zr::Signal{ZoomRegion{T}}, cv::XY{ClosedInterval{T}})
+    fv = value(zr).fullview
+    push!(zr, ZoomRegion(fv, cv))
+end
+
+function Base.push!{T}(zr::Signal{ZoomRegion{T}}, inds::Tuple{ClosedInterval,ClosedInterval})
+    push!(zr, XY{ClosedInterval{T}}(inds[2], inds[1]))
+end
+
+function Base.push!{T}(zr::Signal{ZoomRegion{T}}, inds::Tuple{AbstractUnitRange,AbstractUnitRange})
+    push!(zr, map(ClosedInterval{T}, inds))
 end
 
 Gtk.reveal(c::Canvas, args...) = reveal(c.widget, args...)

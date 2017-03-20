@@ -1,11 +1,3 @@
-## The creation of simple GUIs usually involves 3 steps:
-##
-## * create the controls
-## * layout the controls
-## * propagate changes in a control to some output
-##
-## `GtkReactive` handles the first and third of these. Use Gtk.jl for layout.
-
 using GtkReactive, Gtk.ShortNames, Colors
 
 # Create some controls
