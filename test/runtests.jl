@@ -8,8 +8,6 @@ end
 
 rr() = (Reactive.run_till_now(); yield())
 
-counter = 0
-
 @testset "Widgets" begin
     ## label
     l = label("Hello")
@@ -17,24 +15,6 @@ counter = 0
     push!(signal(l), "world")
     rr()
     @test getproperty(l.widget, :label, String) == "world"
-
-    ## button
-    w = Window("Widgets")
-    b = button("Click me")
-    push!(w, b)
-    action = map(b) do val
-        global counter
-        counter::Int += 1
-    end
-    rr()
-    cc = counter  # map seems to fire it once, so record the "new" initial value
-    click(b::GtkReactive.Button) = ccall((:gtk_button_clicked,Gtk.libgtk),Void,(Ptr{Gtk.GObject},),b.widget)
-    click(b)
-    sleep(0.1)
-    rr()
-    sleep(0.1)
-    @test counter == cc+1
-    destroy(w)
 
     ## checkbox
     w = Window("Checkbox")
@@ -131,6 +111,27 @@ counter = 0
     @test r[] == 5
     destroy(dd.widget)
 end
+
+## button
+# For reasons I don't understand, this often fails if it's inside a @testset
+counter = 0
+
+w = Window("Widgets")
+b = button("Click me")
+push!(w, b)
+action = map(b) do val
+    global counter
+    counter::Int += 1
+end
+showall(w)
+rr()
+cc = counter  # map seems to fire it once, so record the "new" initial value
+click(b::GtkReactive.Button) = ccall((:gtk_button_clicked,Gtk.libgtk),Void,(Ptr{Gtk.GObject},),b.widget)
+gc(true)
+click(b)
+rr()
+@test counter == cc+1
+destroy(w)
 
 @testset "Compound widgets" begin
     ## player widget
