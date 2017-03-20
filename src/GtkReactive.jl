@@ -110,8 +110,13 @@ end
 
 Gtk.reveal(c::Canvas, args...) = reveal(c.widget, args...)
 
-# Prevent garbage collection until the on-screen widget has been destroyed
 const _ref_dict = ObjectIdDict()
+
+"""
+    gc_preserve(widget::GtkWidget, obj)
+
+Preserve `obj` until `widget` has been [`destroy`](@ref)ed.
+"""
 function gc_preserve(widget::Union{GtkWidget,GtkCanvas}, obj)
     _ref_dict[obj] = true
     signal_connect(widget, :destroy) do w

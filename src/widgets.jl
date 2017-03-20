@@ -83,7 +83,15 @@ immutable Slider{T<:Number} <: InputWidget{T}
     widget::GtkScaleLeaf
     id::Culong
     preserved::Vector
+
+    function (::Type{Slider{T}}){T}(signal::Signal{T}, widget, id, preserved)
+        obj = new{T}(signal, widget, id, preserved)
+        gc_preserve(widget, obj)
+        obj
+    end
 end
+Slider{T}(signal::Signal{T}, widget::GtkScaleLeaf, id, preserved) =
+    Slider{T}(signal, widget, id, preserved)
 
 # differs from median(r) in that it always returns an element of the range
 medianidx(r) = (1+length(r))>>1
@@ -149,6 +157,12 @@ immutable Checkbox <: InputWidget{Bool}
     widget::GtkCheckButtonLeaf
     id::Culong
     preserved::Vector
+
+    function (::Type{Checkbox})(signal::Signal{Bool}, widget, id, preserved)
+        obj = new(signal, widget, id, preserved)
+        gc_preserve(widget, obj)
+        obj
+    end
 end
 
 checkbox(signal::Signal, widget::GtkCheckButtonLeaf, id, preserved=[]) =
@@ -197,9 +211,15 @@ immutable ToggleButton <: InputWidget{Bool}
     widget::GtkToggleButtonLeaf
     id::Culong
     preserved::Vector
+
+    function (::Type{ToggleButton})(signal::Signal{Bool}, widget, id, preserved)
+        obj = new(signal, widget, id, preserved)
+        gc_preserve(widget, obj)
+        obj
+    end
 end
 
-togglebutton(signal::Signal, widget::GtkCheckButtonLeaf, id, preserved=[]) =
+togglebutton(signal::Signal, widget::GtkToggleButtonLeaf, id, preserved=[]) =
     ToggleButton(signal, widget, id, preserved)
 
 """
@@ -240,10 +260,16 @@ togglebutton(; value=false, widget=nothing, signal=nothing, label="", own=nothin
 
 ######################### Button ###########################
 
-immutable Button{T} <: InputWidget{T}
-    signal::Signal{T}
+immutable Button <: InputWidget{Void}
+    signal::Signal{Void}
     widget::GtkButtonLeaf
     id::Culong
+
+    function (::Type{Button})(signal::Signal{Void}, widget, id)
+        obj = new(signal, widget, id)
+        gc_preserve(widget, obj)
+        obj
+    end
 end
 
 button(signal::Signal, widget::GtkButtonLeaf, id) =
@@ -290,7 +316,15 @@ immutable Textbox{T} <: InputWidget{T}
     id::Culong
     preserved::Vector{Any}
     range
+
+    function (::Type{Textbox{T}}){T}(signal::Signal{T}, widget, id, preserved, range)
+        obj = new{T}(signal, widget, id, preserved, range)
+        gc_preserve(widget, obj)
+        obj
+    end
 end
+Textbox{T}(signal::Signal{T}, widget::GtkEntryLeaf, id, preserved, range) =
+    Textbox{T}(signal, widget, id, preserved, range)
 
 textbox(signal::Signal, widget::GtkButtonLeaf, id, preserved = []) =
     Textbox(signal, widget, id, preserved)
@@ -385,6 +419,12 @@ immutable Textarea <: InputWidget{String}
     widget::GtkTextView
     id::Culong
     preserved::Vector
+
+    function (::Type{Textarea})(signal::Signal{String}, widget, id, preserved)
+        obj = new(signal, widget, id, preserved)
+        gc_preserve(widget, obj)
+        obj
+    end
 end
 
 """
@@ -432,12 +472,18 @@ end
 
 ##################### SelectionWidgets ######################
 
-immutable Dropdown{String} <: InputWidget{String}
+immutable Dropdown <: InputWidget{String}
     signal::Signal{String}
     mappedsignal::Signal
     widget::GtkComboBoxTextLeaf
     id::Culong
     preserved::Vector
+
+    function (::Type{Dropdown})(signal::Signal{String}, mappedsignal::Signal, widget, id, preserved)
+        obj = new(signal, mappedsignal, widget, id, preserved)
+        gc_preserve(widget, obj)
+        obj
+    end
 end
 
 """
@@ -601,6 +647,12 @@ immutable Label <: Widget
     signal::Signal{String}
     widget::GtkLabel
     preserved::Vector{Any}
+
+    function (::Type{Label})(signal::Signal{String}, widget, preserved)
+        obj = new(signal, widget, preserved)
+        gc_preserve(widget, obj)
+        obj
+    end
 end
 
 """

@@ -30,7 +30,9 @@ counter = 0
     cc = counter  # map seems to fire it once, so record the "new" initial value
     click(b::GtkReactive.Button) = ccall((:gtk_button_clicked,Gtk.libgtk),Void,(Ptr{Gtk.GObject},),b.widget)
     click(b)
+    sleep(0.1)
     rr()
+    sleep(0.1)
     @test counter == cc+1
     destroy(w)
 

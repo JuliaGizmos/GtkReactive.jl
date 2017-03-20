@@ -13,7 +13,15 @@ immutable Player{P} <: Widget
     signal::Signal{Int}
     widget::P
     preserved::Vector
+
+    function (::Type{Player{P}}){P}(signal::Signal{Int}, widget, preserved)
+        obj = new{P}(signal, widget, preserved)
+        gc_preserve(frame(widget), obj)
+        obj
+    end
 end
+Player{P}(signal::Signal{Int}, widget::P, preserved) =
+    Player{P}(signal, widget, preserved)
 
 frame(p::Player) = frame(p.widget)
 
