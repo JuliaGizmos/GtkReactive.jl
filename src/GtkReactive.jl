@@ -57,7 +57,6 @@ Base.push!(w::Widget, val) = push!(signal(w), val)
 
 Base.show(io::IO, w::Widget) = print(io, typeof(widget(w)), " with ", signal(w))
 Gtk.destroy(w::Widget) = destroy(widget(w))
-Base.push!(container::Gtk.GtkContainer, child::Widget) = push!(container, widget(child))
 Reactive.value(w::Widget) = value(signal(w))
 Base.map(f, w::Widget) = map(f, signal(w))
 
@@ -73,7 +72,10 @@ include("rubberband.jl")
 (::Type{GtkFrame})(c::Canvas) = GtkFrame(c.widget)
 (::Type{GtkAspectFrame})(c::Canvas) = GtkAspectFrame(c.widget)
 
-Base.push!(container::Gtk.GtkContainer, child::Canvas) = push!(container, widget(child))
+Base.push!(container::Union{Gtk.GtkBin,GtkBox}, child::Widget) =
+    push!(container, widget(child))
+Base.push!(container::Union{Gtk.GtkBin,GtkBox}, child::Canvas) =
+    push!(container, widget(child))
 
 widget(c::Canvas) = c.widget
 Graphics.getgc(c::Canvas) = getgc(c.widget)

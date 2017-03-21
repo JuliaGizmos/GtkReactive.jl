@@ -11,9 +11,17 @@ Base.abs{U<:CairoUnit}(x::U) = U(abs(x.val))
 Base.min{U<:CairoUnit}(x::U, y::U) = U(min(x.val, y.val))
 Base.max{U<:CairoUnit}(x::U, y::U) = U(max(x.val, y.val))
 Base.:<{U<:CairoUnit}(x::U, y::U) = x.val < y.val
+Base.:<(x::CairoUnit, y::CairoUnit) = error("cannot convert different CairoUnits without the canvas")
 Base.:<(x::CairoUnit, y::Number) = x.val < y
 Base.:<(x::Number, y::CairoUnit) = x < y.val
+# The next two are for ambiguity resolution
+Base.convert{T<:CairoUnit}(::Type{T}, x::T) = x
+Base.convert{T<:RInteger}(::Type{T}, x::CairoUnit) =
+    convert(T, convert(RoundingIntegers.itype(T), x.val))
 Base.convert{T<:Number}(::Type{T}, x::CairoUnit) = T(x.val)
+# The next two are for ambiguity resolution
+Base.promote_rule{U<:CairoUnit}(::Type{Bool}, ::Type{U}) = Float64
+Base.promote_rule{T<:Irrational,U<:CairoUnit}(::Type{T}, ::Type{U}) = promote_type(T, Float64)
 Base.promote_rule{T<:Number,U<:CairoUnit}(::Type{T}, ::Type{U}) = promote_type(T, Float64)
 
 """
