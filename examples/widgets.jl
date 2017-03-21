@@ -32,7 +32,7 @@ push!(mainwin, vbox)
 # Create the auxillary window and link its visibility to the checkbox
 cnvs = canvas()
 auxwin = Window(cnvs)
-map(cb) do val
+showwin = map(cb) do val
     setproperty!(auxwin, :visible, val)
 end
 # Also make sure it gets destroyed when we destroy the main window
