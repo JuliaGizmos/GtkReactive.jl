@@ -1,25 +1,18 @@
+### Input widgets
 
-# ### Layout Widgets
-# type Layout <: Widget
-#     box::Any
-# end
+"""
+    init_wsigval([T], signal, value; default=nothing) -> signal, value
 
-# type Box <: Widget
-#     layout::Any
-#     vert::Bool
-#     children::Vector{Widget}
-#     Box(layout, vert, children) = begin
-#         b = new(layout, vert, children)
-#         layout.box = b
-#         b
-#     end
-# end
+Return a suitable initial state for `signal` and `value` for a
+widget. Any but one of these argument can be `nothing`. A new `signal`
+will be created if the input `signal` is `nothing`. Passing in a
+pre-existing `signal` will return the same signal, either setting the
+signal to `value` (if specified as an input) or extracting and
+returning its current value (if the `value` input is `nothing`).
 
-# hbox(children::Vararg{Widget}) = Box(Layout(nothing), false, collect(children))
-# vbox(children::Vararg{Widget}) = Box(Layout(nothing), true, collect(children))
-
-# ### Input widgets
-"""Helps init widget's value and signal depending on which ones were set"""
+Optionally specify the element type `T`; if `signal` is a
+`Reactive.Signal`, then `T` must agree with `eltype(signal)`.
+"""
 init_wsigval(::Void, ::Void; default=nothing) = _init_wsigval(nothing, default)
 init_wsigval(::Void, value; default=nothing) = _init_wsigval(typeof(value), nothing, value)
 init_wsigval(signal, value; default=nothing) = _init_wsigval(eltype(signal), signal, value)
@@ -32,10 +25,55 @@ _init_wsigval(::Void, value) = _init_wsigval(typeof(value), nothing, value)
 _init_wsigval{T}(::Type{T}, ::Void, ::Void) = error("must supply an initial value")
 _init_wsigval{T}(::Type{T}, ::Void, value) = Signal(T, value), value
 _init_wsigval{T}(::Type{T}, signal::Signal{T}, ::Void) =
-    _init_wsigval(T, signal, signal.value)
+    _init_wsigval(T, signal, value(signal))
 function _init_wsigval{T}(::Type{T}, signal::Signal{T}, value)
     push!(signal, value)
     signal, value
+end
+
+"""
+    init_signal2widget(widget::GtkWidget, id, signal) -> updatesignal
+    init_signal2widget(getter, setter, widget::GtkWidget, id, signal) -> updatesignal
+
+Update the "display" value of the Gtk widget `widget` whenever `signal`
+changes. `id` is the signal handler id for updating `signal` from the
+widget, and is required to prevent the widget from responding to the
+update by firing `signal`.
+
+If `updatesignal` is garbage-collected, the widget will no longer
+update. Most likely you should either `preserve` or store
+`updatesignal`.
+"""
+function init_signal2widget(getter::Function,
+                            setter!::Function,
+                            widget::GtkWidget,
+                            id, signal)
+    map(signal) do val
+        signal_handler_block(widget, id)  # prevent "recursive firing" of the handler
+        curval = getter(widget)
+        curval != val && setter!(widget, val)
+        signal_handler_unblock(widget, id)
+        nothing
+    end
+end
+init_signal2widget(widget::GtkWidget, id, signal) =
+    init_signal2widget(defaultgetter, defaultsetter!, widget, id, signal)
+
+defaultgetter(widget) = Gtk.G_.value(widget)
+defaultsetter!(widget,val) = Gtk.G_.value(widget, val)
+
+"""
+    ondestroy(widget::GtkWidget, preserved)
+
+Create a `destroy` callback for `widget` that terminates updating dependent signals.
+"""
+function ondestroy(widget::GtkWidget, preserved::AbstractVector)
+    signal_connect(widget, :destroy) do widget
+        map(close, preserved)
+        empty!(preserved)
+        # but it's too dangerous to close signal itself
+    end
+    nothing
 end
 
 ########################## Slider ############################
@@ -44,8 +82,16 @@ immutable Slider{T<:Number} <: InputWidget{T}
     signal::Signal{T}
     widget::GtkScaleLeaf
     id::Culong
-    preserved::Vector{Any}
+    preserved::Vector
+
+    function (::Type{Slider{T}}){T}(signal::Signal{T}, widget, id, preserved)
+        obj = new{T}(signal, widget, id, preserved)
+        gc_preserve(widget, obj)
+        obj
+    end
 end
+Slider{T}(signal::Signal{T}, widget::GtkScaleLeaf, id, preserved) =
+    Slider{T}(signal, widget, id, preserved)
 
 # differs from median(r) in that it always returns an element of the range
 medianidx(r) = (1+length(r))>>1
@@ -55,349 +101,478 @@ slider(signal::Signal, widget::GtkScaleLeaf, id, preserved = []) =
     Slider(signal, widget, id, preserved)
 
 """
-    slider(range; value, signal, label="", readout=true, continuous_update=true)
+    slider(range; widget=nothing, value=nothing, signal=nothing, orientation="horizontal")
 
-Create a slider widget with the specified `range`. Optionally specify
-the starting `value` (defaults to the median of `range`), provide the
-(Reactive.jl) `signal` coupled to this slider, and/or specify a string
-`label` for the widget.
+Create a slider widget with the specified `range`. Optionally provide:
+  - the GtkScale `widget` (by default, creates a new one)
+  - the starting `value` (defaults to the median of `range`)
+  - the (Reactive.jl) `signal` coupled to this slider (by default, creates a new signal)
+  - the `orientation` of the slider.
 """
 function slider{T}(range::Range{T};
+                   widget=nothing,
                    value=nothing,
                    signal=nothing,
-                   label="",
                    orientation="horizontal",
                    syncsig=true,
                    own=nothing)
-    isempty(label) || error("slider label must be empty, got ", label)
     signalin = signal
     signal, value = init_wsigval(T, signal, value; default=medianelement(range))
     if own == nothing
         own = signal != signalin
     end
-    obj = GtkScale(lowercase(first(orientation)) == 'v',
-                   first(range), last(range), step(range))
-    Gtk.G_.size_request(obj, 200, -1)
-    Gtk.G_.value(obj, value)
+    if widget == nothing
+        widget = GtkScale(lowercase(first(orientation)) == 'v',
+                          first(range), last(range), step(range))
+        Gtk.G_.size_request(widget, 200, -1)
+    else
+        adj = Gtk.Adjustment(widget)
+        Gtk.G_.lower(adj, first(range))
+        Gtk.G_.upper(adj, last(range))
+        Gtk.G_.step_increment(adj, step(range))
+    end
+    Gtk.G_.value(widget, value)
 
     ## widget -> signal
-    id = signal_connect(obj, :value_changed) do widget, args...
-        val = Gtk.G_.value(widget)
-        push!(signal, val)
-    end
-    # if #161 becomes and issue, use this version instead
-    # id = signal_connect(scale_cb, obj, "value-changed", Void, (), false, (widget, obj))
-    if own
-        signal_connect(obj, :destroy) do widget
-            map(close, preserved)
-            empty!(preserved)  # too dangerous to close signal itself
-        end
+    id = signal_connect(widget, :value_changed) do w
+        push!(signal, defaultgetter(w))
     end
 
     ## signal -> widget
     preserved = []
     if syncsig
-        push!(preserved, map(signal) do val
-            signal_handler_block(obj, id)  # prevent "recursive firing" of the handler
-            curval = Gtk.G_.value(obj)
-            curval != val && Gtk.G_.value(obj, val)
-            signal_handler_unblock(obj, id)
-            nothing
-        end)
+        push!(preserved, init_signal2widget(widget, id, signal))
+    end
+    if own
+        ondestroy(widget, preserved)
     end
 
-    Slider(signal, obj, id, preserved)
+    Slider(signal, widget, id, preserved)
 end
 
-# """
-# `vslider(args...; kwargs...)`
+######################### Checkbox ###########################
 
-# Shorthand for `slider(args...; orientation="vertical", kwargs...)`
-# """
-# vslider(args...; kwargs...) = slider(args...; orientation="vertical", kwargs...)
+immutable Checkbox <: InputWidget{Bool}
+    signal::Signal{Bool}
+    widget::GtkCheckButtonLeaf
+    id::Culong
+    preserved::Vector
 
-# ######################### Checkbox ###########################
+    function (::Type{Checkbox})(signal::Signal{Bool}, widget, id, preserved)
+        obj = new(signal, widget, id, preserved)
+        gc_preserve(widget, obj)
+        obj
+    end
+end
 
-# type Checkbox <: InputWidget{Bool}
-#     signal::Signal{Bool}
-#     label::AbstractString
-#     value::Bool
-# end
+checkbox(signal::Signal, widget::GtkCheckButtonLeaf, id, preserved=[]) =
+    Checkbox(signal, widget, id, preserved)
 
-# checkbox(args...) = Checkbox(args...)
+"""
+    checkbox(value=false; widget=nothing, signal=nothing, label="")
 
-# """
-#     checkbox(value=false; label="", signal)
+Provide a checkbox with the specified starting (boolean)
+`value`. Optionally provide:
+  - a GtkCheckButton `widget` (by default, creates a new one)
+  - the (Reactive.jl) `signal` coupled to this checkbox (by default, creates a new signal)
+  - a display `label` for this widget
+"""
+function checkbox(value::Bool; widget=nothing, signal=nothing, label="", own=nothing)
+    signalin = signal
+    signal, value = init_wsigval(signal, value)
+    if own == nothing
+        own = signal != signalin
+    end
+    if widget == nothing
+        widget = GtkCheckButton(label)
+    end
+    Gtk.G_.active(widget, value)
 
-# Provide a checkbox with the specified starting (boolean)
-# `value`. Optional provide a `label` for this widget and/or the
-# (Reactive.jl) `signal` coupled to this widget.
-# """
-# checkbox(value::Bool; signal=nothing, label="") = begin
-#     signal, value = init_wsigval(signal, value)
-#     Checkbox(signal, label, value)
-# end
-# checkbox(; label="", value=nothing, signal=nothing) = begin
-#     signal, value = init_wsigval(signal, value; default=false)
-#     Checkbox(signal, label, value)
-# end
-# ###################### ToggleButton ########################
+    id = signal_connect(widget, :clicked) do w
+        push!(signal, Gtk.G_.active(w))
+    end
+    preserved = []
+    push!(preserved, init_signal2widget(w->Gtk.G_.active(w),
+                                        (w,val)->Gtk.G_.active(w, val),
+                                        widget, id, signal))
+    if own
+        ondestroy(widget, preserved)
+    end
 
-# type ToggleButton <: InputWidget{Bool}
-#     signal::Signal{Bool}
-#     label::AbstractString
-#     value::Bool
-# end
+    Checkbox(signal, widget, id, preserved)
+end
+checkbox(; value=false, widget=nothing, signal=nothing, label="", own=nothing) =
+    checkbox(value; widget=widget, signal=signal, label=label, own=own)
 
-# togglebutton(args...) = ToggleButton(args...)
+###################### ToggleButton ########################
 
-# togglebutton(; label="", value=nothing, signal=nothing) = begin
-#     signal, value = init_wsigval(signal, value; default=false)
-#     ToggleButton(signal, label, value)
-# end
+immutable ToggleButton <: InputWidget{Bool}
+    signal::Signal{Bool}
+    widget::GtkToggleButtonLeaf
+    id::Culong
+    preserved::Vector
 
-# """
-#     togglebutton(label=""; value=false, signal)
+    function (::Type{ToggleButton})(signal::Signal{Bool}, widget, id, preserved)
+        obj = new(signal, widget, id, preserved)
+        gc_preserve(widget, obj)
+        obj
+    end
+end
 
-# Create a toggle button. Optionally specify the `label`, the initial
-# state (`value=false` is off, `value=true` is on), and/or provide the
-# (Reactive.jl) `signal` coupled to this button.
-# """
-# togglebutton(label; kwargs...) =
-#     togglebutton(label=label; kwargs...)
+togglebutton(signal::Signal, widget::GtkToggleButtonLeaf, id, preserved=[]) =
+    ToggleButton(signal, widget, id, preserved)
 
-# ######################### Button ###########################
+"""
+    togglebutton(value=false; widget=nothing, signal=nothing, label="")
 
-# type Button{T} <: InputWidget{T}
-#     signal::Signal{T}
-#     label::AbstractString
-#     value::T
-# end
+Provide a togglebutton with the specified starting (boolean)
+`value`. Optionally provide:
+  - a GtkCheckButton `widget` (by default, creates a new one)
+  - the (Reactive.jl) `signal` coupled to this button (by default, creates a new signal)
+  - a display `label` for this widget
+"""
+function togglebutton(value::Bool; widget=nothing, signal=nothing, label="", own=nothing)
+    signalin = signal
+    signal, value = init_wsigval(signal, value)
+    if own == nothing
+        own = signal != signalin
+    end
+    if widget == nothing
+        widget = GtkToggleButton(label)
+    end
+    Gtk.G_.active(widget, value)
 
-# button(; value=nothing, label="", signal=Signal(value)) =
-#     Button(signal, label, value)
+    id = signal_connect(widget, :clicked) do w
+        push!(signal, Gtk.G_.active(w))
+    end
+    preserved = []
+    push!(preserved, init_signal2widget(w->Gtk.G_.active(w),
+                                        (w,val)->Gtk.G_.active(w, val),
+                                        widget, id, signal))
+    if own
+        ondestroy(widget, preserved)
+    end
 
-# """
-#     button(label; value=nothing, signal)
+    ToggleButton(signal, widget, id, preserved)
+end
+togglebutton(; value=false, widget=nothing, signal=nothing, label="", own=nothing) =
+    togglebutton(value; widget=widget, signal=signal, label=label, own=own)
 
-# Create a push button. Optionally specify the `label`, the `value`
-# emitted when then button is clicked, and/or the (Reactive.jl) `signal`
-# coupled to this button.
-# """
-# button(label; kwargs...) =
-#     button(label=label; kwargs...)
+######################### Button ###########################
 
-# ######################## Textbox ###########################
+immutable Button <: InputWidget{Void}
+    signal::Signal{Void}
+    widget::GtkButtonLeaf
+    id::Culong
 
-# type Textbox{T} <: InputWidget{T}
-#     signal::Signal{T}
-#     label::String
-#     @compat range::Union{Empty, Range}
-#     value::T
-# end
+    function (::Type{Button})(signal::Signal{Void}, widget, id)
+        obj = new(signal, widget, id)
+        gc_preserve(widget, obj)
+        obj
+    end
+end
 
-# function empty(t::Type)
-#     if is(t, Number) zero(t)
-#     elseif is(t, AbstractString) ""
-#     end
-# end
+button(signal::Signal, widget::GtkButtonLeaf, id) =
+    Button(signal, widget, id)
 
-# function Textbox(; label="",
-#                  value=nothing,
-#                  # Allow unicode characters even if initiated with ASCII
-#                  typ=Void,
-#                  range=nothing,
-#                  signal=nothing,
-#                  syncsig=true)
-#     if isa(value, AbstractString) && range != nothing
-#         throw(ArgumentError(
-#                "You cannot set a range on a string textbox"
-#              ))
-#     end
-#     signal, value = init_wsigval(signal, value; typ=typ, default="")
-#     t = Textbox(signal, label, range, value)
-#     if syncsig
-#         #keep the Textbox updated if the signal changes
-#         keep_updated(val) = begin
-#             if val != t.value
-#                 t.value = val
-#                 update_view(t)
-#             end
-#             nothing
-#         end
-#         preserve(map(keep_updated, signal; typ=Void))
-#     end
-#     t
+"""
+    button(label; widget=nothing, signal=nothing)
+    button(; label=nothing, widget=nothing, signal=nothing)
 
-# end
+Create a push button with text-label `label`. Optionally provide:
+  - a GtkButton `widget` (by default, creates a new one)
+  - the (Reactive.jl) `signal` coupled to this button (by default, creates a new signal)
+"""
+function button(;
+                label::Union{Void,String,Symbol}=nothing,
+                widget=nothing,
+                signal=nothing,
+                own=nothing)
+    signalin = signal
+    if signal == nothing
+        signal = Signal(nothing)
+    end
+    if own == nothing
+        own = signal != signalin
+    end
+    if widget == nothing
+        widget = GtkButton(label)
+    end
 
-# textbox(;kwargs...) = Textbox(;kwargs...)
+    id = signal_connect(widget, :clicked) do w
+        push!(signal, nothing)
+    end
 
-# """
-#     textbox(value=""; label="", typ=typeof(value), range=nothing, signal)
+    Button(signal, widget, id)
+end
+button(label::Union{String,Symbol}; widget=nothing, signal=nothing, own=nothing) =
+    button(; label=label, widget=widget, signal=signal, own=own)
 
-# Create a box for entering text. `value` is the starting value; if you
-# don't want to provide an initial value, you can constrain the type
-# with `typ`. Optionally provide a `label`, specify the allowed range
-# (e.g., `-10.0:10.0`) for numeric entries, and/or provide the
-# (Reactive.jl) `signal` coupled to this text box.
-# """
-# textbox(val; kwargs...) =
-#     Textbox(value=val; kwargs...)
-# textbox(val::String; kwargs...) =
-#     Textbox(value=val; kwargs...)
+######################## Textbox ###########################
 
-# parse_msg{T<:Number}(w::Textbox{T}, val::AbstractString) = parse_msg(w, parse(T, val))
-# function parse_msg{T<:Number}(w::Textbox{T}, val::Number)
-#     v = convert(T, val)
-#     if isa(w.range, Range)
-#         # force value to stay in range
-#         v = max(first(w.range),
-#                 min(last(w.range), v))
-#     end
-#     v
-# end
+immutable Textbox{T} <: InputWidget{T}
+    signal::Signal{T}
+    widget::GtkEntryLeaf
+    id::Culong
+    preserved::Vector{Any}
+    range
 
-# ######################### Textarea ###########################
+    function (::Type{Textbox{T}}){T}(signal::Signal{T}, widget, id, preserved, range)
+        obj = new{T}(signal, widget, id, preserved, range)
+        gc_preserve(widget, obj)
+        obj
+    end
+end
+Textbox{T}(signal::Signal{T}, widget::GtkEntryLeaf, id, preserved, range) =
+    Textbox{T}(signal, widget, id, preserved, range)
 
-# type Textarea{AbstractString} <: InputWidget{AbstractString}
-#     signal::Signal{AbstractString}
-#     label::AbstractString
-#     value::AbstractString
-# end
+textbox(signal::Signal, widget::GtkButtonLeaf, id, preserved = []) =
+    Textbox(signal, widget, id, preserved)
 
-# textarea(args...) = Textarea(args...)
+"""
+    textbox(value=""; widget=nothing, signal=nothing, range=nothing)
+    textbox(T::Type; widget=nothing, signal=nothing, range=nothing)
 
-# textarea(; label="",
-#          value=nothing,
-#          signal=nothing) = begin
-#     signal, value = init_wsigval(signal, value; default="")
-#     Textarea(signal, label, value)
-# end
+Create a box for entering text. `value` is the starting value; if you
+don't want to provide an initial value, you can constrain the type
+with `T`. Optionally specify the allowed range (e.g., `-10:10`)
+for numeric entries, and/or provide the (Reactive.jl) `signal` coupled
+to this text box.
+"""
+function textbox{T}(::Type{T};
+                    widget=nothing,
+                    value=nothing,
+                    range=nothing,
+                    signal=nothing,
+                    syncsig=true,
+                    own=nothing)
+    if T <: AbstractString && range != nothing
+        throw(ArgumentError("You cannot set a range on a string textbox"))
+    end
+    signalin = signal
+    signal, value = init_wsigval(T, signal, value; default="")
+    if own == nothing
+        own = signal != signalin
+    end
+    if widget == nothing
+        widget = GtkEntry()
+    end
+    setproperty!(widget, :text, value)
 
-# """
-#     textarea(value=""; label="", signal)
+    id = signal_connect(widget, :activate) do w
+        push!(signal, entrygetter(w, signal, range))
+    end
 
-# Creates an extended text-entry area. Optionally provide a `label`
-# and/or the (Reactive.jl) `signal` associated with this widget. The
-# `signal` updates when you type.
-# """
-# textarea(val; kwargs...) =
-#     textarea(value=val; kwargs...)
+    preserved = []
+    function checked_entrysetter!(w, val)
+        val ∈ range || throw(ArgumentError("$val is not within $range"))
+        entrysetter!(w, val)
+    end
+    if syncsig
+        push!(preserved, init_signal2widget(w->entrygetter(w, signal, range),
+                                            range == nothing ? entrysetter! : checked_entrysetter!,
+                                            widget, id, signal))
+    end
+    own && ondestroy(widget, preserved)
 
-# ##################### SelectionWidgets ######################
+    Textbox(signal, widget, id, preserved, range)
+end
+function textbox{T}(value::T;
+                    widget=nothing,
+                    range=nothing,
+                    signal=nothing,
+                    syncsig=true,
+                    own=nothing)
+    textbox(T; widget=widget, value=value, range=range, signal=signal, syncsig=syncsig, own=own)
+end
 
-# immutable OptionDict
-#     dict::OrderedDict
-#     invdict::Dict
-# end
-# OptionDict(d::OrderedDict) = begin
-#     T1 = eltype([keys(d)...])
-#     T2 = eltype([values(d)...])
-#     OptionDict(OrderedDict{T1,T2}(d), Dict{T2,T1}(zip(values(d), keys(d))))
-# end
+entrygetter{T<:AbstractString}(w, signal::Signal{T}, ::Void) =
+    getproperty(w, :text, String)
+function entrygetter{T}(w, signal::Signal{T}, range)
+    val = tryparse(T, getproperty(w, :text, String))
+    if isnull(val)
+        nval = value(signal)
+        # Invalid entry, restore the old value
+        entrysetter!(w, nval)
+    else
+        nv = get(val)
+        nval = nearest(nv, range)
+        if nv != nval
+            entrysetter!(w, nval)
+        end
+    end
+    nval
+end
+nearest(val, ::Void) = val
+function nearest(val, r::Range)
+    i = round(Int, (val - first(r))/step(r)) + 1
+    r[clamp(i, 1, length(r))]
+end
 
-# Base.getindex(x::OptionDict, y) = getindex(x.dict, y)
-# Base.haskey(x::OptionDict, y) = haskey(x.dict, y)
-# Base.keys(x::OptionDict) = keys(x.dict)
-# Base.values(x::OptionDict) = values(x.dict)
-# Base.length(x::OptionDict) = length(keys(x))
+entrysetter!(w, val) = setproperty!(w, :text, string(val))
 
-# type Options{view, T} <: InputWidget{T}
-#     signal::Signal
-#     label::AbstractString
-#     value::T
-#     value_label::AbstractString
-#     options::OptionDict
-#     icons::AbstractArray
-#     tooltips::AbstractArray
-#     readout::Bool
-#     orientation::AbstractString
-# end
 
-# Options(view::Symbol, options::OptionDict;
-#         label = "",
-#         value_label=first(keys(options)),
-#         value=nothing,
-#         icons=[],
-#         tooltips=[],
-#         typ=valtype(options.dict),
-#         signal=nothing,
-#         readout=true,
-#         orientation="horizontal",
-#         syncsig=true,
-#         syncnearest=true,
-#         sel_mid_idx=0) = begin
-#     #sel_mid_idx set in selection_slider(...) so default value_label is middle of range
-#     sel_mid_idx != 0 && (value_label = collect(keys(options.dict))[sel_mid_idx])
-#     signal, value = init_wsigval(signal, value; typ=typ, default=options[value_label])
-#     typ = eltype(signal)
-#     ow = Options{view, typ}(signal, label, value, value_label,
-#                     options, icons, tooltips, readout, orientation)
-#     if syncsig
-#         syncselnearest = view == :SelectionSlider && typ <: Real && syncnearest
-#         if view != :SelectMultiple
-#             #set up map that keeps the value_label in sync with the value
-#             #TODO handle SelectMultiple. Need something similar to handle_msg,
-#             #note also ow.value_label is an AbstractString whereas for SelectMultiple
-#             #it should be a Vector{AbstractString} so would want to have Tvalue and
-#             #Tlabel type parameters. Also would need to set w.value_label in handle_msg
-#             #to avoid multiple updating
-#             keep_label_updated(val) = begin
-#                 if syncselnearest
-#                     val = nearest_val(keys(ow.options.invdict), val)
-#                 end
-#                 if haskey(ow.options.invdict, val) &&
-#                   ow.value_label != ow.options.invdict[val]
-#                     ow.value_label = ow.options.invdict[val]
-#                     update_view(ow)
-#                 end
-#                 nothing
-#             end
-#             preserve(map(keep_label_updated, signal; typ=Void))
-#         end
-#         push!(signal, value)
-#     end
-#     ow
-# end
+######################### Textarea ###########################
 
-# function Options(view::Symbol,
-#                     options::Union{Associative, AbstractArray};
-#                     kwargs...)
-#     Options(view, getoptions(options); kwargs...)
-# end
+immutable Textarea <: InputWidget{String}
+    signal::Signal{String}
+    widget::GtkTextView
+    id::Culong
+    preserved::Vector
 
-# function getoptions(options)
-#     opts = OrderedDict()
-#     for el in options
-#         addoption!(opts, el)
-#     end
-#     optdict = OptionDict(opts)
-# end
+    function (::Type{Textarea})(signal::Signal{String}, widget, id, preserved)
+        obj = new(signal, widget, id, preserved)
+        gc_preserve(widget, obj)
+        obj
+    end
+end
 
-# addoption!(opts, v::Union{Pair, NTuple{2}}) = opts[string(v[1])] = v[2]
-# addoption!(opts, v) = opts[string(v)] = v
+"""
+    textarea(value=""; widget=nothing, signal=nothing)
 
-# """
-#     dropdown(choices; label="", value, typ, icons, tooltips, signal)
+Creates an extended text-entry area. Optionally provide a GtkTextView `widget`
+and/or the (Reactive.jl) `signal` associated with this widget. The
+`signal` updates when you type.
+"""
+function textarea(value::String="";
+                  widget=nothing,
+                  signal=nothing,
+                  syncsig=true,
+                  own=nothing)
+    signalin = signal
+    signal, value = init_wsigval(signal, value)
+    if own == nothing
+        own = signal != signalin
+    end
+    if widget == nothing
+        widget = GtkTextView()
+    end
+    buf = Gtk.G_.buffer(widget)
+    setproperty!(buf, :text, value)
 
-# Create a "dropdown" widget. `choices` can be a vector of
-# options. Optionally specify the starting `value` (defaults to the
-# first choice), the `typ` of elements in `choices`, supply custom
-# `icons`, provide `tooltips`, and/or specify the (Reactive.jl) `signal`
-# coupled to this widget.
+    id = signal_connect(buf, :changed) do w
+        push!(signal, getproperty(w, :text, String))
+    end
 
-# # Examples
+    preserved = []
+    if syncsig
+        # GtkTextBuffer is not a GtkWdiget, so we have to do this manually
+        push!(preserved, map(signal) do val
+                  signal_handler_block(buf, id)
+                  curval = getproperty(buf, :text, String)
+                  curval != val && setproperty!(buf, :text, val)
+                  signal_handler_unblock(buf, id)
+                  nothing
+              end)
+    end
+    own && ondestroy(widget, preserved)
 
-#     a = dropdown(["one", "two", "three"])
+    Textarea(signal, widget, id, preserved)
+end
 
-# To link a callback to the dropdown, use
+##################### SelectionWidgets ######################
 
-#     f = dropdown(["turn red"=>colorize_red, "turn green"=>colorize_green])
-#     map(g->g(image), signal(f))
-# """
-# dropdown(opts; kwargs...) =
-#     Options(:Dropdown, opts; kwargs...)
+immutable Dropdown <: InputWidget{String}
+    signal::Signal{String}
+    mappedsignal::Signal
+    widget::GtkComboBoxTextLeaf
+    id::Culong
+    preserved::Vector
+
+    function (::Type{Dropdown})(signal::Signal{String}, mappedsignal::Signal, widget, id, preserved)
+        obj = new(signal, mappedsignal, widget, id, preserved)
+        gc_preserve(widget, obj)
+        obj
+    end
+end
+
+"""
+    dropdown(choices; widget=nothing, value=first(choices), signal=nothing, label="", with_entry=true, icons, tooltips)
+
+Create a "dropdown" widget. `choices` can be a vector (or other iterable) of
+options. Optionally specify
+  - the GtkComboBoxText `widget` (by default, creates a new one)
+  - the starting `value`
+  - the (Reactive.jl) `signal` coupled to this slider (by default, creates a new signal)
+  - whether the widget should allow text entry
+
+# Examples
+
+    a = dropdown(["one", "two", "three"])
+
+To link a callback to the dropdown, use
+
+    f = dropdown(("turn red"=>colorize_red, "turn green"=>colorize_green))
+    map(g->g(image), f.mappedsignal)
+"""
+function dropdown(; choices=nothing,
+                  widget=nothing,
+                  value=juststring(first(choices)),
+                  signal=nothing,
+                  label="",
+                  with_entry=true,
+                  icons=nothing,
+                  tooltips=nothing,
+                  own=nothing)
+    signalin = signal
+    signal, value = init_wsigval(String, signal, value)
+    if own == nothing
+        own = signal != signalin
+    end
+    if widget == nothing
+        widget = GtkComboBoxText()
+    end
+    if choices != nothing
+        empty!(widget)
+    else
+        error("Pre-loading the widget is not yet supported")
+    end
+    allstrings = all(x->isa(x, AbstractString), choices)
+    allstrings || all(x->isa(x, Pair), choices) || throw(ArgumentError("all elements must either be strings or pairs, got $choices"))
+    str2int = Dict{String,Int}()
+    int2str = Dict{Int,String}()
+    getactive(w) = int2str[getproperty(w, :active, Int)]
+    setactive!(w, val) = setproperty!(widget, :active, str2int[val])
+    k = -1
+    for c in choices
+        str = juststring(c)
+        push!(widget, str)
+        str2int[str] = (k+=1)
+        int2str[k] = str
+    end
+    if value == nothing
+        value = juststring(first(choices))
+    end
+    setactive!(widget, value)
+
+    id = signal_connect(widget, :changed) do w
+        push!(signal, getactive(w))
+    end
+
+    preserved = []
+    push!(preserved, init_signal2widget(getactive, setactive!, widget, id, signal))
+    if !allstrings
+        choicedict = Dict(choices...)
+        mappedsignal = map(val->choicedict[val], signal; typ=Any)
+    else
+        mappedsignal = Signal(nothing)
+    end
+    if own
+        ondestroy(widget, preserved)
+    end
+
+    Dropdown(signal, mappedsignal, widget, id, preserved)
+end
+
+function dropdown(choices; kwargs...)
+    dropdown(; choices=choices, kwargs...)
+end
+
+juststring(str::AbstractString) = String(str)
+juststring(p::Pair{String}) = p.first
+pairaction(str::AbstractString) = x->nothing
+pairaction{F<:Function}(p::Pair{String,F}) = p.second
+
 
 # """
 # radiobuttons: see the help for `dropdown`
@@ -463,7 +638,57 @@ end
 #     valbest
 # end
 
-# ### Output Widgets
+
+### Output Widgets
+
+######################## Label #############################
+
+immutable Label <: Widget
+    signal::Signal{String}
+    widget::GtkLabel
+    preserved::Vector{Any}
+
+    function (::Type{Label})(signal::Signal{String}, widget, preserved)
+        obj = new(signal, widget, preserved)
+        gc_preserve(widget, obj)
+        obj
+    end
+end
+
+"""
+    label(value; widget=nothing, signal=nothing)
+
+Create a text label displaying `value` as a string; new values may
+displayed by pushing to the widget. Optionally specify
+  - the GtkLabel `widget` (by default, creates a new one)
+  - the (Reactive.jl) `signal` coupled to this label (by default, creates a new signal)
+"""
+function label(value;
+               widget=nothing,
+               signal=nothing,
+               syncsig=true,
+               own=nothing)
+    signalin = signal
+    signal, value = init_wsigval(String, signal, value)
+    if own == nothing
+        own = signal != signalin
+    end
+    if widget == nothing
+        widget = GtkLabel(value)
+    else
+        setproperty!(widget, :label, value)
+    end
+    preserved = []
+    if syncsig
+        push!(preserved, map(signal) do val
+            setproperty!(widget, :label, val)
+        end)
+    end
+    if own
+        ondestroy(widget, preserved)
+    end
+    Label(signal, widget, preserved)
+end
 
 # export Latex, Progress
 

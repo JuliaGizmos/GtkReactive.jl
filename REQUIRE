@@ -1,4 +1,10 @@
 julia 0.5
-Gtk 0.11
-Reactive 0.3.0
+Compat 0.17
+Gtk 0.13
+Cairo
+Colors
 Reexport
+Reactive 0.3.0
+Graphics
+IntervalSets 0.0.5
+RoundingIntegers

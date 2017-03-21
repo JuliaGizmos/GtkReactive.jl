@@ -1,9 +1,9 @@
 language: julia
-sudo: false
+sudo: true
 os:
     - linux
 julia:
-    - 0.4
+    - 0.5
     - nightly
 notifications:
     email: false
@@ -15,4 +15,12 @@ addons:
             - libgtk-3-0
 script:
     - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-    - xvfb-run julia -e 'Pkg.clone(pwd()); Pkg.test("Gtk"; coverage=true)'
+    # Test REQUIREments will also be needed for Documenter, so add them now
+    - julia -e 'Pkg.add("TestImages"); is_linux() && Pkg.add("ImageMagick")'
+    - xvfb-run julia -e 'Pkg.clone(pwd()); Pkg.test("GtkReactive"; coverage=true)'
+after_success:
+  # push coverage results to Codecov
+  - julia -e 'cd(Pkg.dir("GtkReactive")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
+  # update the documentation
+  - julia -e 'Pkg.add("Documenter")'
+  - xvfb-run julia -e 'cd(Pkg.dir("GtkReactive")); ENV["DOCUMENTER_DEBUG"] = "true"; include(joinpath("docs", "make.jl"))'
