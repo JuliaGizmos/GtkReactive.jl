@@ -109,7 +109,7 @@ The value should be 6, set to the median of the range `1:11`
 that we used to create `sl`. Now drag the slider all the way to the
 right, and then see what happened to `sl`:
 
-```@meta demo1
+```@meta
 push!(sl, 11)
 Reactive.run_till_now()
 sleep(1)
