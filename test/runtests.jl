@@ -133,21 +133,24 @@ rr()
 @test counter == cc+1
 destroy(w)
 
-@testset "Compound widgets" begin
-    ## player widget
-    s = Signal(1)
-    p = player(s, 1:8)
-    win = Window(frame(p))
-    showall(win)
-    rr()
-    btn_fwd = p.widget.step_forward
-    @test value(s) == 1
-    push!(signal(btn_fwd), nothing)
-    sleep(0.01)
-    rr()
-    sleep(0.01)
-    @test value(s) == 2
-    destroy(win)
+if Gtk.libgtk_version >= v"3.10"
+    # To support GtkBuilder, we need this as the minimum libgtk version
+    @testset "Compound widgets" begin
+        ## player widget
+        s = Signal(1)
+        p = player(s, 1:8)
+        win = Window(frame(p))
+        showall(win)
+        rr()
+        btn_fwd = p.widget.step_forward
+        @test value(s) == 1
+        push!(signal(btn_fwd), nothing)
+        sleep(0.01)
+        rr()
+        sleep(0.01)
+        @test value(s) == 2
+        destroy(win)
+    end
 end
 
 @testset "Canvas" begin
