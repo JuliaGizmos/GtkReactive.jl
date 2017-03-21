@@ -7,6 +7,7 @@ makedocs(format   = :html,
 
 deploydocs(repo   = "github.com/JuliaGizmos/GtkReactive.jl",
            target = "build",
+           julia  = "0.5",
            deps   = nothing,
            make   = nothing
            )
