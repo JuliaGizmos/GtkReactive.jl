@@ -49,4 +49,5 @@ init_pan_scroll
 ```@docs
 signal
 frame
+GtkReactive.gc_preserve
 ```

@@ -3,6 +3,7 @@ Compat 0.17
 Gtk 0.13
 Cairo
 Colors
+FixedPointNumbers
 Reexport
 Reactive 0.3.0
 Graphics

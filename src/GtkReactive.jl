@@ -4,7 +4,7 @@ module GtkReactive
 
 using Compat
 
-using Gtk, Colors, Reexport
+using Gtk, Colors, FixedPointNumbers, Reexport
 @reexport using Reactive
 using Graphics
 using Graphics: set_coords, BoundingBox
@@ -25,7 +25,7 @@ export set_coords, BoundingBox, SHIFT, CONTROL, MOD1, UP, DOWN, LEFT, RIGHT,
 ## Exports
 export slider, button, checkbox, togglebutton, dropdown, textbox, textarea
 export label
-export canvas, DeviceUnit, UserUnit
+export canvas, DeviceUnit, UserUnit, XY, MouseButton, MouseScroll
 export player
 export signal, widget, frame
 # Zoom/pan

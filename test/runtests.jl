@@ -154,6 +154,15 @@ if Gtk.libgtk_version >= v"3.10"
 end
 
 @testset "Canvas" begin
+    @test XY(5, 5) === XY{Int}(5, 5)
+    @test XY(5, 5.0) === XY{Float64}(5.0, 5.0)
+    @test XY{UserUnit}(5, 5.0) === XY{UserUnit}(5.0, 5.0) === XY{UserUnit}(UserUnit(5), UserUnit(5))
+
+    @test isa(MouseButton{UserUnit}(), MouseButton{UserUnit})
+    @test isa(MouseButton{DeviceUnit}(), MouseButton{DeviceUnit})
+    @test isa(MouseScroll{UserUnit}(), MouseScroll{UserUnit})
+    @test isa(MouseScroll{DeviceUnit}(), MouseScroll{DeviceUnit})
+
     c = canvas(208, 207)
     win = Window(c)
     showall(win)
