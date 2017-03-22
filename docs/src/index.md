@@ -95,7 +95,7 @@ create one and add the slider to the window. We'll put it inside a
 ```jldoctest demo1
 julia> win = Window("Testing") |> (bx = Box(:v));  # a window containing a vertical Box for layout
 
-julia> push!(bx, sl);    # put the slider in the box
+julia> push!(bx, sl);    # put the slider in the box; shorthand for push!(bx, widget(sl))
 
 julia> showall(win);
 ```
@@ -126,7 +126,7 @@ update. Let's do the converse, and set the value of the slider
 programmatically:
 
 ```jldoctest demo1
-julia> push!(sl, 1)
+julia> push!(sl, 1)  # shorthand for push!(signal(sl), 1)
 ```
 
 Now if you check the window, you'll see that the slider is at 1.
@@ -179,6 +179,12 @@ Now let's load an image to draw into the canvas:
 julia> image = testimage("lighthouse");
 ```
 
+For what follows, it may be worth reminding readers that julia arrays
+are indexed as `image[row, column]`, whereas for graphics we usually
+think in terms of `(x, y)`. Since `x` corresponds to `column` and `y`
+corresponds to `row`, some operations will require that we swap the
+first and second indices.
+
 Zoom and pan interactions all work through a [`ZoomRegion`](@ref) signal; let's
 create one for this image:
 ```jldoctest demo2
@@ -226,15 +232,11 @@ julia> push!(zr, (100:300, indices(image, 2)))
 
 ![image2](assets/image2.png)
 
-Note that julia arrays are indexed `[row, column]`, whereas some
-graphical objects will be displayed `(x, y)` where `x` corresponds to
-`column` and `y` corresponds to `row`.
-
 More useful is to couple `zr` to mouse actions. Let's turn on both
 zooming and panning:
 
 ```jldoctest demo2
-julia> srb = init_zoom_rubberband(c, zr)
+julia> rb = init_zoom_rubberband(c, zr)
 Dict{String,Any} with 5 entries:
   "drag"    => Signal{Void}(nothing, nactions=0)
   "init"    => Signal{Void}(nothing, nactions=0)
@@ -242,7 +244,7 @@ Dict{String,Any} with 5 entries:
   "finish"  => Signal{Void}(nothing, nactions=0)
   "enabled" => Signal{Bool}(true, nactions=0)
 
-julia> spand = init_pan_drag(c, zr)
+julia> pandrag = init_pan_drag(c, zr)
 Dict{String,Any} with 5 entries:
   "drag"    => Signal{Void}(nothing, nactions=0)
   "init"    => Signal{Void}(nothing, nactions=0)
@@ -260,7 +262,7 @@ to full view.
 
 The returned dictionaries have a number of signals necessary for
 internal operations. Perhaps the only important user-level element is
-`enabled`; if you `push!(srg["enabled"], false)` then you can
+`enabled`; if you `push!(rb["enabled"], false)` then you can
 (temporarily) turn off rubber-band initiation.
 
 If you have a wheel mouse, you can activate additional interactions
