@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>A simple drawing program · GtkReactive</title><link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/4.2.0/normalize.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.5.0/styles/default.min.css" rel="stylesheet" type="text/css"/><link href="https://fonts.googleapis.com/css?family=Lato|Ubuntu+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet" type="text/css"/><link href="assets/documenter.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.2.0/require.min.js" data-main="assets/documenter.js"></script><script src="../versions.js"></script></head><body><nav class="toc"><h1>GtkReactive</h1><form class="search" action="search.html"><select id="version-selector" onChange="window.location.href=this.value"><option value="#" selected="selected" disabled="disabled">Version</option></select><input id="search-query" name="q" type="text" placeholder="Search docs"/></form><ul><li><a class="toctext" href="index.html">Introduction</a></li><li><a class="toctext" href="controls.html">A first example: GUI controls</a></li><li class="current"><a class="toctext" href="drawing.html">A simple drawing program</a><ul class="internal"></ul></li><li><a class="toctext" href="zoom_pan.html">Zoom and pan</a></li><li><a class="toctext" href="reference.html">Reference</a></li></ul></nav><article id="docs"><header><nav><ul><li><a href="drawing.html">A simple drawing program</a></li></ul><a class="edit-page" href="https://github.com/JuliaGizmos/GtkReactive.jl/tree/f9663bc89708439d4649831c49eac23a04691c91/docs/src/drawing.md"><span class="fa"></span> Edit on GitHub</a></nav><hr/></header><h1><a class="nav-anchor" id="A-simple-drawing-program-1" href="#A-simple-drawing-program-1">A simple drawing program</a></h1><p>Aside from widgets, GtkReactive also adds canvas interactions, specifically handling of mouse clicks and scroll events. We can explore some of these tools by building a simple program for drawing lines.</p><p>Let&#39;s begin by creating a window with a canvas in it:</p><pre><code class="language-julia">using Gtk.ShortNames, GtkReactive, Graphics, Colors
+
+win = Window(&quot;Drawing&quot;)
+c = canvas(UserUnit)       # create a canvas with user-specified coordinates
+push!(win, c)</code></pre><p>Here we specified <a href="reference.html#GtkReactive.UserUnit"><code>UserUnit</code></a> units for our drawing and mouse-position units; the default is <a href="reference.html#GtkReactive.DeviceUnit"><code>DeviceUnit</code></a>, a.k.a. pixels.  Here we prefer to specify our own units, which here we&#39;ll choose to be (0,0) for the top left and (1,1) for the bottom right. With this choice, if a user resizes the window by dragging its border, our lines will stay in the same relative position.</p><p>We&#39;re going to set this up so that a new line is started when the user clicks with the left mouse button; when the user releases the mouse button, the line is finished and added to a list of previously-drawn lines. Consequently, we need a place to store user data. We&#39;ll use Signals, so that our Canvas will be notified when there is new material to draw:</p><pre><code class="language-julia">const lines = Signal([])   # the list of lines that we&#39;ll draw
+const newline = Signal([]) # the in-progress line (will be added to list above)</code></pre><p>Now, let&#39;s make our application respond to mouse-clicks:</p><pre><code class="language-julia">const drawing = Signal(false)  # this will become true if we&#39;re actively dragging
+
+sigstart = map(c.mouse.buttonpress) do btn
+    if btn.button == 1 &amp;&amp; btn.modifiers == 0
+        push!(drawing, true)   # start extending the line
+        push!(newline, [btn.position])
+    end
+end</code></pre><p><code>sigstart</code> is also a signal; we won&#39;t do anything with it, but we assigned it to a variable to prevent it from being garbage-collected. (We could use <code>GtkReactive.gc_preserve(win, sigstart)</code> if we wanted to keep it alive for at least as long as <code>win</code> is active.)</p><p>Once the user clicks the button, <code>drawing</code> holds value <code>true</code>; from that point forward, any movement of the mouse extends the line by an additional vertex:</p><pre><code class="language-julia">const dummybutton = MouseButton{UserUnit}()
+sigextend = map(filterwhen(drawing, dummybutton, c.mouse.motion)) do btn
+    push!(newline, push!(value(newline), btn.position))
+end</code></pre><p>Notice that we made this conditional on <code>drawing</code> by using <code>filterwhen</code>; <code>dummybutton</code> is just a default value of the same type as <code>c.mouse.motion</code> to provide for <code>filterwhen</code>.</p><p>Finally, when the user releases the mouse button, we stop drawing, store <code>newline</code> in <code>lines</code>, and prepare for the next line by starting with an empty <code>newline</code>:</p><pre><code class="language-julia">sigend = map(c.mouse.buttonrelease) do btn
+    if btn.button == 1
+        push!(drawing, false)  # stop extending the line
+        push!(lines, push!(value(lines), value(newline)))
+        push!(newline, [])
+    end
+end</code></pre><p>At this point, you could already verify that these interactions work by monitoring <code>lines</code> from the command line by clicking, dragging, and releasing.</p><p>However, it&#39;s much more fun to see it in action. Let&#39;s set up a <code>draw</code> method for the canvas, one that gets called (1) whenever the window resizes, or (2) whenever <code>lines</code> or <code>newline</code> update:</p><pre><code class="language-julia">redraw = draw(c, lines, newline) do cnvs, lns, newl
+    fill!(cnvs, colorant&quot;white&quot;)   # background is white
+    set_coords(cnvs, BoundingBox(0, 1, 0, 1))  # set coordinates to 0..1 along each axis
+    ctx = getgc(cnvs)
+    for l in lns
+        drawline(ctx, l, colorant&quot;blue&quot;)  # draw old lines in blue
+    end
+    drawline(ctx, newl, colorant&quot;red&quot;)    # draw new line in red
+end
+
+function drawline(ctx, l, color)
+    isempty(l) &amp;&amp; return
+    p = first(l)
+    move_to(ctx, p.x, p.y)
+    set_source(ctx, color)
+    for i = 2:length(l)
+        p = l[i]
+        line_to(ctx, p.x, p.y)
+    end
+    stroke(ctx)
+end</code></pre><p>A lot of these commands come from Cairo.jl and/or Graphics.jl.</p><p>Our application is done! (But don&#39;t forget to <code>showall(win)</code>.) Here&#39;s a picture of me in the middle of a very fancy drawing:</p><p><img src="assets/drawing.png" alt="drawing"/></p><p>You can play with the completed application in the <code>examples/</code> folder.</p><footer><hr/><a class="previous" href="controls.html"><span class="direction">Previous</span><span class="title">A first example: GUI controls</span></a><a class="next" href="zoom_pan.html"><span class="direction">Next</span><span class="title">Zoom and pan</span></a></footer></article></body></html>
