@@ -32,7 +32,7 @@ function init_zoom_rubberband{U,T}(canvas::Canvas{U},
         nothing
     end
     rb = RubberBand(XY{U}(-1,-1), XY{U}(-1,-1), false, minpixels)
-    dummybtn = MouseButton(XY{U}(-1, -1), 0, 0, 0)
+    dummybtn = MouseButton{U}()
     local ctxcopy
     init = map(filterwhen(enabled, dummybtn, canvas.mouse.buttonpress)) do btn
         if initiate(btn)
