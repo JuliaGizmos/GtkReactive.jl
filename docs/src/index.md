@@ -14,7 +14,7 @@ Creating a GUI generally involves some or all of the following:
 2. arranging the controls (layout) in one or more windows
 3. specifying the interactions among components of the GUI
 4. (for graphical applications) canvas drawing
-5. (for graphical applicaitons) canvas interaction (mouse clicks, drags, etc.)
+5. (for graphical applications) canvas interaction (mouse clicks, drags, etc.)
 
 GtkReactive is targeted primarily at items 1, 3, and 5. Layout is
 handled by Gtk.jl, and drawing (with a couple of exceptions) is
@@ -28,7 +28,7 @@ GtkReactive is suitable for:
 
 For usage with Glade, the [Input widgets](@ref) and
 [Output widgets](@ref) defined by this package allow you to supply a
-pre-existing `widget` (which you might load with GtkBuilder) rather
+preexisting `widget` (which you might load with GtkBuilder) rather
 than creating one from scratch. Users interested in using GtkReactive
 with Glade are encouraged to see how the [`player`](@ref) widget is
 constructed (see `src/extrawidgets.jl`).
@@ -45,7 +45,7 @@ updating with new values that then triggers actions that may update
 other `Signal`s or execute functions. Your GUI ends up being
 represented as a "graph" of Signals that collectively propagate the
 state of your GUI. GtkReactive couples `Signal`s to Gtk.jl's
-widgets. In essense, Reactive.jl allows ordinary Julia objects to
+widgets. In essence, Reactive.jl allows ordinary Julia objects to
 become the triggers for callback actions; the primary advantage of
 using Julia objects, rather than Gtk widgets, as the "application
 logic" triggers is that it simplifies reasoning about the GUI and
