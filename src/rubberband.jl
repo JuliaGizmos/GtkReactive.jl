@@ -28,7 +28,10 @@ function init_zoom_rubberband{U,T}(canvas::Canvas{U},
     active = Signal(false)
     function update_zr(widget, bb)
         push!(active, false)
-        push!(zr, ZoomRegion(value(zr).fullview, bb))
+        fv = value(zr).fullview
+        push!(zr, ZoomRegion(fv, XY(interior(bb.xmin..bb.xmax, fv.x),
+                                    interior(bb.ymin..bb.ymax, fv.y))
+                             ))
         nothing
     end
     rb = RubberBand(XY{U}(-1,-1), XY{U}(-1,-1), false, minpixels)
