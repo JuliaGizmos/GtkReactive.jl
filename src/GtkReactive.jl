@@ -70,7 +70,8 @@ include("rubberband.jl")
 # Containers
 (::Type{GtkWindow})(w::Union{Widget,Canvas}) = GtkWindow(widget(w))
 (::Type{GtkFrame})(w::Union{Widget,Canvas}) = GtkFrame(widget(w))
-(::Type{GtkAspectFrame})(w::Union{Widget,Canvas}) = GtkAspectFrame(widget(w))
+(::Type{GtkAspectFrame})(w::Union{Widget,Canvas}, args...) =
+    GtkAspectFrame(widget(w), args...)
 
 Base.push!(container::Union{Gtk.GtkBin,GtkBox}, child::Widget) =
     push!(container, widget(child))

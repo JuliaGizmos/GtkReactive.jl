@@ -13,6 +13,9 @@ zr = Signal(ZoomRegion(img))
 # Interactivity: hold down Ctrl and then click-drag to select a
 # region via rubberband. It updates `zr`.
 zoomsigs = init_zoom_rubberband(c, zr)
+# See also: init_pan_drag, init_zoom_scroll, init_pan_scroll
+# You can turn on all of these for the same canvas
+
 # Create a Signal containing a `view` of the image over the
 # region of interest. This view will update anytime `zr` updates.
 imgsig = map(zr) do r

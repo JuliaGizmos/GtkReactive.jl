@@ -46,6 +46,9 @@ immutable UserUnit <: CairoUnit
     val::Float64
 end
 
+Base.promote_rule{U<:UserUnit,D<:DeviceUnit}(::Type{U}, ::Type{D}) =
+    error("UserUnit and DeviceUnit are incompatible, promotion not defined")
+
 function convertunits(::Type{UserUnit}, c, x::DeviceUnit, y::DeviceUnit)
     xu, yu = device_to_user(getgc(c), x.val, y.val)
     UserUnit(xu), UserUnit(yu)

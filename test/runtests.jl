@@ -1,4 +1,5 @@
-using GtkReactive, Gtk.ShortNames, IntervalSets, Graphics, Colors, TestImages, FileIO
+using GtkReactive, Gtk.ShortNames, IntervalSets, Graphics, Colors,
+      TestImages, FileIO, FixedPointNumbers
 using Base.Test
 
 try
@@ -6,15 +7,18 @@ try
 catch
 end
 
-rr() = (Reactive.run_till_now(); yield())
+include("tools.jl")
 
 @testset "Widgets" begin
     ## label
     l = label("Hello")
+    @test signal(l) == l.signal
+    @test signal(signal(l)) == l.signal
     @test getproperty(l, :label, String) == "Hello"
     push!(signal(l), "world")
     rr()
     @test getproperty(l, :label, String) == "world"
+    @test string(l) == "Gtk.GtkLabelLeaf with Signal{String}(world, nactions=1)"
 
     ## checkbox
     w = Window("Checkbox")
@@ -163,8 +167,25 @@ if Gtk.libgtk_version >= v"3.10"
         rr()
         sleep(0.01)
         @test value(s) == 2
+        push!(p.widget.play_forward, nothing)
+        rr()
+        sleep(0.5)
+        @test value(s) == 8
         destroy(win)
     end
+end
+
+@testset "CairoUnits" begin
+    x = UserUnit(0.2)
+    @test x+x === UserUnit(0.2+0.2)
+    @test x-x === UserUnit(0.0)
+    y = UserUnit(-0.3)
+    @test abs(x) === x
+    @test abs(y) === UserUnit(0.3)
+    @test min(x, y) === y
+    @test max(x, y) === x
+    z = DeviceUnit(2.0)
+    @test_throws ErrorException x+z
 end
 
 @testset "Canvas" begin
@@ -177,6 +198,8 @@ end
     @test isa(MouseScroll{UserUnit}(), MouseScroll{UserUnit})
     @test isa(MouseScroll{DeviceUnit}(), MouseScroll{DeviceUnit})
 
+    @test BoundingBox(XY(2..4, -15..15)) === BoundingBox(2, 4, -15, 15)
+
     c = canvas(208, 207)
     win = Window(c)
     showall(win)
@@ -188,29 +211,73 @@ end
     c = canvas(UserUnit, 208, 207)
     win = Window(c)
     showall(win)
+    reveal(c, true)
     sleep(0.1)
     @test isa(c, GtkReactive.Canvas{UserUnit})
-    set_coordinates(c, BoundingBox(0, 1, 0, 1))
     corner_dev = (DeviceUnit(208), DeviceUnit(207))
-    corner_usr = (UserUnit(1), UserUnit(1))
-    @test GtkReactive.convertunits(UserUnit, c, corner_dev...) == corner_usr
-    @test GtkReactive.convertunits(DeviceUnit, c, corner_dev...) == corner_dev
-    @test GtkReactive.convertunits(UserUnit, c, corner_usr...) == corner_usr
-    @test GtkReactive.convertunits(DeviceUnit, c, corner_usr...) == corner_dev
+    for (coords, corner_usr) in ((BoundingBox(0, 1, 0, 1), (UserUnit(1), UserUnit(1))),
+                                 (ZoomRegion((5:10, 3:5)), (UserUnit(5), UserUnit(10))),
+                                 ((-1:1, 101:110), (UserUnit(110), UserUnit(1))))
+        set_coordinates(c, coords)
+        @test GtkReactive.convertunits(UserUnit, c, corner_dev...) == corner_usr
+        @test GtkReactive.convertunits(DeviceUnit, c, corner_dev...) == corner_dev
+        @test GtkReactive.convertunits(UserUnit, c, corner_usr...) == corner_usr
+        @test GtkReactive.convertunits(DeviceUnit, c, corner_usr...) == corner_dev
+    end
+
     destroy(win)
 
-    # Test that we can link a popup menu
-    # Generate a raw mouse-click event
-    eventbutton(c, event_type, btn) = Gtk.GdkEventButton(event_type,
-                                                         Gtk.gdk_window(widget(c)),
-                                                         Int8(0),
-                                                         UInt32(0),
-                                                         0.0, 0.0,
-                                                         convert(Ptr{Float64},C_NULL),
-                                                         UInt32(0),
-                                                         UInt32(btn),
-                                                         C_NULL,
-                                                         0.0, 0.0)
+
+    c = canvas()
+    f = Frame(c)
+    @test isa(f, Gtk.GtkFrameLeaf)
+    destroy(f)
+    c = canvas()
+    f = AspectFrame(c, "Some title", 0.5, 0.5, 3.0)
+    @test isa(f, Gtk.GtkAspectFrameLeaf)
+    @test getproperty(f, :ratio, Float64) == 3.0
+    destroy(f)
+end
+
+# @testset "Canvas events" begin
+    win = Window() |> (c = canvas(UserUnit))
+    showall(win)
+    sleep(0.1)
+    lastevent = Ref("nothing")
+    press   = map(btn->lastevent[] = "press",   c.mouse.buttonpress)
+    release = map(btn->lastevent[] = "release", c.mouse.buttonrelease)
+    motion  = map(btn->lastevent[] = string("motion to ", btn.position.x, ", ", btn.position.y),
+                  c.mouse.motion)
+    scroll  = map(btn->lastevent[] = "scroll", c.mouse.scroll)
+    rr()
+    lastevent[] = "nothing"
+    @test lastevent[] == "nothing"
+    signal_emit(widget(c), "button-press-event", Bool, eventbutton(c, BUTTON_PRESS, 1))
+    sleep(0.1)
+    rr()
+    @test lastevent[] == "press"
+    signal_emit(widget(c), "button-release-event", Bool, eventbutton(c, GtkReactive.BUTTON_RELEASE, 1))
+    sleep(0.1)
+    rr()
+    sleep(0.1)
+    rr()
+    @test lastevent[] == "release"
+    signal_emit(widget(c), "scroll-event", Bool, eventscroll(c, UP))
+    sleep(0.1)
+    rr()
+    sleep(0.1)
+    rr()
+    @test lastevent[] == "scroll"
+    signal_emit(widget(c), "motion-notify-event", Bool, eventmotion(c, 0, UserUnit(20), UserUnit(15)))
+    sleep(0.1)
+    rr()
+    sleep(0.1)
+    rr()
+    @test lastevent[] == "motion to GtkReactive.UserUnit(20.0), GtkReactive.UserUnit(15.0)"
+    destroy(win)
+# end
+
+@testset "Popup" begin
     popupmenu = Menu()
     popupitem = MenuItem("Popup menu...")
     push!(popupmenu, popupitem)
@@ -267,7 +334,7 @@ end
 end
 
 @testset "Zoom/pan" begin
-    zr = GtkReactive.ZoomRegion((1:80, 1:100))  # y, x order
+    zr = ZoomRegion((1:80, 1:100))  # y, x order
     zrz = GtkReactive.zoom(zr, 0.5)
     @test zrz.currentview.x == 26..75
     @test zrz.currentview.y == 21..60
@@ -304,13 +371,133 @@ end
     @test zrz.currentview.y == 16..55
     zrr = GtkReactive.reset(zrz)
     @test zrr == zr
+
+    zrbb = ZoomRegion(zr.fullview, BoundingBox(5, 15, 35, 75))
+    @test zrbb.fullview === zr.fullview
+    @test zrbb.currentview.x == 5..15
+    @test zrbb.currentview.y == 35..75
+    @test typeof(zrbb.currentview) == typeof(zr.currentview)
+
+    zrsig = Signal(zr)
+    push!(zrsig, (3:5, 4:7))
+    rr()
+    zr = value(zrsig)
+    @test zr.fullview.y == 1..80
+    @test zr.fullview.x == 1..100
+    @test zr.currentview.y == 3..5
+    @test zr.currentview.x == 4..7
 end
 
-@testset "Demos" begin
-    examplepath = joinpath(dirname(dirname(@__FILE__)), "examples")
-    include(joinpath(examplepath, "imageviewer.jl"))
-    include(joinpath(examplepath, "widgets.jl"))
-    include(joinpath(examplepath, "drawing.jl"))
+### Simulate the mouse clicks, etc. to trigger zoom/pan
+# Again, this doesn't seem to work inside a @testset
+win = Window() |> (c = canvas(UserUnit))
+zr = Signal(ZoomRegion((1:11, 1:20)))
+zoomrb = init_zoom_rubberband(c, zr)
+zooms = init_zoom_scroll(c, zr)
+pans = init_pan_scroll(c, zr)
+pand = init_pan_drag(c, zr)
+draw(c) do cnvs
+    set_coordinates(c, value(zr))
+    fill!(c, colorant"blue")
 end
+showall(win)
+sleep(0.1)
+
+# Zoom by rubber band
+signal_emit(widget(c), "button-press-event", Bool,
+            eventbutton(c, BUTTON_PRESS, 1, UserUnit(5), UserUnit(3), CONTROL))
+sleep(0.1)
+rr()
+signal_emit(widget(c), "motion-notify-event", Bool,
+            eventmotion(c, mask(1), UserUnit(10), UserUnit(4)))
+sleep(0.1)
+rr()
+signal_emit(widget(c), "button-release-event", Bool,
+            eventbutton(c, GtkReactive.BUTTON_RELEASE, 1, UserUnit(10), UserUnit(4)))
+sleep(0.1)
+rr()
+sleep(0.1)
+rr()
+@test value(zr).currentview.x == 5..10
+@test value(zr).currentview.y == 3..4
+# Ensure that the rubber band damage has been repaired
+fn = tempname()
+Cairo.write_to_png(getgc(c).surface, fn)
+imgout = load(fn)
+rm(fn)
+@test all(x->x==colorant"blue", imgout)
+
+# Pan-drag
+signal_emit(widget(c), "button-press-event", Bool,
+            eventbutton(c, BUTTON_PRESS, 1, UserUnit(6), UserUnit(3), 0))
+sleep(0.1)
+rr()
+signal_emit(widget(c), "motion-notify-event", Bool,
+            eventmotion(c, mask(1), UserUnit(7), UserUnit(2)))
+sleep(0.1)
+rr()
+sleep(0.1)
+rr()
+@test value(zr).currentview.x == 4..9
+@test value(zr).currentview.y == 4..5
+
+# Reset
+signal_emit(widget(c), "button-press-event", Bool,
+            eventbutton(c, DOUBLE_BUTTON_PRESS, 1, UserUnit(5), UserUnit(4.5), CONTROL))
+sleep(0.1)
+rr()
+sleep(0.1)
+rr()
+@test value(zr).currentview.x == 1..20
+@test value(zr).currentview.y == 1..11
+
+# Zoom-scroll
+signal_emit(widget(c), "scroll-event", Bool,
+            eventscroll(c, UP, UserUnit(8), UserUnit(4), CONTROL))
+sleep(0.1)
+rr()
+sleep(0.1)
+rr()
+@test value(zr).currentview.x == 4..14
+@test value(zr).currentview.y == 2..8
+
+# Pan-scroll
+signal_emit(widget(c), "scroll-event", Bool,
+            eventscroll(c, RIGHT, UserUnit(8), UserUnit(4), 0))
+sleep(0.1)
+rr()
+sleep(0.1)
+rr()
+@test value(zr).currentview.x == 5..15
+@test value(zr).currentview.y == 2..8
+
+signal_emit(widget(c), "scroll-event", Bool,
+            eventscroll(c, DOWN, UserUnit(8), UserUnit(4), 0))
+sleep(0.1)
+rr()
+sleep(0.1)
+rr()
+@test value(zr).currentview.x == 5..15
+@test value(zr).currentview.y == 3..9
+
+destroy(win)
+
+@testset "Surfaces" begin
+    for (val, cmp) in ((0.2, Gray24(0.2)),
+                       (Gray(N0f8(0.5)), Gray24(0.5)),
+                       (RGB(0, 1, 0), RGB24(0, 1, 0)),
+                       (RGBA(1, 0, 0.5, 0.8), ARGB32(1, 0, 0.5, 0.8)))
+        surf = GtkReactive.image_surface(fill(val, 3, 5))
+        @test surf.height == 3 && surf.width == 5
+        @test all(x->x == reinterpret(UInt32, cmp), surf.data)
+        destroy(surf)
+    end
+end
+
+# Ensure that the examples run
+examplepath = joinpath(dirname(dirname(@__FILE__)), "examples")
+include(joinpath(examplepath, "imageviewer.jl"))
+include(joinpath(examplepath, "widgets.jl"))
+include(joinpath(examplepath, "drawing.jl"))
 
 nothing
