@@ -150,6 +150,17 @@ function slider{T}(range::Range{T};
     Slider(signal, widget, id, preserved)
 end
 
+# Adjust the range on a slider
+# Is calling this `push!` too much of a pun?
+function Base.push!(s::Slider, range::Range, value=value(s))
+    first(range) <= value <= last(range) || error("$value is not within the span of $range")
+    adj = Gtk.Adjustment(widget(s))
+    Gtk.G_.lower(adj, first(range))
+    Gtk.G_.upper(adj, last(range))
+    Gtk.G_.step_increment(adj, step(range))
+    Gtk.G_.value(widget(s), value)
+end
+
 ######################### Checkbox ###########################
 
 immutable Checkbox <: InputWidget{Bool}
@@ -553,7 +564,8 @@ function dropdown(; choices=nothing,
     push!(preserved, init_signal2widget(getactive, setactive!, widget, id, signal))
     if !allstrings
         choicedict = Dict(choices...)
-        mappedsignal = map(val->choicedict[val], signal; typ=Any)
+        # yield() seems to help when running under Pkg.test, not sure why
+        mappedsignal = map(val->(yield(); choicedict[val]), signal; typ=Any)
     else
         mappedsignal = Signal(nothing)
     end

@@ -6,6 +6,6 @@ Colors
 FixedPointNumbers 0.3
 Reexport
 Reactive 0.3.0
-Graphics
+Graphics 0.2
 IntervalSets 0.0.5
 RoundingIntegers

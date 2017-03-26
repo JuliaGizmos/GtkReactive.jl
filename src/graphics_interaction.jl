@@ -38,12 +38,16 @@ end
     UserUnit(x)
 
 Represent a number `x` as having "user" units, i.e., whatever units
-have been established with [`set_coords`](@ref). See the Cairo
-documentation.
+have been established with calls that affect the transformation
+matrix, e.g., [`Graphics.set_coordinates`](@ref) or
+[`Cairo.set_matrix`](@ref).
 """
 immutable UserUnit <: CairoUnit
     val::Float64
 end
+
+Base.promote_rule{U<:UserUnit,D<:DeviceUnit}(::Type{U}, ::Type{D}) =
+    error("UserUnit and DeviceUnit are incompatible, promotion not defined")
 
 function convertunits(::Type{UserUnit}, c, x::DeviceUnit, y::DeviceUnit)
     xu, yu = device_to_user(getgc(c), x.val, y.val)
@@ -110,15 +114,16 @@ immutable MouseButton{U<:CairoUnit}
     button::UInt32
     clicktype::typeof(BUTTON_PRESS)
     modifiers::typeof(SHIFT)
+    gtkevent
 end
-function MouseButton{U}(pos::XY{U}, button::Integer, clicktype::Integer, modifiers::Integer)
-    MouseButton{U}(pos, UInt32(button), oftype(BUTTON_PRESS, clicktype), oftype(SHIFT, modifiers))
+function MouseButton{U}(pos::XY{U}, button::Integer, clicktype::Integer, modifiers::Integer, gtkevent=nothing)
+    MouseButton{U}(pos, UInt32(button), oftype(BUTTON_PRESS, clicktype), oftype(SHIFT, modifiers), gtkevent)
 end
 function (::Type{MouseButton{U}}){U}(w::GtkCanvas, evt::Gtk.GdkEvent)
-    MouseButton{U}(XY{U}(w, evt), evt.button, evt.event_type, evt.state)
+    MouseButton{U}(XY{U}(w, evt), evt.button, evt.event_type, evt.state, evt)
 end
 function (::Type{MouseButton{U}}){U}()
-    MouseButton(XY(U(-1), U(-1)), 0, 0, 0)
+    MouseButton(XY(U(-1), U(-1)), 0, 0, 0, nothing)
 end
 
 """
@@ -285,13 +290,21 @@ function Base.fill!(c::Union{GtkCanvas,Canvas}, color::Colorant)
     fill(ctx)
 end
 
-image_surface(img::Matrix{Gray24}) = Cairo.CairoImageSurface(reinterpret(UInt32, img), Cairo.FORMAT_RGB24)
-image_surface(img::Matrix{RGB24})  = Cairo.CairoImageSurface(reinterpret(UInt32, img), Cairo.FORMAT_RGB24)
-image_surface(img::Matrix{ARGB32}) = Cairo.CairoImageSurface(reinterpret(UInt32, img), Cairo.FORMAT_ARGB32)
+image_surface(img::Matrix{Gray24}) =
+    Cairo.CairoImageSurface(reinterpret(UInt32, img), Cairo.FORMAT_RGB24)
+image_surface(img::Matrix{RGB24})  =
+    Cairo.CairoImageSurface(reinterpret(UInt32, img), Cairo.FORMAT_RGB24)
+image_surface(img::Matrix{ARGB32}) =
+    Cairo.CairoImageSurface(reinterpret(UInt32, img), Cairo.FORMAT_ARGB32)
 
-image_surface{T<:Number}(img::AbstractArray{T}) = image_surface(convert(Matrix{Gray24}, img))
-image_surface{C<:Color}(img::AbstractArray{C}) = image_surface(convert(Matrix{RGB24}, img))
-image_surface{C<:Colorant}(img::AbstractArray{C}) = image_surface(convert(Matrix{ARGB32}, img))
+image_surface{T<:Number}(img::AbstractArray{T}) =
+    image_surface(convert(Matrix{Gray24}, img))
+image_surface{T<:ColorTypes.AbstractGray}(img::AbstractArray{T}) =
+    image_surface(convert(Matrix{Gray24}, img))
+image_surface{C<:Color}(img::AbstractArray{C}) =
+    image_surface(convert(Matrix{RGB24}, img))
+image_surface{C<:Colorant}(img::AbstractArray{C}) =
+    image_surface(convert(Matrix{ARGB32}, img))
 
 
 # Coordiantes could be AbstractFloat without an implied step, so let's
