@@ -286,13 +286,21 @@ function Base.fill!(c::Union{GtkCanvas,Canvas}, color::Colorant)
     fill(ctx)
 end
 
-image_surface(img::Matrix{Gray24}) = Cairo.CairoImageSurface(reinterpret(UInt32, img), Cairo.FORMAT_RGB24)
-image_surface(img::Matrix{RGB24})  = Cairo.CairoImageSurface(reinterpret(UInt32, img), Cairo.FORMAT_RGB24)
-image_surface(img::Matrix{ARGB32}) = Cairo.CairoImageSurface(reinterpret(UInt32, img), Cairo.FORMAT_ARGB32)
+image_surface(img::Matrix{Gray24}) =
+    Cairo.CairoImageSurface(reinterpret(UInt32, img), Cairo.FORMAT_RGB24)
+image_surface(img::Matrix{RGB24})  =
+    Cairo.CairoImageSurface(reinterpret(UInt32, img), Cairo.FORMAT_RGB24)
+image_surface(img::Matrix{ARGB32}) =
+    Cairo.CairoImageSurface(reinterpret(UInt32, img), Cairo.FORMAT_ARGB32)
 
-image_surface{T<:Number}(img::AbstractArray{T}) = image_surface(convert(Matrix{Gray24}, img))
-image_surface{C<:Color}(img::AbstractArray{C}) = image_surface(convert(Matrix{RGB24}, img))
-image_surface{C<:Colorant}(img::AbstractArray{C}) = image_surface(convert(Matrix{ARGB32}, img))
+image_surface{T<:Number}(img::AbstractArray{T}) =
+    image_surface(convert(Matrix{Gray24}, img))
+image_surface{T<:ColorTypes.AbstractGray}(img::AbstractArray{T}) =
+    image_surface(convert(Matrix{Gray24}, img))
+image_surface{C<:Color}(img::AbstractArray{C}) =
+    image_surface(convert(Matrix{RGB24}, img))
+image_surface{C<:Colorant}(img::AbstractArray{C}) =
+    image_surface(convert(Matrix{ARGB32}, img))
 
 
 # Coordiantes could be AbstractFloat without an implied step, so let's
