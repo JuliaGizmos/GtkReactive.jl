@@ -92,6 +92,15 @@ rr() = (Reactive.run_till_now(); yield())
     destroy(s2)
     destroy(s)
 
+    # Updating the limits of the slider
+    s = slider(1:15)
+    sleep(0.01)    # For the Gtk eventloop
+    @test value(s) == 8
+    push!(s, 1:7, 5)
+    sleep(0.01)
+    rr()
+    @test value(s) == 5
+
     ## dropdown
     dd = dropdown(("Strawberry", "Vanilla", "Chocolate"))
     @test value(dd) == "Strawberry"

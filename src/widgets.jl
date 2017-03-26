@@ -150,6 +150,17 @@ function slider{T}(range::Range{T};
     Slider(signal, widget, id, preserved)
 end
 
+# Adjust the range on a slider
+# Is calling this `push!` too much of a pun?
+function Base.push!(s::Slider, range::Range, value=value(s))
+    first(range) <= value <= last(range) || error("$value is not within the span of $range")
+    adj = Gtk.Adjustment(widget(s))
+    Gtk.G_.lower(adj, first(range))
+    Gtk.G_.upper(adj, last(range))
+    Gtk.G_.step_increment(adj, step(range))
+    Gtk.G_.value(widget(s), value)
+end
+
 ######################### Checkbox ###########################
 
 immutable Checkbox <: InputWidget{Bool}
