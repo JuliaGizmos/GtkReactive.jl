@@ -110,15 +110,16 @@ immutable MouseButton{U<:CairoUnit}
     button::UInt32
     clicktype::typeof(BUTTON_PRESS)
     modifiers::typeof(SHIFT)
+    gtkevent
 end
-function MouseButton{U}(pos::XY{U}, button::Integer, clicktype::Integer, modifiers::Integer)
-    MouseButton{U}(pos, UInt32(button), oftype(BUTTON_PRESS, clicktype), oftype(SHIFT, modifiers))
+function MouseButton{U}(pos::XY{U}, button::Integer, clicktype::Integer, modifiers::Integer, gtkevent=nothing)
+    MouseButton{U}(pos, UInt32(button), oftype(BUTTON_PRESS, clicktype), oftype(SHIFT, modifiers), gtkevent)
 end
 function (::Type{MouseButton{U}}){U}(w::GtkCanvas, evt::Gtk.GdkEvent)
-    MouseButton{U}(XY{U}(w, evt), evt.button, evt.event_type, evt.state)
+    MouseButton{U}(XY{U}(w, evt), evt.button, evt.event_type, evt.state, evt)
 end
 function (::Type{MouseButton{U}}){U}()
-    MouseButton(XY(U(-1), U(-1)), 0, 0, 0)
+    MouseButton(XY(U(-1), U(-1)), 0, 0, 0, nothing)
 end
 
 """

@@ -77,6 +77,8 @@ Base.push!(container::Union{Gtk.GtkBin,GtkBox}, child::Widget) =
 Base.push!(container::Union{Gtk.GtkBin,GtkBox}, child::Canvas) =
     push!(container, widget(child))
 
+Base.:|>(parent::Gtk.GtkContainer, child::Union{Widget,Canvas}) = push!(parent, child)
+
 widget(c::Canvas) = c.widget
 
 Gtk.setproperty!(w::Union{Widget,Canvas}, key, val) = setproperty!(widget(w), key, val)

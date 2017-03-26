@@ -197,6 +197,44 @@ end
     @test GtkReactive.convertunits(UserUnit, c, corner_usr...) == corner_usr
     @test GtkReactive.convertunits(DeviceUnit, c, corner_usr...) == corner_dev
     destroy(win)
+
+    # Test that we can link a popup menu
+    # Generate a raw mouse-click event
+    eventbutton(c, event_type, btn) = Gtk.GdkEventButton(event_type,
+                                                         Gtk.gdk_window(widget(c)),
+                                                         Int8(0),
+                                                         UInt32(0),
+                                                         0.0, 0.0,
+                                                         convert(Ptr{Float64},C_NULL),
+                                                         UInt32(0),
+                                                         UInt32(btn),
+                                                         C_NULL,
+                                                         0.0, 0.0)
+    popupmenu = Menu()
+    popupitem = MenuItem("Popup menu...")
+    push!(popupmenu, popupitem)
+    showall(popupmenu)
+    win = Window() |> (c = canvas())
+    popuptriggered = Ref(false)
+    push!(c.preserved, map(c.mouse.buttonpress) do btn
+        if btn.button == 3 && btn.clicktype == BUTTON_PRESS
+            popup(popupmenu, btn.gtkevent)  # use the raw Gtk event
+            popuptriggered[] = true
+            nothing
+        end
+    end)
+    yield()
+    @test !popuptriggered[]
+    evt = eventbutton(c, BUTTON_PRESS, 1)
+    signal_emit(widget(c), "button-press-event", Bool, evt)
+    yield()
+    @test !popuptriggered[]
+    evt = eventbutton(c, BUTTON_PRESS, 3)
+    signal_emit(widget(c), "button-press-event", Bool, evt)
+    yield()
+    @test popuptriggered[]
+    destroy(win)
+    destroy(popupmenu)
 end
 
 @testset "Drawing" begin
