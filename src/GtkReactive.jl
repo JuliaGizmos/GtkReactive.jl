@@ -68,9 +68,9 @@ include("rubberband.jl")
 
 ## More convenience functions
 # Containers
-(::Type{GtkWindow})(c::Canvas) = GtkWindow(c.widget)
-(::Type{GtkFrame})(c::Canvas) = GtkFrame(c.widget)
-(::Type{GtkAspectFrame})(c::Canvas) = GtkAspectFrame(c.widget)
+(::Type{GtkWindow})(w::Union{Widget,Canvas}) = GtkWindow(widget(w))
+(::Type{GtkFrame})(w::Union{Widget,Canvas}) = GtkFrame(widget(w))
+(::Type{GtkAspectFrame})(w::Union{Widget,Canvas}) = GtkAspectFrame(widget(w))
 
 Base.push!(container::Union{Gtk.GtkBin,GtkBox}, child::Widget) =
     push!(container, widget(child))
@@ -78,6 +78,11 @@ Base.push!(container::Union{Gtk.GtkBin,GtkBox}, child::Canvas) =
     push!(container, widget(child))
 
 widget(c::Canvas) = c.widget
+
+Gtk.setproperty!(w::Union{Widget,Canvas}, key, val) = setproperty!(widget(w), key, val)
+Gtk.getproperty(w::Union{Widget,Canvas}, key) = getproperty(widget(w), key)
+Gtk.getproperty{T}(w::Union{Widget,Canvas}, key, ::Type{T}) = getproperty(widget(w), key, T)
+
 Graphics.getgc(c::Canvas) = getgc(c.widget)
 Graphics.width(c::Canvas) = Graphics.width(c.widget)
 Graphics.height(c::Canvas) = height(c.widget)

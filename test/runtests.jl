@@ -11,21 +11,21 @@ rr() = (Reactive.run_till_now(); yield())
 @testset "Widgets" begin
     ## label
     l = label("Hello")
-    @test getproperty(l.widget, :label, String) == "Hello"
+    @test getproperty(l, :label, String) == "Hello"
     push!(signal(l), "world")
     rr()
-    @test getproperty(l.widget, :label, String) == "world"
+    @test getproperty(l, :label, String) == "world"
 
     ## checkbox
     w = Window("Checkbox")
     check = checkbox(label="click me")
     push!(w, check)
     showall(w)
-    @test value(signal(check)) == false
+    @test value(check) == false
     @test Gtk.G_.active(check.widget) == false
-    push!(signal(check), true)
+    push!(check, true)
     rr()
-    @test value(signal(check))
+    @test value(check)
     @test Gtk.G_.active(check.widget)
     destroy(w)
 
@@ -34,11 +34,11 @@ rr() = (Reactive.run_till_now(); yield())
     tgl = togglebutton(label="click me")
     push!(w, tgl)
     showall(w)
-    @test value(signal(tgl)) == false
+    @test value(tgl) == false
     @test Gtk.G_.active(tgl.widget) == false
-    push!(signal(tgl), true)
+    push!(tgl, true)
     rr()
-    @test value(signal(tgl))
+    @test value(tgl)
     @test Gtk.G_.active(tgl.widget)
     destroy(w)
 
@@ -49,24 +49,28 @@ rr() = (Reactive.run_till_now(); yield())
     push!(bx, txt)
     push!(bx, num)
     showall(win)
-    @test getproperty(txt.widget, :text, String) == "Type something"
-    push!(signal(txt), "ok")
+    @test getproperty(txt, :text, String) == "Type something"
+    push!(txt, "ok")
     rr()
-    @test getproperty(txt.widget, :text, String) == "ok"
-    @test getproperty(num.widget, :text, String) == "5"
+    @test getproperty(txt, :text, String) == "ok"
+    setproperty!(txt, :text, "other direction")
+    signal_emit(widget(txt), :activate, Void)
+    rr()
+    @test value(txt) == "other direction"
+    @test getproperty(num, :text, String) == "5"
     push!(signal(num), 11, (sig, val, capex) -> throw(capex.ex))
     @test_throws ArgumentError rr()
-    push!(signal(num), 8)
+    push!(num, 8)
     rr()
-    @test getproperty(num.widget, :text, String) == "8"
+    @test getproperty(num, :text, String) == "8"
     destroy(win)
 
     ## textarea (aka TextView)
     v = textarea("Type something longer")
-    win = Window(v.widget)
+    win = Window(v)
     showall(win)
-    @test value(signal(v)) == "Type something longer"
-    push!(signal(v), "ok")
+    @test value(v) == "Type something longer"
+    push!(v, "ok")
     rr()
     @test getproperty(Gtk.G_.buffer(v.widget), :text, String) == "ok"
     destroy(win)
@@ -75,14 +79,14 @@ rr() = (Reactive.run_till_now(); yield())
     s = slider(1:15)
     sleep(0.01)    # For the Gtk eventloop
     @test value(s) == 8
-    push!(signal(s), 3)
+    push!(s, 3)
     rr()
     @test value(s) == 3
 
     # Use a single signal for two widgets
     s2 = slider(1:15, signal=signal(s), orientation='v')
     @test value(s2) == 3
-    push!(signal(s2), 11)
+    push!(s2, 11)
     rr()
     @test value(s) == 11
     destroy(s2)
@@ -91,9 +95,9 @@ rr() = (Reactive.run_till_now(); yield())
     ## dropdown
     dd = dropdown(("Strawberry", "Vanilla", "Chocolate"))
     @test value(dd) == "Strawberry"
-    push!(signal(dd), "Chocolate")
+    push!(dd, "Chocolate")
     rr()
-    @test getproperty(dd.widget, :active, Int) == 2
+    @test getproperty(dd, :active, Int) == 2
     destroy(dd.widget)
 
     r = Ref(0)
@@ -102,11 +106,11 @@ rr() = (Reactive.run_till_now(); yield())
     rr()
     @test value(dd) == "Five"
     @test r[] == 5
-    push!(signal(dd), "Seven")
+    push!(dd, "Seven")
     rr()
     @test value(dd) == "Seven"
     @test r[] == 7
-    push!(signal(dd), "Five")
+    push!(dd, "Five")
     rr()
     @test r[] == 5
     destroy(dd.widget)
@@ -144,7 +148,7 @@ if Gtk.libgtk_version >= v"3.10"
         rr()
         btn_fwd = p.widget.step_forward
         @test value(s) == 1
-        push!(signal(btn_fwd), nothing)
+        push!(btn_fwd, nothing)
         sleep(0.01)
         rr()
         sleep(0.01)
@@ -258,6 +262,7 @@ end
     examplepath = joinpath(dirname(dirname(@__FILE__)), "examples")
     include(joinpath(examplepath, "imageviewer.jl"))
     include(joinpath(examplepath, "widgets.jl"))
+    include(joinpath(examplepath, "drawing.jl"))
 end
 
 nothing
