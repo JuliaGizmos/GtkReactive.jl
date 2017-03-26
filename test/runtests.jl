@@ -110,8 +110,9 @@ rr() = (Reactive.run_till_now(); yield())
     destroy(dd.widget)
 
     r = Ref(0)
-    dd = dropdown(["Five"=>x->x[]=5, "Seven"=>x->x[]=7])
-    map(f->f(r), dd.mappedsignal)
+    dd = dropdown(["Five"=>x->x[]=5,
+                   "Seven"=>x->x[]=7])
+    ddsig = map(f->f(r), dd.mappedsignal)
     rr()
     @test value(dd) == "Five"
     @test r[] == 5
@@ -254,7 +255,7 @@ end
     rr()
     push!(xsig, 100)
     rr()
-    sleep(0.5)
+    sleep(1)
     # Check that we get the right answer
     fn = tempname()
     Cairo.write_to_png(getgc(c).surface, fn)

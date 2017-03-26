@@ -564,7 +564,8 @@ function dropdown(; choices=nothing,
     push!(preserved, init_signal2widget(getactive, setactive!, widget, id, signal))
     if !allstrings
         choicedict = Dict(choices...)
-        mappedsignal = map(val->choicedict[val], signal; typ=Any)
+        # yield() seems to help when running under Pkg.test, not sure why
+        mappedsignal = map(val->(yield(); choicedict[val]), signal; typ=Any)
     else
         mappedsignal = Signal(nothing)
     end
