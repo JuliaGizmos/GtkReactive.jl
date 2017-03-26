@@ -38,8 +38,9 @@ end
     UserUnit(x)
 
 Represent a number `x` as having "user" units, i.e., whatever units
-have been established with [`set_coords`](@ref). See the Cairo
-documentation.
+have been established with calls that affect the transformation
+matrix, e.g., [`Graphics.set_coordinates`](@ref) or
+[`Cairo.set_matrix`](@ref).
 """
 immutable UserUnit <: CairoUnit
     val::Float64

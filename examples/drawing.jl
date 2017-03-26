@@ -32,7 +32,7 @@ end
 # Draw on the canvas
 redraw = draw(c, lines, newline) do cnvs, lns, newl
     fill!(cnvs, colorant"white")   # background is white
-    set_coords(cnvs, BoundingBox(0, 1, 0, 1))  # set coordinates to 0..1 along each axis
+    set_coordinates(cnvs, BoundingBox(0, 1, 0, 1))  # set coords to 0..1 along each axis
     ctx = getgc(cnvs)
     for l in lns
         drawline(ctx, l, colorant"blue")

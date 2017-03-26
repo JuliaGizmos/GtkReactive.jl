@@ -28,7 +28,7 @@ redraw = draw(c, imgsig) do cnvs, image
     copy!(cnvs, image)
     # canvas adopts the indices of the zoom region. That way if we
     # zoom in further, we select the correct region.
-    set_coords(cnvs, value(zr))
+    set_coordinates(cnvs, value(zr))
 end
 
 ## Don't forget this!

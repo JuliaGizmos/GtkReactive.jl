@@ -7,7 +7,7 @@ using Compat
 using Gtk, Colors, FixedPointNumbers, Reexport
 @reexport using Reactive
 using Graphics
-using Graphics: set_coords, BoundingBox
+using Graphics: set_coordinates, BoundingBox
 using IntervalSets, RoundingIntegers
 # There's a conflict for width, so we have to scope those calls
 import Cairo
@@ -19,7 +19,7 @@ using Gtk.GConstants.GdkScrollDirection: UP, DOWN, LEFT, RIGHT
 using Gtk.GdkEventType: BUTTON_PRESS, DOUBLE_BUTTON_PRESS, BUTTON_RELEASE
 
 # Re-exports
-export set_coords, BoundingBox, SHIFT, CONTROL, MOD1, UP, DOWN, LEFT, RIGHT,
+export set_coordinates, BoundingBox, SHIFT, CONTROL, MOD1, UP, DOWN, LEFT, RIGHT,
        BUTTON_PRESS, DOUBLE_BUTTON_PRESS, destroy
 
 ## Exports
@@ -89,19 +89,19 @@ Graphics.getgc(c::Canvas) = getgc(c.widget)
 Graphics.width(c::Canvas) = Graphics.width(c.widget)
 Graphics.height(c::Canvas) = height(c.widget)
 
-Graphics.set_coords(c::Union{GtkCanvas,Canvas}, device::BoundingBox, user::BoundingBox) =
-    set_coords(getgc(c), device, user)
-Graphics.set_coords(c::Union{GraphicsContext,GtkCanvas,Canvas}, user::BoundingBox) =
-    set_coords(c, BoundingBox(0, Graphics.width(c), 0, Graphics.height(c)), user)
-function Graphics.set_coords(c::Union{GraphicsContext,Canvas,GtkCanvas}, zr::ZoomRegion)
+Graphics.set_coordinates(c::Union{GtkCanvas,Canvas}, device::BoundingBox, user::BoundingBox) =
+    set_coordinates(getgc(c), device, user)
+Graphics.set_coordinates(c::Union{GtkCanvas,Canvas}, user::BoundingBox) =
+    set_coordinates(c, BoundingBox(0, Graphics.width(c), 0, Graphics.height(c)), user)
+function Graphics.set_coordinates(c::Union{GraphicsContext,Canvas,GtkCanvas}, zr::ZoomRegion)
     xy = zr.currentview
     bb = BoundingBox(xy)
-    set_coords(c, bb)
+    set_coordinates(c, bb)
 end
-function Graphics.set_coords(c::Union{Canvas,GtkCanvas}, inds::Tuple{AbstractUnitRange,AbstractUnitRange})
+function Graphics.set_coordinates(c::Union{Canvas,GtkCanvas}, inds::Tuple{AbstractUnitRange,AbstractUnitRange})
     y, x = inds
     bb = BoundingBox(first(x), last(x), first(y), last(y))
-    set_coords(c, bb)
+    set_coordinates(c, bb)
 end
 function Graphics.BoundingBox(xy::XY)
     BoundingBox(minimum(xy.x), maximum(xy.x), minimum(xy.y), maximum(xy.y))
@@ -135,5 +135,7 @@ function gc_preserve(widget::Union{GtkWidget,GtkCanvas}, obj)
         delete!(_ref_dict, obj)
     end
 end
+
+include("deprecations.jl")
 
 end # module

@@ -189,7 +189,7 @@ end
     showall(win)
     sleep(0.1)
     @test isa(c, GtkReactive.Canvas{UserUnit})
-    set_coords(c, BoundingBox(0, 1, 0, 1))
+    set_coordinates(c, BoundingBox(0, 1, 0, 1))
     corner_dev = (DeviceUnit(208), DeviceUnit(207))
     corner_usr = (UserUnit(1), UserUnit(1))
     @test GtkReactive.convertunits(UserUnit, c, corner_dev...) == corner_usr
