@@ -221,7 +221,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Reference",
     "title": "GtkReactive.UserUnit",
     "category": "Type",
-    "text": "UserUnit(x)\n\nRepresent a number x as having \"user\" units, i.e., whatever units have been established with set_coords. See the Cairo documentation.\n\n\n\n"
+    "text": "UserUnit(x)\n\nRepresent a number x as having \"user\" units, i.e., whatever units have been established with calls that affect the transformation matrix, e.g., Graphics.set_coordinates or Cairo.set_matrix.\n\n\n\n"
 },
 
 {
