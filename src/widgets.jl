@@ -356,7 +356,8 @@ function textbox{T}(::Type{T};
                     range=nothing,
                     signal=nothing,
                     syncsig=true,
-                    own=nothing)
+                    own=nothing,
+                    copling=:activate)
     if T <: AbstractString && range != nothing
         throw(ArgumentError("You cannot set a range on a string textbox"))
     end
@@ -370,7 +371,7 @@ function textbox{T}(::Type{T};
     end
     setproperty!(widget, :text, value)
 
-    id = signal_connect(widget, :activate) do w
+    id = signal_connect(widget, copling) do w
         push!(signal, entrygetter(w, signal, range))
     end
 
@@ -393,8 +394,9 @@ function textbox{T}(value::T;
                     range=nothing,
                     signal=nothing,
                     syncsig=true,
-                    own=nothing)
-    textbox(T; widget=widget, value=value, range=range, signal=signal, syncsig=syncsig, own=own)
+                    own=nothing,
+                    copling=:activate)
+    textbox(T; widget=widget, value=value, range=range, signal=signal, syncsig=syncsig, own=own, copling=copling)
 end
 
 entrygetter{T<:AbstractString}(w, signal::Signal{T}, ::Void) =
