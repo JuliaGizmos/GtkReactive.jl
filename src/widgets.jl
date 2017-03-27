@@ -330,14 +330,15 @@ textbox(signal::Signal, widget::GtkButtonLeaf, id, preserved = []) =
     Textbox(signal, widget, id, preserved)
 
 """
-    textbox(value=""; widget=nothing, signal=nothing, range=nothing)
-    textbox(T::Type; widget=nothing, signal=nothing, range=nothing)
+    textbox(value=""; widget=nothing, signal=nothing, range=nothing, gtksignal=:activate)
+    textbox(T::Type; widget=nothing, signal=nothing, range=nothing, gtksignal=:activate)
 
 Create a box for entering text. `value` is the starting value; if you
 don't want to provide an initial value, you can constrain the type
 with `T`. Optionally specify the allowed range (e.g., `-10:10`)
 for numeric entries, and/or provide the (Reactive.jl) `signal` coupled
-to this text box.
+to this text box. Finally, you can specify which Gtk signal (e.g. 
+`activate`, `changed`) you'd like the widget to update with.
 """
 function textbox{T}(::Type{T};
                     widget=nothing,
@@ -346,7 +347,7 @@ function textbox{T}(::Type{T};
                     signal=nothing,
                     syncsig=true,
                     own=nothing,
-                    copling=:activate)
+                    gtksignal=:activate)
     if T <: AbstractString && range != nothing
         throw(ArgumentError("You cannot set a range on a string textbox"))
     end
@@ -360,7 +361,7 @@ function textbox{T}(::Type{T};
     end
     setproperty!(widget, :text, value)
 
-    id = signal_connect(widget, copling) do w
+    id = signal_connect(widget, gtksignal) do w
         push!(signal, entrygetter(w, signal, range))
     end
 
@@ -384,8 +385,8 @@ function textbox{T}(value::T;
                     signal=nothing,
                     syncsig=true,
                     own=nothing,
-                    copling=:activate)
-    textbox(T; widget=widget, value=value, range=range, signal=signal, syncsig=syncsig, own=own, copling=copling)
+                    gtksignal=:activate)
+    textbox(T; widget=widget, value=value, range=range, signal=signal, syncsig=syncsig, own=own, gtksignal=gtksignal)
 end
 
 entrygetter{T<:AbstractString}(w, signal::Signal{T}, ::Void) =
