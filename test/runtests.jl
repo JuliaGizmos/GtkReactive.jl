@@ -333,6 +333,10 @@ end
     destroy(win)
 end
 
+# For testing ZoomRegion support for non-AbstractArray objects
+immutable Foo end
+Base.indices(::Foo) = (Base.OneTo(7), Base.OneTo(9))
+
 @testset "Zoom/pan" begin
     zr = ZoomRegion((1:80, 1:100))  # y, x order
     zrz = GtkReactive.zoom(zr, 0.5)
@@ -386,6 +390,10 @@ end
     @test zr.fullview.x == 1..100
     @test zr.currentview.y == 3..5
     @test zr.currentview.x == 4..7
+
+    zr = ZoomRegion(Foo())
+    @test zr.fullview.y == 1..7
+    @test zr.fullview.x == 1..9
 end
 
 ### Simulate the mouse clicks, etc. to trigger zoom/pan

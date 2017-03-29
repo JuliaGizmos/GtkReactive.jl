@@ -333,7 +333,7 @@ function ZoomRegion{I<:Integer}(inds::Tuple{AbstractUnitRange{I},AbstractUnitRan
     fullview = XY(ci[2], ci[1])
     ZoomRegion(fullview, fullview)
 end
-ZoomRegion(img::AbstractMatrix) = ZoomRegion(indices(img))
+ZoomRegion(img) = ZoomRegion(indices(img))
 function ZoomRegion(fullview::XY, bb::BoundingBox)
     xview = oftype(fullview.x, bb.xmin..bb.xmax)
     yview = oftype(fullview.y, bb.ymin..bb.ymax)
