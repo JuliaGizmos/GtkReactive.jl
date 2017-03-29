@@ -265,7 +265,7 @@ This would paint an image-Signal `imgsig` onto the canvas and then
 draw a red circle centered on `xsig`, `ysig`.
 """
 function Gtk.draw(drawfun::Function, c::Canvas, signals::Signal...)
-    draw(c.widget) do widget
+    @guarded draw(c.widget) do widget
         yield()  # allow the Gtk event queue to run
         drawfun(widget, map(value, signals)...)
     end
@@ -333,7 +333,7 @@ function ZoomRegion{I<:Integer}(inds::Tuple{AbstractUnitRange{I},AbstractUnitRan
     fullview = XY(ci[2], ci[1])
     ZoomRegion(fullview, fullview)
 end
-ZoomRegion(img::AbstractMatrix) = ZoomRegion(indices(img))
+ZoomRegion(img) = ZoomRegion(indices(img))
 function ZoomRegion(fullview::XY, bb::BoundingBox)
     xview = oftype(fullview.x, bb.xmin..bb.xmax)
     yview = oftype(fullview.y, bb.ymin..bb.ymax)
