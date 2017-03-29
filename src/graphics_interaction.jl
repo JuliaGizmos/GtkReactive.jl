@@ -265,7 +265,7 @@ This would paint an image-Signal `imgsig` onto the canvas and then
 draw a red circle centered on `xsig`, `ysig`.
 """
 function Gtk.draw(drawfun::Function, c::Canvas, signals::Signal...)
-    draw(c.widget) do widget
+    @guarded draw(c.widget) do widget
         yield()  # allow the Gtk event queue to run
         drawfun(widget, map(value, signals)...)
     end
