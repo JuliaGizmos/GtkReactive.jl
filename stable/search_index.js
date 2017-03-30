@@ -261,7 +261,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Reference",
     "title": "GtkReactive.ZoomRegion",
     "category": "Type",
-    "text": "ZoomRegion(inds) -> zr\nZoomRegion(img::AbstractMatrix) -> zr\n\nCreate a ZoomRegion object zr for selecting a rectangular region-of-interest for zooming and panning. inds should be a pair (yrange, xrange) of indices, or pass a matrix img from which the indices will be taken.\n\nzr.currentview holds the currently-active region of interest. zr.fullview stores the original inds from which zr was constructed; these are used to reset to the original limits and to confine zr.currentview.\n\n\n\n"
+    "text": "ZoomRegion(fullinds) -> zr\nZoomRegion(fullinds, currentinds) -> zr\nZoomRegion(img::AbstractMatrix) -> zr\n\nCreate a ZoomRegion object zr for selecting a rectangular region-of-interest for zooming and panning. fullinds should be a pair (yrange, xrange) of indices, or pass a matrix img from which the indices will be taken.\n\nzr.currentview holds the currently-active region of interest. zr.fullview stores the original fullinds from which zr was constructed; these are used to reset to the original limits and to confine zr.currentview.\n\n\n\n"
 },
 
 {
