@@ -19,6 +19,20 @@ include("tools.jl")
     rr()
     @test getproperty(l, :label, String) == "world"
     @test string(l) == "Gtk.GtkLabelLeaf with Signal{String}(world, nactions=1)"
+    # map with keywords
+    lsig0 = map(l) do lbl  # "regular" map runs the function
+        lbl
+    end
+    rr()
+    @test value(lsig0) == "world"
+    lsig = map(l; init="foo") do lbl   # with "init", you avoid running
+        lbl
+    end
+    rr()
+    @test value(lsig) == "foo"
+    push!(l, "bar")
+    rr()
+    @test value(lsig) == "bar"
 
     ## checkbox
     w = Window("Checkbox")
