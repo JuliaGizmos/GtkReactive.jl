@@ -408,6 +408,12 @@ Base.indices(::Foo) = (Base.OneTo(7), Base.OneTo(9))
     zr = ZoomRegion(Foo())
     @test zr.fullview.y == 1..7
     @test zr.fullview.x == 1..9
+
+    zr = ZoomRegion((1:100, 1:80), (11:20, 8:12))
+    @test zr.fullview.x == 1..80
+    @test zr.fullview.y == 1..100
+    @test zr.currentview.x == 8..12
+    @test zr.currentview.y == 11..20
 end
 
 ### Simulate the mouse clicks, etc. to trigger zoom/pan

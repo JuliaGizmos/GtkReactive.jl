@@ -315,16 +315,17 @@ immutable ZoomRegion{T}
 end
 
 """
-    ZoomRegion(inds) -> zr
+    ZoomRegion(fullinds) -> zr
+    ZoomRegion(fullinds, currentinds) -> zr
     ZoomRegion(img::AbstractMatrix) -> zr
 
 Create a `ZoomRegion` object `zr` for selecting a rectangular
-region-of-interest for zooming and panning. `inds` should be a pair
+region-of-interest for zooming and panning. `fullinds` should be a pair
 `(yrange, xrange)` of indices, or pass a matrix `img` from which the
 indices will be taken.
 
 `zr.currentview` holds the currently-active region of
-interest. `zr.fullview` stores the original `inds` from which `zr` was
+interest. `zr.fullview` stores the original `fullinds` from which `zr` was
 constructed; these are used to reset to the original limits and to
 confine `zr.currentview`.
 """
@@ -332,6 +333,12 @@ function ZoomRegion{I<:Integer}(inds::Tuple{AbstractUnitRange{I},AbstractUnitRan
     ci = map(ClosedInterval{RInt}, inds)
     fullview = XY(ci[2], ci[1])
     ZoomRegion(fullview, fullview)
+end
+function ZoomRegion{I<:Integer}(fullinds::Tuple{AbstractUnitRange{I},AbstractUnitRange{I}},
+                                curinds::Tuple{AbstractUnitRange{I},AbstractUnitRange{I}})
+    fi = map(ClosedInterval{RInt}, fullinds)
+    ci = map(ClosedInterval{RInt}, curinds)
+    ZoomRegion(XY(fi[2], fi[1]), XY(ci[2], ci[1]))
 end
 ZoomRegion(img) = ZoomRegion(indices(img))
 function ZoomRegion(fullview::XY, bb::BoundingBox)
