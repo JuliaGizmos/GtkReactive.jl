@@ -226,7 +226,7 @@ end
     win = Window(c)
     showall(win)
     reveal(c, true)
-    sleep(0.1)
+    sleep(0.3)
     @test isa(c, GtkReactive.Canvas{UserUnit})
     corner_dev = (DeviceUnit(208), DeviceUnit(207))
     for (coords, corner_usr) in ((BoundingBox(0, 1, 0, 1), (UserUnit(1), UserUnit(1))),
