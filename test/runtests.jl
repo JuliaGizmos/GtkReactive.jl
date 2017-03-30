@@ -19,6 +19,20 @@ include("tools.jl")
     rr()
     @test getproperty(l, :label, String) == "world"
     @test string(l) == "Gtk.GtkLabelLeaf with Signal{String}(world, nactions=1)"
+    # map with keywords
+    lsig0 = map(l) do lbl  # "regular" map runs the function
+        lbl
+    end
+    rr()
+    @test value(lsig0) == "world"
+    lsig = map(l; init="foo") do lbl   # with "init", you avoid running
+        lbl
+    end
+    rr()
+    @test value(lsig) == "foo"
+    push!(l, "bar")
+    rr()
+    @test value(lsig) == "bar"
 
     ## checkbox
     w = Window("Checkbox")
@@ -212,7 +226,7 @@ end
     win = Window(c)
     showall(win)
     reveal(c, true)
-    sleep(0.1)
+    sleep(0.3)
     @test isa(c, GtkReactive.Canvas{UserUnit})
     corner_dev = (DeviceUnit(208), DeviceUnit(207))
     for (coords, corner_usr) in ((BoundingBox(0, 1, 0, 1), (UserUnit(1), UserUnit(1))),
@@ -394,6 +408,12 @@ Base.indices(::Foo) = (Base.OneTo(7), Base.OneTo(9))
     zr = ZoomRegion(Foo())
     @test zr.fullview.y == 1..7
     @test zr.fullview.x == 1..9
+
+    zr = ZoomRegion((1:100, 1:80), (11:20, 8:12))
+    @test zr.fullview.x == 1..80
+    @test zr.fullview.y == 1..100
+    @test zr.currentview.x == 8..12
+    @test zr.currentview.y == 11..20
 end
 
 ### Simulate the mouse clicks, etc. to trigger zoom/pan
