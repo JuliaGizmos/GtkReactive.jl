@@ -142,6 +142,33 @@ include("tools.jl")
     rr()
     @test r[] == 5
     destroy(dd.widget)
+
+    ## spinbutton
+    s = spinbutton(1:15)
+    sleep(0.01)    # For the Gtk eventloop
+    @test value(s) == 1
+    push!(s, 3)
+    rr()
+    @test value(s) == 3
+
+    # Use a single signal for two widgets
+    s2 = spinbutton(1:15, signal=signal(s))
+    @test value(s2) == 3
+    push!(s2, 11)
+    rr()
+    @test value(s) == 11
+    destroy(s2)
+    destroy(s)
+
+    # Updating the limits of the spinbutton
+    s = spinbutton(1:15)
+    sleep(0.01)    # For the Gtk eventloop
+    @test value(s) == 1
+    push!(s, 1:7, 5)
+    sleep(0.01)
+    rr()
+    @test value(s) == 5
+
 end
 
 ## button

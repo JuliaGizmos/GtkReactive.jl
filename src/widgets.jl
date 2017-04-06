@@ -772,3 +772,83 @@ end
 #     fld == :options && (val = getoptions(val))
 #     invoke(set!, (Widget, Symbol, typeof(val)), w, fld, val)
 # end
+
+########################## SpinButton ########################
+
+immutable SpinButton{T<:Number} <: InputWidget{T}
+    signal::Signal{T}
+    widget::GtkSpinButtonLeaf
+    id::Culong
+    preserved::Vector
+
+    function (::Type{SpinButton{T}}){T}(signal::Signal{T}, widget, id, preserved)
+        obj = new{T}(signal, widget, id, preserved)
+        gc_preserve(widget, obj)
+        obj
+    end
+end
+SpinButton{T}(signal::Signal{T}, widget::GtkSpinButtonLeaf, id, preserved) =
+    SpinButton{T}(signal, widget, id, preserved)
+
+spinbutton(signal::Signal, widget::GtkSpinButtonLeaf, id, preserved = []) =
+    SpinButton(signal, widget, id, preserved)
+
+"""
+    spinbutton(range; widget=nothing, value=nothing, signal=nothing)
+
+Create a spinbutton widget with the specified `range`. Optionally provide:
+  - the GtkSpinButton `widget` (by default, creates a new one)
+  - the starting `value` (defaults to the start of `range`)
+  - the (Reactive.jl) `signal` coupled to this spinbutton (by default, creates a new signal)
+"""
+function spinbutton{T}(range::Range{T};
+                   widget=nothing,
+                   value=nothing,
+                   signal=nothing,
+                   syncsig=true,
+                   own=nothing)
+    signalin = signal
+    signal, value = init_wsigval(T, signal, value; default=range.start)
+    if own == nothing
+        own = signal != signalin
+    end
+    if widget == nothing
+        widget = GtkSpinButton(
+                          first(range), last(range), step(range))
+        Gtk.G_.size_request(widget, 200, -1)
+    else
+        adj = Gtk.Adjustment(widget)
+        Gtk.G_.lower(adj, first(range))
+        Gtk.G_.upper(adj, last(range))
+        Gtk.G_.step_increment(adj, step(range))
+    end
+    Gtk.G_.value(widget, value)
+
+    ## widget -> signal
+    id = signal_connect(widget, :value_changed) do w
+        push!(signal, defaultgetter(w))
+    end
+
+    ## signal -> widget
+    preserved = []
+    if syncsig
+        push!(preserved, init_signal2widget(widget, id, signal))
+    end
+    if own
+        ondestroy(widget, preserved)
+    end
+
+    SpinButton(signal, widget, id, preserved)
+end
+
+# Adjust the range on a spinbutton
+# Is calling this `push!` too much of a pun?
+function Base.push!(s::SpinButton, range::Range, value=value(s))
+    first(range) <= value <= last(range) || error("$value is not within the span of $range")
+    adj = Gtk.Adjustment(widget(s))
+    Gtk.G_.lower(adj, first(range))
+    Gtk.G_.upper(adj, last(range))
+    Gtk.G_.step_increment(adj, step(range))
+    Gtk.G_.value(widget(s), value)
+end
+
