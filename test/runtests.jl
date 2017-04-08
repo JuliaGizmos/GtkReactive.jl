@@ -150,14 +150,10 @@ include("tools.jl")
     push!(s, 3)
     rr()
     @test value(s) == 3
+    destroy(s)
 
-    # Use a single signal for two widgets
-    s2 = spinbutton(1:15, signal=signal(s))
-    @test value(s2) == 3
-    push!(s2, 11)
-    rr()
-    @test value(s) == 11
-    destroy(s2)
+    s = spinbutton(0:59, orientation="vertical")
+    @test G_.orientation(Orientable(widget(s))) == Gtk.GConstants.GtkOrientation.VERTICAL
     destroy(s)
 
     # Updating the limits of the spinbutton
