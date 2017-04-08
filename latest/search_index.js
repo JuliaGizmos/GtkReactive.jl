@@ -133,7 +133,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Reference",
     "title": "GtkReactive.textbox",
     "category": "Function",
-    "text": "textbox(value=\"\"; widget=nothing, signal=nothing, range=nothing, gtksignal=:activate)\ntextbox(T::Type; widget=nothing, signal=nothing, range=nothing, gtksignal=:activate)\n\nCreate a box for entering text. value is the starting value; if you don't want to provide an initial value, you can constrain the type with T. Optionally specify the allowed range (e.g., -10:10) for numeric entries, and/or provide the (Reactive.jl) signal coupled to this text box. Finally, you can specify which Gtk signal (e.g.  activate, changed) you'd like the widget to update with.\n\n\n\n"
+    "text": "textbox(value=\"\"; widget=nothing, signal=nothing, range=nothing, gtksignal=:activate)\ntextbox(T::Type; widget=nothing, signal=nothing, range=nothing, gtksignal=:activate)\n\nCreate a box for entering text. value is the starting value; if you don't want to provide an initial value, you can constrain the type with T. Optionally specify the allowed range (e.g., -10:10) for numeric entries, and/or provide the (Reactive.jl) signal coupled to this text box. Finally, you can specify which Gtk signal (e.g. activate, changed) you'd like the widget to update with.\n\n\n\n"
 },
 
 {
