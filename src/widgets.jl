@@ -348,7 +348,7 @@ Create a box for entering text. `value` is the starting value; if you
 don't want to provide an initial value, you can constrain the type
 with `T`. Optionally specify the allowed range (e.g., `-10:10`)
 for numeric entries, and/or provide the (Reactive.jl) `signal` coupled
-to this text box. Finally, you can specify which Gtk signal (e.g. 
+to this text box. Finally, you can specify which Gtk signal (e.g.
 `activate`, `changed`) you'd like the widget to update with.
 """
 function textbox{T}(::Type{T};
@@ -794,19 +794,21 @@ spinbutton(signal::Signal, widget::GtkSpinButtonLeaf, id, preserved = []) =
     SpinButton(signal, widget, id, preserved)
 
 """
-    spinbutton(range; widget=nothing, value=nothing, signal=nothing)
+    spinbutton(range; widget=nothing, value=nothing, signal=nothing, orientation="horizontal")
 
 Create a spinbutton widget with the specified `range`. Optionally provide:
   - the GtkSpinButton `widget` (by default, creates a new one)
   - the starting `value` (defaults to the start of `range`)
   - the (Reactive.jl) `signal` coupled to this spinbutton (by default, creates a new signal)
+  - the `orientation` of the spinbutton.
 """
 function spinbutton{T}(range::Range{T};
-                   widget=nothing,
-                   value=nothing,
-                   signal=nothing,
-                   syncsig=true,
-                   own=nothing)
+                       widget=nothing,
+                       value=nothing,
+                       signal=nothing,
+                       orientation="horizontal",
+                       syncsig=true,
+                       own=nothing)
     signalin = signal
     signal, value = init_wsigval(T, signal, value; default=range.start)
     if own == nothing
@@ -821,6 +823,10 @@ function spinbutton{T}(range::Range{T};
         Gtk.G_.lower(adj, first(range))
         Gtk.G_.upper(adj, last(range))
         Gtk.G_.step_increment(adj, step(range))
+    end
+    if lowercase(first(orientation)) == 'v'
+        Gtk.G_.orientation(Gtk.GtkOrientable(widget),
+                           Gtk.GConstants.GtkOrientation.VERTICAL)
     end
     Gtk.G_.value(widget, value)
 
@@ -851,4 +857,3 @@ function Base.push!(s::SpinButton, range::Range, value=value(s))
     Gtk.G_.step_increment(adj, step(range))
     Gtk.G_.value(widget(s), value)
 end
-
