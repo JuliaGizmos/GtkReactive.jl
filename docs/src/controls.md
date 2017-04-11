@@ -86,3 +86,15 @@ Here we created the textbox in a way that shared the signal of `sl`
 with the textbox; consequently, the textbox updates when you move the
 slider, and the slider moves when you enter a new value into the
 textbox. `push!`ing a value to `signal(sl)` updates both.
+
+Another example of connecting a widget with a signal is using a `button`
+to allow updates to propagate to a second `Signal`:
+```
+a = button("a")
+x = Signal(1)
+y_temp = map(sin, x)
+y = map(_ -> value(y_temp), a)
+```
+Subsequent `push!`es into `x` will update `y_temp`, but not `y`. Only 
+after the user presses on the `a` button does `y` get updated with the
+last value of `y_temp`.
