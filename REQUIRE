@@ -5,7 +5,7 @@ Cairo
 Colors
 FixedPointNumbers 0.3
 Reexport
-Reactive 0.3.0
+Reactive 0.4.0
 Graphics 0.2
 IntervalSets 0.0.5
 RoundingIntegers

@@ -1,4 +1,9 @@
 rr() = (Reactive.run_till_now(); yield())
+function run_till_empty()
+    while !isempty(Reactive._messages.data)
+        rr()
+    end
+end
 
 # Simulate user inputs
 function eventbutton(c, event_type, btn, x=DeviceUnit(0), y=DeviceUnit(0), state=0)

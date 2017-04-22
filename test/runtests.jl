@@ -2,9 +2,9 @@ using GtkReactive, Gtk.ShortNames, IntervalSets, Graphics, Colors,
       TestImages, FileIO, FixedPointNumbers
 using Base.Test
 
-try
+if !istaskdone(Reactive.runner_task)
     Reactive.stop()
-catch
+    wait(Reactive.runner_task)
 end
 
 include("tools.jl")
@@ -18,7 +18,7 @@ include("tools.jl")
     push!(signal(l), "world")
     rr()
     @test getproperty(l, :label, String) == "world"
-    @test string(l) == "Gtk.GtkLabelLeaf with Signal{String}(world, nactions=1)"
+    @test string(l) == "Gtk.GtkLabelLeaf with input: Signal{String}(world, nactions=1)"
     # map with keywords
     lsig0 = map(l) do lbl  # "regular" map runs the function
         lbl
@@ -76,7 +76,7 @@ include("tools.jl")
     rr()
     @test value(txt) == "other direction"
     @test getproperty(num, :text, String) == "5"
-    push!(signal(num), 11, (sig, val, capex) -> throw(capex.ex))
+    push!(signal(num), 11, (sig, val, osig, capex) -> throw(capex.ex))
     @test_throws ArgumentError rr()
     push!(num, 8)
     rr()
@@ -135,7 +135,7 @@ include("tools.jl")
     @test value(dd) == "Five"
     @test r[] == 5
     push!(dd, "Seven")
-    rr()
+    run_till_empty()
     @test value(dd) == "Seven"
     @test r[] == 7
     push!(dd, "Five")
@@ -161,7 +161,6 @@ include("tools.jl")
     sleep(0.01)    # For the Gtk eventloop
     @test value(s) == 1
     push!(s, 1:7, 5)
-    sleep(0.01)
     rr()
     @test value(s) == 5
 
@@ -200,13 +199,13 @@ if Gtk.libgtk_version >= v"3.10"
         btn_fwd = p.widget.step_forward
         @test value(s) == 1
         push!(btn_fwd, nothing)
-        sleep(0.01)
-        rr()
-        sleep(0.01)
+        run_till_empty()
         @test value(s) == 2
         push!(p.widget.play_forward, nothing)
-        rr()
-        sleep(0.5)
+        for i = 1:7
+            run_till_empty()
+            sleep(0.1)
+        end
         @test value(s) == 8
         destroy(win)
     end
@@ -336,7 +335,7 @@ end
     @test !popuptriggered[]
     evt = eventbutton(c, BUTTON_PRESS, 3)
     signal_emit(widget(c), "button-press-event", Bool, evt)
-    yield()
+    run_till_empty()
     @test popuptriggered[]
     destroy(win)
     destroy(popupmenu)
@@ -545,10 +544,9 @@ destroy(win)
     end
 end
 
-# Ensure that the examples run
+# Ensure that the examples run (but the Reactive queue is stopped, so
+# they won't work unless one calls `@async Reactive.run()` manually)
 examplepath = joinpath(dirname(dirname(@__FILE__)), "examples")
 include(joinpath(examplepath, "imageviewer.jl"))
 include(joinpath(examplepath, "widgets.jl"))
 include(joinpath(examplepath, "drawing.jl"))
-
-nothing
