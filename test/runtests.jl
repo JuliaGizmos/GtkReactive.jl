@@ -436,6 +436,7 @@ Base.indices(::Foo) = (Base.OneTo(7), Base.OneTo(9))
     @test zr.fullview.y == 1..100
     @test zr.currentview.x == 8..12
     @test zr.currentview.y == 11..20
+    @test indices(zr) == (11:20, 8:12)
 end
 
 ### Simulate the mouse clicks, etc. to trigger zoom/pan

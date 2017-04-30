@@ -349,6 +349,8 @@ end
 
 reset(zr::ZoomRegion) = ZoomRegion(zr.fullview, zr.fullview)
 
+Base.indices(zr::ZoomRegion) = map(UnitRange, (zr.currentview.y, zr.currentview.x))
+
 function interior(iv::ClosedInterval, limits::AbstractInterval)
     imin, imax = minimum(iv), maximum(iv)
     lmin, lmax = minimum(limits), maximum(limits)
