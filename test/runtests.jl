@@ -559,6 +559,11 @@ destroy(win)
     end
 end
 
+@testset "Layout" begin
+    g = Grid()
+    g[1,1] = textbox("hello")
+end
+
 # Ensure that the examples run (but the Reactive queue is stopped, so
 # they won't work unless one calls `@async Reactive.run()` manually)
 examplepath = joinpath(dirname(dirname(@__FILE__)), "examples")

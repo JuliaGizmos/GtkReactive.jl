@@ -87,6 +87,9 @@ Gtk.setproperty!(w::Union{Widget,Canvas}, key, val) = setproperty!(widget(w), ke
 Gtk.getproperty(w::Union{Widget,Canvas}, key) = getproperty(widget(w), key)
 Gtk.getproperty{T}(w::Union{Widget,Canvas}, key, ::Type{T}) = getproperty(widget(w), key, T)
 
+Base.unsafe_convert(::Type{Ptr{Gtk.GLib.GObject}}, w::Union{Widget,Canvas}) =
+    Base.unsafe_convert(Ptr{Gtk.GLib.GObject}, widget(w))
+
 Graphics.getgc(c::Canvas) = getgc(c.widget)
 Graphics.width(c::Canvas) = Graphics.width(c.widget)
 Graphics.height(c::Canvas) = height(c.widget)
