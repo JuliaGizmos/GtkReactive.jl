@@ -292,7 +292,7 @@ end
 # @testset "Canvas events" begin
     win = Window() |> (c = canvas(UserUnit))
     showall(win)
-    sleep(0.1)
+    sleep(0.2)
     lastevent = Ref("nothing")
     press   = map(btn->lastevent[] = "press",   c.mouse.buttonpress)
     release = map(btn->lastevent[] = "release", c.mouse.buttonrelease)

@@ -1,5 +1,6 @@
 rr() = (Reactive.run_till_now(); yield())
 function run_till_empty()
+    yield()
     while !isempty(Reactive._messages.data)
         rr()
     end
