@@ -187,6 +187,9 @@ rr()
 @test counter == cc+1
 destroy(w)
 
+# Make sure we can also put a ToolButton in a Button
+button(; widget=ToolButton("Save as..."))
+
 if Gtk.libgtk_version >= v"3.10"
     # To support GtkBuilder, we need this as the minimum libgtk version
     @testset "Compound widgets" begin
