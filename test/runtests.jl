@@ -81,6 +81,17 @@ include("tools.jl")
     push!(num, 8)
     rr()
     @test getproperty(num, :text, String) == "8"
+    meld = map(txt, num) do t, n
+        join((t, n), 'X')
+    end
+    rr()
+    @test value(meld) == "other directionX8"
+    push!(num, 4)
+    rr()
+    @test value(meld) == "other directionX4"
+    push!(txt, "4")
+    rr()
+    @test value(meld) == "4X4"
     destroy(win)
 
     ## textarea (aka TextView)
