@@ -58,7 +58,8 @@ Base.push!(w::Widget, val) = push!(signal(w), val)
 Base.show(io::IO, w::Widget) = print(io, typeof(widget(w)), " with ", signal(w))
 Gtk.destroy(w::Widget) = destroy(widget(w))
 Reactive.value(w::Widget) = value(signal(w))
-Base.map(f, w::Widget; kwargs...) = map(f, signal(w); kwargs...)
+Base.map(f, w::Widget, ws::Widget...; kwargs...) = map(f, signal(w), map(signal, ws)...; kwargs...)
+Base.foreach(f, w::Widget, ws::Widget...; kwargs...) = foreach(f, signal(w), map(signal, ws)...; kwargs...)
 
 # Define specific widgets
 include("widgets.jl")
@@ -85,6 +86,9 @@ widget(c::Canvas) = c.widget
 Gtk.setproperty!(w::Union{Widget,Canvas}, key, val) = setproperty!(widget(w), key, val)
 Gtk.getproperty(w::Union{Widget,Canvas}, key) = getproperty(widget(w), key)
 Gtk.getproperty{T}(w::Union{Widget,Canvas}, key, ::Type{T}) = getproperty(widget(w), key, T)
+
+Base.unsafe_convert(::Type{Ptr{Gtk.GLib.GObject}}, w::Union{Widget,Canvas}) =
+    Base.unsafe_convert(Ptr{Gtk.GLib.GObject}, widget(w))
 
 Graphics.getgc(c::Canvas) = getgc(c.widget)
 Graphics.width(c::Canvas) = Graphics.width(c.widget)

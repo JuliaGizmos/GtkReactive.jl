@@ -81,6 +81,17 @@ include("tools.jl")
     push!(num, 8)
     rr()
     @test getproperty(num, :text, String) == "8"
+    meld = map(txt, num) do t, n
+        join((t, n), 'X')
+    end
+    rr()
+    @test value(meld) == "other directionX8"
+    push!(num, 4)
+    rr()
+    @test value(meld) == "other directionX4"
+    push!(txt, "4")
+    rr()
+    @test value(meld) == "4X4"
     destroy(win)
 
     ## textarea (aka TextView)
@@ -187,6 +198,9 @@ rr()
 @test counter == cc+1
 destroy(w)
 
+# Make sure we can also put a ToolButton in a Button
+button(; widget=ToolButton("Save as..."))
+
 if Gtk.libgtk_version >= v"3.10"
     # To support GtkBuilder, we need this as the minimum libgtk version
     @testset "Compound widgets" begin
@@ -278,7 +292,7 @@ end
 # @testset "Canvas events" begin
     win = Window() |> (c = canvas(UserUnit))
     showall(win)
-    sleep(0.1)
+    sleep(0.2)
     lastevent = Ref("nothing")
     press   = map(btn->lastevent[] = "press",   c.mouse.buttonpress)
     release = map(btn->lastevent[] = "release", c.mouse.buttonrelease)
@@ -436,6 +450,7 @@ Base.indices(::Foo) = (Base.OneTo(7), Base.OneTo(9))
     @test zr.fullview.y == 1..100
     @test zr.currentview.x == 8..12
     @test zr.currentview.y == 11..20
+    @test indices(zr) == (11:20, 8:12)
 end
 
 ### Simulate the mouse clicks, etc. to trigger zoom/pan
@@ -542,6 +557,11 @@ destroy(win)
         @test all(x->x == reinterpret(UInt32, cmp), surf.data)
         destroy(surf)
     end
+end
+
+@testset "Layout" begin
+    g = Grid()
+    g[1,1] = textbox("hello")
 end
 
 # Ensure that the examples run (but the Reactive queue is stopped, so

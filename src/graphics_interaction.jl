@@ -349,6 +349,8 @@ end
 
 reset(zr::ZoomRegion) = ZoomRegion(zr.fullview, zr.fullview)
 
+Base.indices(zr::ZoomRegion) = map(UnitRange, (zr.currentview.y, zr.currentview.x))
+
 function interior(iv::ClosedInterval, limits::AbstractInterval)
     imin, imax = minimum(iv), maximum(iv)
     lmin, lmax = minimum(limits), maximum(limits)
@@ -451,8 +453,8 @@ You can flip the direction of either pan operation with `xpanflip` and
 """
 function init_pan_scroll{U,T}(canvas::Canvas{U},
                               zr::Signal{ZoomRegion{T}},
-                              filter_x::Function = evt->evt.modifiers == SHIFT || evt.direction == LEFT || evt.direction == RIGHT,
-                              filter_y::Function = evt->evt.modifiers == 0 && (evt.direction == UP || evt.direction == DOWN),
+                              filter_x::Function = evt->(evt.modifiers & 0x0f) == SHIFT || evt.direction == LEFT || evt.direction == RIGHT,
+                              filter_y::Function = evt->(evt.modifiers & 0x0f) == 0 && (evt.direction == UP || evt.direction == DOWN),
                               xpanflip = false,
                               ypanflip  = false)
     enabled = Signal(true)
@@ -523,7 +525,7 @@ function init_pan_drag{U,T}(canvas::Canvas{U},
     end
     Dict("enabled"=>enabled, "active"=>active, "init"=>init, "drag"=>drag, "finish"=>finish)
 end
-pandrag_button(btn) = btn.button == 1 && btn.modifiers == 0
+pandrag_button(btn) = btn.button == 1 && (btn.modifiers & 0x0f) == 0
 pandrag_init_default(btn) = btn.clicktype == BUTTON_PRESS && pandrag_button(btn)
 
 """
@@ -556,7 +558,7 @@ zooming with `flip`.
 """
 function init_zoom_scroll{U,T}(canvas::Canvas{U},
                                zr::Signal{ZoomRegion{T}},
-                               filter::Function = evt->evt.modifiers == CONTROL,
+                               filter::Function = evt->(evt.modifiers & 0x0f) == CONTROL,
                                focus::Symbol = :pointer,
                                factor = 2.0,
                                flip = false)

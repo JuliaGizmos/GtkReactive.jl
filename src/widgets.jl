@@ -273,7 +273,7 @@ togglebutton(; value=false, widget=nothing, signal=nothing, label="", own=nothin
 
 immutable Button <: InputWidget{Void}
     signal::Signal{Void}
-    widget::GtkButtonLeaf
+    widget::Union{GtkButtonLeaf,GtkToolButtonLeaf}
     id::Culong
 
     function (::Type{Button})(signal::Signal{Void}, widget, id)
@@ -283,7 +283,7 @@ immutable Button <: InputWidget{Void}
     end
 end
 
-button(signal::Signal, widget::GtkButtonLeaf, id) =
+button(signal::Signal, widget::Union{GtkButtonLeaf,GtkToolButtonLeaf}, id) =
     Button(signal, widget, id)
 
 """
