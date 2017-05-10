@@ -207,7 +207,8 @@ if Gtk.libgtk_version >= v"3.10"
         ## player widget
         s = Signal(1)
         p = player(s, 1:8)
-        win = Window(frame(p))
+        win = Window() |> (g = Grid())
+        g[1,1] = p
         showall(win)
         rr()
         btn_fwd = p.widget.step_forward

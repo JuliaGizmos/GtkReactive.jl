@@ -108,3 +108,6 @@ function player(cs::Signal, range::AbstractUnitRange; style="with-textbox", id::
     end
     error("style $style not recognized")
 end
+
+Base.unsafe_convert(::Type{Ptr{Gtk.GLib.GObject}}, p::PlayerWithTextbox) =
+    Base.unsafe_convert(Ptr{Gtk.GLib.GObject}, frame(p))
