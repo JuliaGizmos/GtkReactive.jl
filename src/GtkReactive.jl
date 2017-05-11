@@ -58,8 +58,8 @@ Base.push!(w::Widget, val) = push!(signal(w), val)
 Base.show(io::IO, w::Widget) = print(io, typeof(widget(w)), " with ", signal(w))
 Gtk.destroy(w::Widget) = destroy(widget(w))
 Reactive.value(w::Widget) = value(signal(w))
-Base.map(f, w::Widget, ws::Widget...; kwargs...) = map(f, signal(w), map(signal, ws)...; kwargs...)
-Base.foreach(f, w::Widget, ws::Widget...; kwargs...) = foreach(f, signal(w), map(signal, ws)...; kwargs...)
+Base.map(f, w::Union{Widget,Signal}, ws::Union{Widget,Signal}...; kwargs...) = map(f, signal(w), map(signal, ws)...; kwargs...)
+Base.foreach(f, w::Union{Widget,Signal}, ws::Union{Widget,Signal}...; kwargs...) = foreach(f, signal(w), map(signal, ws)...; kwargs...)
 
 # Define specific widgets
 include("widgets.jl")
