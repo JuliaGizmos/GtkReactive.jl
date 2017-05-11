@@ -58,13 +58,13 @@ function PlayerWithTextbox(builder, index::Signal, range::AbstractUnitRange, id:
 
     # Link the buttons
     clampindex(i) = clamp(i, minimum(range), maximum(range))
-    preserved = [map(x->push!(direction, -1), signal(play_back)),
+    preserved = [map(x->push!(direction, -1), signal(play_back); init=nothing),
                  map(x->(push!(direction, 0); push!(index, clampindex(value(index)-1))),
-                     signal(step_back)),
-                 map(x->push!(direction, 0), signal(stop)),
+                     signal(step_back); init=nothing),
+                 map(x->push!(direction, 0), signal(stop); init=nothing),
                  map(x->(push!(direction, 0); push!(index, clampindex(value(index)+1))),
-                     signal(step_forward)),
-                 map(x->push!(direction, +1), signal(play_forward))]
+                     signal(step_forward); init=nothing),
+                 map(x->push!(direction, +1), signal(play_forward); init=nothing)]
     function advance(widget)
         i = value(index) + value(direction)
         if !(i ∈ range)
@@ -74,8 +74,10 @@ function PlayerWithTextbox(builder, index::Signal, range::AbstractUnitRange, id:
         push!(index, i)
         nothing
     end
-    # Some of the previous code seems to trigger signals, so let's stop it
-    push!(direction, 0)
+    # Stop playing if the widget is destroyed
+    signal_connect(frame, :destroy) do widget
+        push!(direction, 0)
+    end
     # Start the timer
     push!(preserved, map(advance, fpswhen(map(x->x!=0, direction), 30)))
     # Create the player object
