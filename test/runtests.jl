@@ -223,6 +223,12 @@ if Gtk.libgtk_version >= v"3.10"
         end
         @test value(s) == 8
         destroy(win)
+
+        p = player(1:1000)
+        win = Window(frame(p))
+        showall(win)
+        push!(widget(p).direction, 1)
+        destroy(win)  # this should not generate a lot of output
     end
 end
 
