@@ -18,7 +18,7 @@ include("tools.jl")
     push!(signal(l), "world")
     rr()
     @test getproperty(l, :label, String) == "world"
-    @test string(l) == "Gtk.GtkLabelLeaf with input: Signal{String}(world, nactions=1)"
+    @test string(l) == string("Gtk.GtkLabelLeaf with ", string(signal(l)))
     # map with keywords
     lsig0 = map(l) do lbl  # "regular" map runs the function
         lbl
