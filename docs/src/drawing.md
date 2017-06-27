@@ -15,12 +15,18 @@ c = canvas(UserUnit)       # create a canvas with user-specified coordinates
 push!(win, c)
 ```
 
+A few concepts from Cairo are important here:
+
+- all drawing occurs on a `canvas` object, which corresponds to a region of a window
+- Cairo canvases can use two different coordinate systems: screen
+  pixels, often called [`DeviceUnit`](@ref), and a user-specified
+  custom coordinate system, called [`UserUnit`](@ref).
+
 Here we specified [`UserUnit`](@ref) units for our drawing and
-mouse-position units; the default is [`DeviceUnit`](@ref),
-a.k.a. pixels.  Here we prefer to specify our own units, which here
-we'll choose to be (0,0) for the top left and (1,1) for the bottom
-right. With this choice, if a user resizes the window by dragging its
-border, our lines will stay in the same relative position.
+mouse-position units; we chose these to be (0,0) for the top left
+and (1,1) for the bottom right. With this choice, if a user resizes
+the window by dragging its border, our lines will stay in the same
+relative position.
 
 We're going to set this up so that a new line is started when the user
 clicks with the left mouse button; when the user releases the mouse
@@ -34,15 +40,30 @@ const lines = Signal([])   # the list of lines that we'll draw
 const newline = Signal([]) # the in-progress line (will be added to list above)
 ```
 
-Now, let's make our application respond to mouse-clicks:
+Now, let's make our application respond to mouse-clicks. An important
+detail about a `GtkReactive.Canvas` object is that it contains a
+[`MouseHandler`](@ref), accessible with `c.mouse`; this object
+contains `Reactive.Signal` objects for mouse button press/release
+events, mouse movements, and scrolling:
 
 ```julia
 const drawing = Signal(false)  # this will become true if we're actively dragging
 
+# c.mouse.buttonpress is a `Reactive.Signal` that updates whenever the
+# user clicks the mouse inside the canvas. The value of this signal is
+# a MouseButton which contains position and other information.
+
+# We're going to define a callback function that runs whenever the
+# button is clicked. If we just wanted to print the value of the
+# returned button object, we could just say
+#     map(println, c.mouse.buttonpress)
+# However, here our function is longer than `println`, so
+# we're going to use Julia's do-block syntax to define the function:
 sigstart = map(c.mouse.buttonpress) do btn
-    if btn.button == 1 && btn.modifiers == 0
-        push!(drawing, true)   # start extending the line
-        push!(newline, [btn.position])
+    # This is the beginning of the function body, operating on the argument `btn`
+    if btn.button == 1 && btn.modifiers == 0 # is it the left button, and no shift/ctrl/alt keys pressed?
+        push!(drawing, true)   # activate dragging
+        push!(newline, [btn.position])  # initialize the line with the current position
     end
 end
 ```
@@ -59,7 +80,9 @@ additional vertex:
 
 ```julia
 const dummybutton = MouseButton{UserUnit}()
+# See the Reactive.jl documentation for `filterwhen`
 sigextend = map(filterwhen(drawing, dummybutton, c.mouse.motion)) do btn
+    # while dragging, extend `newline` with the most recent point
     push!(newline, push!(value(newline), btn.position))
 end
 ```
@@ -75,8 +98,10 @@ an empty `newline`:
 ```julia
 sigend = map(c.mouse.buttonrelease) do btn
     if btn.button == 1
-        push!(drawing, false)  # stop extending the line
+        push!(drawing, false)  # deactivate dragging
+        # append our new line to the overall list
         push!(lines, push!(value(lines), value(newline)))
+        # For the next click, make sure `newline` starts out empty
         push!(newline, [])
     end
 end
@@ -86,15 +111,19 @@ At this point, you could already verify that these interactions work
 by monitoring `lines` from the command line by clicking, dragging, and
 releasing.
 
-However, it's much more fun to see it in action. Let's set up a `draw`
-method for the canvas, one that gets called (1) whenever the window
-resizes, or (2) whenever `lines` or `newline` update:
+However, it's much more fun to see it in action. Let's set up a
+[`draw`](http://juliagraphics.github.io/Gtk.jl/latest/manual/canvas.html)
+method for the canvas, which will be called (1) whenever the window
+resizes (this is arranged by Gtk.jl), or (2) whenever `lines` or
+`newline` update (because we supply them as arguments to the `draw`
+function):
 
 ```julia
-redraw = draw(c, lines, newline) do cnvs, lns, newl
-    fill!(cnvs, colorant"white")   # background is white
-    set_coords(cnvs, BoundingBox(0, 1, 0, 1))  # set coordinates to 0..1 along each axis
-    ctx = getgc(cnvs)
+# Because `draw` isn't a one-line function, we again use do-block syntax:
+redraw = draw(c, lines, newline) do cnvs, lns, newl  # the function body takes 3 arguments
+    fill!(cnvs, colorant"white")   # set the background to white
+    set_coordinates(cnvs, BoundingBox(0, 1, 0, 1))  # set coordinates to 0..1 along each axis
+    ctx = getgc(cnvs)   # gets the "graphics context" object (see Cairo/Gtk)
     for l in lns
         drawline(ctx, l, colorant"blue")  # draw old lines in blue
     end
