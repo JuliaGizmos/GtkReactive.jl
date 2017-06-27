@@ -46,6 +46,11 @@ immutable UserUnit <: CairoUnit
     val::Float64
 end
 
+showtype(::Type{UserUnit}) = "UserUnit"
+showtype(::Type{DeviceUnit}) = "DeviceUnit"
+
+Base.show(io::IO, x::CairoUnit) = print(io, showtype(typeof(x)), '(', x.val, ')')
+
 Base.promote_rule{U<:UserUnit,D<:DeviceUnit}(::Type{U}, ::Type{D}) =
     error("UserUnit and DeviceUnit are incompatible, promotion not defined")
 
@@ -76,7 +81,7 @@ immutable XY{T}
     x::T
     y::T
 
-    (::Type{XY{T}}){T}(x::T, y::T) = new{T}(x, y)
+    (::Type{XY{T}}){T}(x, y) = new{T}(x, y)
     (::Type{XY{U}}){U<:CairoUnit}(x::U, y::U) = new{U}(x, y)
     (::Type{XY{U}}){U<:CairoUnit}(x::Real, y::Real) = new{U}(U(x), U(y))
 end
@@ -86,6 +91,14 @@ end
 function (::Type{XY{U}}){U<:CairoUnit}(w::GtkCanvas, evt::Gtk.GdkEvent)
     XY{U}(convertunits(U, w, DeviceUnit(evt.x), DeviceUnit(evt.y))...)
 end
+
+function Base.show{T<:CairoUnit}(io::IO, xy::XY{T})
+    print(io, "XY{$(showtype(T))}(", Float64(xy.x), ", ", Float64(xy.y), ')')
+end
+Base.show(io::IO, xy::XY) = print(io, "XY(", xy.x, ", ", xy.y, ')')
+
+Base.convert{T}(::Type{XY{T}}, xy::XY{T}) = xy
+Base.convert{T}(::Type{XY{T}}, xy::XY) = XY(T(xy.x), T(xy.y))
 
 """
     MouseButton(position, button, clicktype, modifiers)
@@ -320,9 +333,9 @@ end
     ZoomRegion(img::AbstractMatrix) -> zr
 
 Create a `ZoomRegion` object `zr` for selecting a rectangular
-region-of-interest for zooming and panning. `fullinds` should be a pair
-`(yrange, xrange)` of indices, or pass a matrix `img` from which the
-indices will be taken.
+region-of-interest for zooming and panning. `fullinds` should be a
+pair `(yrange, xrange)` of indices, an [`XY`](@ref) object, or pass a
+matrix `img` from which the indices will be taken.
 
 `zr.currentview` holds the currently-active region of
 interest. `zr.fullview` stores the original `fullinds` from which `zr` was
