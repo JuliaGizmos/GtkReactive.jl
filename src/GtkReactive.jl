@@ -25,7 +25,7 @@ export set_coordinates, BoundingBox, SHIFT, CONTROL, MOD1, UP, DOWN, LEFT, RIGHT
 ## Exports
 export slider, button, checkbox, togglebutton, dropdown, textbox, textarea, spinbutton
 export label
-export canvas, DeviceUnit, UserUnit, XY, MouseButton, MouseScroll
+export canvas, DeviceUnit, UserUnit, XY, MouseButton, MouseScroll, MouseHandler
 export player
 export signal, widget, frame
 # Zoom/pan
@@ -112,9 +112,9 @@ function Graphics.BoundingBox(xy::XY)
     BoundingBox(minimum(xy.x), maximum(xy.x), minimum(xy.y), maximum(xy.y))
 end
 
-function Base.push!{T}(zr::Signal{ZoomRegion{T}}, cv::XY{ClosedInterval{T}})
+function Base.push!{T,S}(zr::Signal{ZoomRegion{T}}, cv::XY{ClosedInterval{S}})
     fv = value(zr).fullview
-    push!(zr, ZoomRegion(fv, cv))
+    push!(zr, ZoomRegion{T}(fv, cv))
 end
 
 function Base.push!{T}(zr::Signal{ZoomRegion{T}}, inds::Tuple{ClosedInterval,ClosedInterval})

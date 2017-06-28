@@ -1,5 +1,5 @@
 using GtkReactive, Gtk.ShortNames, IntervalSets, Graphics, Colors,
-      TestImages, FileIO, FixedPointNumbers
+      TestImages, FileIO, FixedPointNumbers, RoundingIntegers
 using Base.Test
 
 if !istaskdone(Reactive.runner_task)
@@ -330,7 +330,7 @@ end
     rr()
     sleep(0.1)
     rr()
-    @test lastevent[] == "motion to GtkReactive.UserUnit(20.0), GtkReactive.UserUnit(15.0)"
+    @test lastevent[] == "motion to UserUnit(20.0), UserUnit(15.0)"
     destroy(win)
 # end
 
@@ -395,6 +395,27 @@ immutable Foo end
 Base.indices(::Foo) = (Base.OneTo(7), Base.OneTo(9))
 
 @testset "Zoom/pan" begin
+    @test string(UserUnit(3)) == "UserUnit(3.0)"
+    @test string(DeviceUnit(3)) == "DeviceUnit(3.0)"
+
+    xy = @inferred(XY(1, 3))
+    @test isa(xy, XY{Int})
+    @test xy.x == 1
+    @test xy.y == 3
+    @test string(xy) == "XY(1, 3)"
+    xy = @inferred(XY{Float64}(1, 3))
+    @test isa(xy, XY{Float64})
+    @test xy.x == 1
+    @test xy.y == 3
+    @test string(xy) == "XY(1.0, 3.0)"
+    @test isa(convert(XY{Int}, xy), XY{Int})
+    xy = XY{Float64}(3.2, 4.8)
+    xyr = convert(XY{RInt}, xy)
+    @test isa(xyr, XY{RInt}) && xyr.x == 3 && xyr.y == 5
+    xy = XY(UserUnit(3), UserUnit(5))
+    @test string(xy) == "XY{UserUnit}(3.0, 5.0)"
+    @test @inferred(XY{UserUnit}(3, 5)) == xy
+
     zr = ZoomRegion((1:80, 1:100))  # y, x order
     zrz = GtkReactive.zoom(zr, 0.5)
     @test zrz.currentview.x == 26..75
@@ -447,6 +468,13 @@ Base.indices(::Foo) = (Base.OneTo(7), Base.OneTo(9))
     @test zr.fullview.x == 1..100
     @test zr.currentview.y == 3..5
     @test zr.currentview.x == 4..7
+    push!(zrsig, XY(1..2, 3..4))
+    rr()
+    zr = value(zrsig)
+    @test zr.fullview.y == 1..80
+    @test zr.fullview.x == 1..100
+    @test zr.currentview.y == 3..4
+    @test zr.currentview.x == 1..2
 
     zr = ZoomRegion(Foo())
     @test zr.fullview.y == 1..7

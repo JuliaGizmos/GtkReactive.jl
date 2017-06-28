@@ -26,12 +26,14 @@ Gtk.GtkScaleLeaf
 
 At present, this slider is not affiliated with any window. Let's
 create one and add the slider to the window. We'll put it inside a
-`Box` so that we can later add more things to this GUI:
+`Box` so that we can later add more things to this GUI (this
+illustrates usage of some of
+[Gtk's layout tools](http://juliagraphics.github.io/Gtk.jl/latest/manual/layout.html):
 
 ```jldoctest demo1
 julia> win = Window("Testing") |> (bx = Box(:v));  # a window containing a vertical Box for layout
 
-julia> push!(bx, sl);    # put the slider in the box, shorthand for push!(bx, widget(sl));
+julia> push!(bx, sl);    # put the slider in the box, shorthand for push!(bx, widget(sl))
 
 julia> showall(win);
 ```
@@ -46,8 +48,8 @@ that we used to create `sl`. Now drag the slider all the way to the
 right, and then see what happened to `sl`:
 
 ```@meta
-push!(sl, 11)
-Reactive.run_till_now()
+push!(sl, 11)    # Updates the value of a Signal. See the Reactive.jl docs.
+Reactive.run_till_now() # remember, Reactive is asynchronous! This forces the push! to run now.
 sleep(1)
 Reactive.run_till_now()
 ```
@@ -92,9 +94,9 @@ to allow updates to propagate to a second `Signal`:
 ```
 a = button("a")
 x = Signal(1)
-y_temp = map(sin, x)
+y_temp = map(sin, x)    # see the Reactive.jl documentation for info about using `map`
 y = map(_ -> value(y_temp), a)
 ```
-Subsequent `push!`es into `x` will update `y_temp`, but not `y`. Only 
+Subsequent `push!`es into `x` will update `y_temp`, but not `y`. Only
 after the user presses on the `a` button does `y` get updated with the
 last value of `y_temp`.

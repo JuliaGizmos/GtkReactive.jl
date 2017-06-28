@@ -18,7 +18,7 @@ julia> push!(win, c);
 
 As explained in [A simple drawing program](@ref), the `UserUnit`
 specifies that mouse pointer positions will be reported in the units
-we specify, through a `set_coords` call below.
+we specify, through a `set_coordinates` call below.
 
 Now let's load an image to draw into the canvas:
 ```jldoctest demozoom
@@ -35,7 +35,7 @@ Zoom and pan interactions all work through a [`ZoomRegion`](@ref) signal; let's
 create one for this image:
 ```jldoctest demozoom
 julia> zr = Signal(ZoomRegion(image))
-Signal{GtkReactive.ZoomRegion{RoundingIntegers.RInt64}}(GtkReactive.ZoomRegion{RoundingIntegers.RInt64}(GtkReactive.XY{IntervalSets.ClosedInterval{RoundingIntegers.RInt64}}(1..768,1..512),GtkReactive.XY{IntervalSets.ClosedInterval{RoundingIntegers.RInt64}}(1..768,1..512)), nactions=0)
+1: "input" = GtkReactive.ZoomRegion{RoundingIntegers.RInt64}(XY(1..768, 1..512), XY(1..768, 1..512)) GtkReactive.ZoomRegion{RoundingIntegers.RInt64}
 ```
 
 The key thing to note here is that it has been created for the
@@ -45,17 +45,26 @@ intervals `1..768` (corresponding to the width of the image) and
 ```jldoctest demozoom
 julia> imgsig = map(zr) do r
            cv = r.currentview   # extract the currently-selected region
+           # Create a SubArray covering just the selected region (see `?view`)
            view(image, UnitRange{Int}(cv.y), UnitRange{Int}(cv.x))
        end;
 ```
 
-`imgsig` will update any time `zr` is modified. We then define a
-`draw` method for the canvas that paints this selection to the canvas:
+`imgsig` is a Signal that holds a "sub-image," one that updates any
+time `zr` is modified. We then define a `draw` method for the canvas
+that paints this selection to the canvas:
 
 ```jldoctest demozoom
 julia> redraw = draw(c, imgsig, zr) do cnvs, img, r
+           # Copy the pixel data to the canvas. Because `img` is the value of `imgsig`,
+           # this will only copy the region that was selected by the `view` call above.
            copy!(cnvs, img)
-           set_coords(cnvs, r)  # set the canvas coordinates to the selected region
+
+           # Here we set the coordinates of the canvas to correspond
+           # to the selected region of the image. This ensures that
+           # every point on the canvas has coordinates that correspond
+           # to the same position in the image.
+           set_coordinates(cnvs, r)
        end
 Signal{Void}(nothing, nactions=0)
 ```
@@ -80,7 +89,7 @@ julia> push!(zr, (100:300, indices(image, 2)))
 ![image2](assets/image2.png)
 
 More useful is to couple `zr` to mouse actions. Let's turn on both
-zooming and panning:
+zooming (with [`init_zoom_rubberband`](@ref)) and panning (with [`init_pan_drag`](@ref)):
 
 ```jldoctest demozoom
 julia> rb = init_zoom_rubberband(c, zr)
@@ -105,7 +114,8 @@ and drag to select a region of interest. You should see the image zoom
 in on that region. Then try clicking your mouse (without holding
 `Ctrl`) and drag; the image will move around, following your
 mouse. Double-click on the image while holding down `Ctrl` to zoom out
-to full view.
+to full view. The use of these modifier keys can be customized through
+keyword arguments to `init_zoom_rubberband` and `init_pan_drag`.
 
 The returned dictionaries have a number of signals necessary for
 internal operations. Perhaps the only important user-level element is
@@ -113,4 +123,4 @@ internal operations. Perhaps the only important user-level element is
 (temporarily) turn off rubber-band initiation.
 
 If you have a wheel mouse, you can activate additional interactions
-with `init_zoom_scroll` and `init_pan_scroll`.
+with [`init_zoom_scroll`](@ref) and [`init_pan_scroll`](@ref).
