@@ -7,8 +7,8 @@ using Gtk.GConstants.GdkEventMask: KEY_PRESS, SCROLL
 
 Base.:+{U<:CairoUnit}(x::U, y::U) = U(x.val + y.val)
 Base.:-{U<:CairoUnit}(x::U, y::U) = U(x.val - y.val)
-Base.:<{U<:CairoUnit}(x::U, y::U) = U(x.val < y.val)
-Base.:>{U<:CairoUnit}(x::U, y::U) = U(x.val > y.val)
+Base.:<{U<:CairoUnit}(x::U, y::U) = Bool(x.val < y.val)
+Base.:>{U<:CairoUnit}(x::U, y::U) = Bool(x.val > y.val)
 Base.abs{U<:CairoUnit}(x::U) = U(abs(x.val))
 Base.min{U<:CairoUnit}(x::U, y::U) = U(min(x.val, y.val))
 Base.max{U<:CairoUnit}(x::U, y::U) = U(max(x.val, y.val))

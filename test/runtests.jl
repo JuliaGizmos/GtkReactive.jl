@@ -251,8 +251,8 @@ end
     @test XY(5, 5) === XY{Int}(5, 5)
     @test XY(5, 5.0) === XY{Float64}(5.0, 5.0)
     @test XY{UserUnit}(5, 5.0) === XY{UserUnit}(5.0, 5.0) === XY{UserUnit}(UserUnit(5), UserUnit(5))
-    @test XY(5, 5)+XY(4, 4) == XY(9, 9)
-    @test XY(5.0, 5)-XY(4.1, 4.1) == XY(0.9, 0.9)
+    @test XY(5.0, 5)+XY(4, 4.1) === XY(9, 9.1)
+    @test XY(5, 5)-XY(4, 4) === XY(1, 1)
 
     @test isa(MouseButton{UserUnit}(), MouseButton{UserUnit})
     @test isa(MouseButton{DeviceUnit}(), MouseButton{DeviceUnit})
