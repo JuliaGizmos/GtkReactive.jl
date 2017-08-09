@@ -7,6 +7,8 @@ using Gtk.GConstants.GdkEventMask: KEY_PRESS, SCROLL
 
 Base.:+{U<:CairoUnit}(x::U, y::U) = U(x.val + y.val)
 Base.:-{U<:CairoUnit}(x::U, y::U) = U(x.val - y.val)
+Base.:<{U<:CairoUnit}(x::U, y::U) = Bool(x.val < y.val)
+Base.:>{U<:CairoUnit}(x::U, y::U) = Bool(x.val > y.val)
 Base.abs{U<:CairoUnit}(x::U) = U(abs(x.val))
 Base.min{U<:CairoUnit}(x::U, y::U) = U(min(x.val, y.val))
 Base.max{U<:CairoUnit}(x::U, y::U) = U(max(x.val, y.val))
@@ -99,6 +101,9 @@ Base.show(io::IO, xy::XY) = print(io, "XY(", xy.x, ", ", xy.y, ')')
 
 Base.convert{T}(::Type{XY{T}}, xy::XY{T}) = xy
 Base.convert{T}(::Type{XY{T}}, xy::XY) = XY(T(xy.x), T(xy.y))
+
+Base.:+{T}(xy1::XY{T}, xy2::XY{T}) = XY{T}(xy1.x+xy2.x,xy1.y+xy2.y)
+Base.:-{T}(xy1::XY{T}, xy2::XY{T}) = XY{T}(xy1.x-xy2.x,xy1.y-xy2.y)
 
 """
     MouseButton(position, button, clicktype, modifiers)
