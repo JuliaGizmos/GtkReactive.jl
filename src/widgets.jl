@@ -879,15 +879,17 @@ cyclicspinbutton(signal::Signal, widget::GtkSpinButtonLeaf, id, preserved = []) 
     CyclicSpinButton(signal, widget, id, preserved)
 
 """
-    cyclicspinbutton(range, higher; widget=nothing, value=nothing, signal=nothing, orientation="horizontal")
+    cyclicspinbutton(range, carry_up; widget=nothing, value=nothing, signal=nothing, orientation="horizontal")
 
-Create a cyclicspinbutton widget with the specified `range` that updates a `higher::InputWidget` when a full cycle is traversed, so when the created `CyclicSpinButton` widget completes a cycle upwards, the value of the `higher` widget increases, and vice versa. Optionally provide:
+Create a cyclicspinbutton widget with the specified `range` that updates a `carry_up::Signal{Bool}`
+when a full cycle is traversed, so when the created `CyclicSpinButton` widget completes a cycle upwards,
+the value of the `carry_up` signal is triggered with `true`, and vice versa. Optionally provide:
   - the GtkSpinButton `widget` (by default, creates a new one)
   - the starting `value` (defaults to the start of `range`)
   - the (Reactive.jl) `signal` coupled to this cyclicspinbutton (by default, creates a new signal)
   - the `orientation` of the cyclicspinbutton.
 """
-function cyclicspinbutton{T}(range::Range{T}, higher::InputWidget{T};
+function cyclicspinbutton{T}(range::Range{T}, carry_up::Signal{Bool};
                        widget=nothing,
                        value=nothing,
                        signal=nothing,
@@ -900,8 +902,7 @@ function cyclicspinbutton{T}(range::Range{T}, higher::InputWidget{T};
         own = signal != signalin
     end
     if widget == nothing
-        widget = GtkSpinButton(
-                               first(range) - step(range), last(range) + step(range), step(range))
+        widget = GtkSpinButton(first(range) - step(range), last(range) + step(range), step(range))
         Gtk.G_.size_request(widget, 200, -1)
     else
         adj = Gtk.Adjustment(widget)
@@ -932,12 +933,12 @@ function cyclicspinbutton{T}(range::Range{T}, higher::InputWidget{T};
     up = filter(x -> x > last(range), value, signal)
     foreach(up) do _
         push!(signal, first(range))
-        push!(higher, higher.signal.value + step(range))
+        push!(carry_up, true)
     end
     down = filter(x -> x < first(range), value, signal)
     foreach(down) do _
         push!(signal, last(range))
-        push!(higher, higher.signal.value - step(range))
+        push!(carry_up, false)
     end
     push!(signal, value)
 

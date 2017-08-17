@@ -179,8 +179,12 @@ include("tools.jl")
     ## cyclicspinbutton
     # For some reason the following commemnted-out tests fail. 
     # They work fine in the REPL, but not here.
-    a = spinbutton(1:10, value = 5)
-    b = cyclicspinbutton(1:3, a)
+    a = spinbutton(1:10, value = 6)
+    carry_up = Signal(false)
+    foreach(carry_up) do up
+        push!(a, value(a) - (-1)^up)
+    end
+    b = cyclicspinbutton(1:3, carry_up)
     sleep(0.01)    # For the Gtk eventloop
     @test value(a) == 5
     @test value(b) == 1
