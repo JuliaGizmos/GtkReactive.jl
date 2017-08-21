@@ -882,8 +882,10 @@ cyclicspinbutton(signal::Signal, widget::GtkSpinButtonLeaf, id, preserved = []) 
     cyclicspinbutton(range, carry_up; widget=nothing, value=nothing, signal=nothing, orientation="horizontal")
 
 Create a cyclicspinbutton widget with the specified `range` that updates a `carry_up::Signal{Bool}`
-when a full cycle is traversed, so when the created `CyclicSpinButton` widget completes a cycle upwards,
-the value of the `carry_up` signal is triggered with `true`, and vice versa. Optionally provide:
+only when a value outside the `range` of the cyclicspinbutton is pushed. `carry_up`
+is updated with `true` when the cyclicspinbutton is updated with a value that is
+higher than the maximum of the range. When cyclicspinbutton is updated with a value that is smaller
+than the minimum of the range `carry_up` is updated with `false`. Optional arguments are:
   - the GtkSpinButton `widget` (by default, creates a new one)
   - the starting `value` (defaults to the start of `range`)
   - the (Reactive.jl) `signal` coupled to this cyclicspinbutton (by default, creates a new signal)
