@@ -857,3 +857,92 @@ function Base.push!(s::SpinButton, range::Range, value=value(s))
     Gtk.G_.step_increment(adj, step(range))
     Gtk.G_.value(widget(s), value)
 end
+
+########################## CyclicSpinButton ########################
+
+immutable CyclicSpinButton{T<:Number} <: InputWidget{T}
+    signal::Signal{T}
+    widget::GtkSpinButtonLeaf
+    id::Culong
+    preserved::Vector
+
+    function (::Type{CyclicSpinButton{T}}){T}(signal::Signal{T}, widget, id, preserved)
+        obj = new{T}(signal, widget, id, preserved)
+        gc_preserve(widget, obj)
+        obj
+    end
+end
+CyclicSpinButton{T}(signal::Signal{T}, widget::GtkSpinButtonLeaf, id, preserved) =
+    CyclicSpinButton{T}(signal, widget, id, preserved)
+
+cyclicspinbutton(signal::Signal, widget::GtkSpinButtonLeaf, id, preserved = []) =
+    CyclicSpinButton(signal, widget, id, preserved)
+
+"""
+    cyclicspinbutton(range, carry_up; widget=nothing, value=nothing, signal=nothing, orientation="horizontal")
+
+Create a cyclicspinbutton widget with the specified `range` that updates a `carry_up::Signal{Bool}`
+only when a value outside the `range` of the cyclicspinbutton is pushed. `carry_up`
+is updated with `true` when the cyclicspinbutton is updated with a value that is
+higher than the maximum of the range. When cyclicspinbutton is updated with a value that is smaller
+than the minimum of the range `carry_up` is updated with `false`. Optional arguments are:
+  - the GtkSpinButton `widget` (by default, creates a new one)
+  - the starting `value` (defaults to the start of `range`)
+  - the (Reactive.jl) `signal` coupled to this cyclicspinbutton (by default, creates a new signal)
+  - the `orientation` of the cyclicspinbutton.
+"""
+function cyclicspinbutton{T}(range::Range{T}, carry_up::Signal{Bool};
+                       widget=nothing,
+                       value=nothing,
+                       signal=nothing,
+                       orientation="horizontal",
+                       syncsig=true,
+                       own=nothing)
+    signalin = signal
+    signal, value = init_wsigval(T, signal, value; default=range.start)
+    if own == nothing
+        own = signal != signalin
+    end
+    if widget == nothing
+        widget = GtkSpinButton(first(range) - step(range), last(range) + step(range), step(range))
+        Gtk.G_.size_request(widget, 200, -1)
+    else
+        adj = Gtk.Adjustment(widget)
+        Gtk.G_.lower(adj, first(range) - step(range))
+        Gtk.G_.upper(adj, last(range) + step(range))
+        Gtk.G_.step_increment(adj, step(range))
+    end
+    if lowercase(first(orientation)) == 'v'
+        Gtk.G_.orientation(Gtk.GtkOrientable(widget),
+                           Gtk.GConstants.GtkOrientation.VERTICAL)
+    end
+    Gtk.G_.value(widget, value)
+
+    ## widget -> signal
+    id = signal_connect(widget, :value_changed) do w
+        push!(signal, defaultgetter(w))
+    end
+
+    ## signal -> widget
+    preserved = []
+    if syncsig
+        push!(preserved, init_signal2widget(widget, id, signal))
+    end
+    if own
+        ondestroy(widget, preserved)
+    end
+
+    up = filter(x -> x > last(range), value, signal)
+    foreach(up) do _
+        push!(signal, first(range))
+        push!(carry_up, true)
+    end
+    down = filter(x -> x < first(range), value, signal)
+    foreach(down) do _
+        push!(signal, last(range))
+        push!(carry_up, false)
+    end
+    push!(signal, value)
+
+    CyclicSpinButton(signal, widget, id, preserved)
+end

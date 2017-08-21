@@ -23,7 +23,7 @@ export set_coordinates, BoundingBox, SHIFT, CONTROL, MOD1, UP, DOWN, LEFT, RIGHT
        BUTTON_PRESS, DOUBLE_BUTTON_PRESS, destroy
 
 ## Exports
-export slider, button, checkbox, togglebutton, dropdown, textbox, textarea, spinbutton
+export slider, button, checkbox, togglebutton, dropdown, textbox, textarea, spinbutton, cyclicspinbutton
 export label
 export canvas, DeviceUnit, UserUnit, XY, MouseButton, MouseScroll, MouseHandler
 export player
