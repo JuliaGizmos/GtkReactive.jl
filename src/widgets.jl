@@ -933,12 +933,12 @@ function cyclicspinbutton{T}(range::Range{T}, carry_up::Signal{Bool};
     end
 
     up = filter(x -> x > last(range), value, signal)
-    foreach(up) do _
+    foreach(up; init=nothing) do _
         push!(signal, first(range))
         push!(carry_up, true)
     end
     down = filter(x -> x < first(range), value, signal)
-    foreach(down) do _
+    foreach(down; init=nothing) do _
         push!(signal, last(range))
         push!(carry_up, false)
     end
