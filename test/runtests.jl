@@ -175,6 +175,35 @@ include("tools.jl")
     rr()
     @test value(s) == 5
 
+
+    ## cyclicspinbutton
+    a = spinbutton(1:10, value = 5)
+    carry_up = Signal(false)
+    foreach(carry_up; init=nothing) do up
+        push!(a, value(a) - (-1)^up)
+    end
+    b = cyclicspinbutton(1:3, carry_up)
+    run_till_empty()
+    @test value(a) == 5
+    @test value(b) == 1
+    push!(b, 2)
+    run_till_empty()
+    @test value(a) == 5
+    @test value(b) == 2
+    push!(b, 0)
+    run_till_empty()
+    @test value(a) == 4
+    @test value(b) == 3
+    push!(b, 4)
+    run_till_empty()
+    @test value(a) == 5
+    @test value(b) == 1
+    destroy(a)
+
+    s = cyclicspinbutton(0:59, carry_up, orientation="vertical")
+    @test G_.orientation(Orientable(widget(s))) == Gtk.GConstants.GtkOrientation.VERTICAL
+    destroy(s)
+
 end
 
 ## button
