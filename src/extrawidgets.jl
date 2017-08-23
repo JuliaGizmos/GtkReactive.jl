@@ -113,3 +113,75 @@ end
 
 Base.unsafe_convert(::Type{Ptr{Gtk.GLib.GObject}}, p::PlayerWithTextbox) =
     Base.unsafe_convert(Ptr{Gtk.GLib.GObject}, frame(p))
+
+
+
+################# A time widget ##########################
+
+immutable TimeWidget
+    hour::SpinButton{Int}
+    minute::CyclicSpinButton{Int}
+    second::CyclicSpinButton{Int}
+end
+
+"""
+    timewidget(time)
+
+Return a time widget that includes the hour, minute, and second widgets in it.
+Use something like this to use it:
+```julia
+a = timewidget(now())
+b = Box(:h)
+push!(b, a.hour, a.minute, a.second)
+```
+"""
+function timewidget(t::T) where T <: Dates.AbstractTime
+    # values
+    h = Dates.value(Dates.Hour(t))
+    m = Dates.value(Dates.Minute(t))
+    s = Dates.value(Dates.Second(t))
+    # widgets
+    hour = spinbutton(0:23, value=h, orientation="v")
+    increase_hour = Signal(false)
+    minute = cyclicspinbutton(0:59, increase_hour, value=m, orientation="v") 
+    increase_minute = Signal(false)
+    second = cyclicspinbutton(0:59, increase_minute, value=s, orientation="v") 
+    # maps and filters
+    hourleft = map(increase_hour, hour) do i, h
+        i ? h < 23 : h > 0
+    end
+    increase_hourᵗ = filterwhen(hourleft, value(increase_hour), increase_hour)
+    foreach(increase_hourᵗ; init=nothing) do i
+        push!(hour, value(hour) - (-1)^i)
+    end
+    timeleft = map(increase_minute, hour, minute) do i, h, m
+        i ? m < 59 || h < 23 : m > 0 || h > 0
+    end
+    increase_minuteᵗ = filterwhen(timeleft, value(increase_minute), increase_minute)
+    foreach(increase_minuteᵗ; init=nothing) do i
+        push!(minute, value(minute) - (-1)^i)
+    end
+    # make everything as small as possible
+    setproperty!(widget(hour), :width_request, 1)
+    setproperty!(widget(minute), :width_request, 1)
+    setproperty!(widget(second), :width_request, 1)
+    setproperty!(widget(hour), :height_request, 1)
+    setproperty!(widget(minute), :height_request, 1)
+    setproperty!(widget(second), :height_request, 1)
+    # done
+    return TimeWidget(hour, minute, second)
+end
+
+"""
+    Time(w::TimeWidget)
+
+Extract the time from an instance of a `TimeWidget`.
+```jldoctest
+t = Dates.Time(1,2,3)
+w = timewidget(t)
+Dates.Time(w)
+01:02:03
+```
+"""
+Dates.Time(w::TimeWidget) = Dates.Time(value(w.hour), value(w.minute), value(w.second))
+

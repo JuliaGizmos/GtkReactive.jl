@@ -26,7 +26,7 @@ export set_coordinates, BoundingBox, SHIFT, CONTROL, MOD1, UP, DOWN, LEFT, RIGHT
 export slider, button, checkbox, togglebutton, dropdown, textbox, textarea, spinbutton, cyclicspinbutton
 export label
 export canvas, DeviceUnit, UserUnit, XY, MouseButton, MouseScroll, MouseHandler
-export player
+export player, timewidget
 export signal, widget, frame
 # Zoom/pan
 export ZoomRegion, zoom, pan_x, pan_y, init_zoom_rubberband, init_zoom_scroll,
