@@ -179,9 +179,9 @@ Extract the time from an instance of a `TimeWidget`.
 ```jldoctest
 t = Dates.Time(1,2,3)
 w = timewidget(t)
-get_time(w)
+Dates.Time(w)
 01:02:03
 ```
 """
-get_time(w::TimeWidget) = Dates.Time(value(w.hour), value(w.minute), value(w.second))
+Dates.Time(w::TimeWidget) = Dates.Time(value(w.hour), value(w.minute), value(w.second))
 
