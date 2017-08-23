@@ -204,6 +204,7 @@ include("tools.jl")
     @test G_.orientation(Orientable(widget(s))) == Gtk.GConstants.GtkOrientation.VERTICAL
     destroy(s)
 
+    @test_nowarn timewidget(now())
 end
 
 ## button

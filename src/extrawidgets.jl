@@ -169,6 +169,19 @@ function timewidget(t::T) where T <: Dates.AbstractTime
     setproperty!(widget(minute), :height_request, 1)
     setproperty!(widget(second), :height_request, 1)
     # done
-    TimeWidget(hour, minute, second)
+    return TimeWidget(hour, minute, second)
 end
+
+"""
+    get_time(time)
+
+Extract the time from an instance of a `TimeWidget`.
+```jldoctest
+t = Dates.Time(1,2,3)
+w = timewidget(t)
+get_time(w)
+01:02:03
+```
+"""
+get_time(w::TimeWidget) = Dates.Time(value(w.hour), value(w.minute), value(w.second))
 
