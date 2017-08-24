@@ -119,33 +119,27 @@ Base.unsafe_convert(::Type{Ptr{Gtk.GLib.GObject}}, p::PlayerWithTextbox) =
 ################# A time widget ##########################
 
 immutable TimeWidget
-    hour::SpinButton{Int}
-    minute::CyclicSpinButton{Int}
-    second::CyclicSpinButton{Int}
+    signal::Signal{Dates.Time}
+    widget::GtkBox
 end
 
 """
     timewidget(time)
 
-Return a time widget that includes the hour, minute, and second widgets in it.
-Use something like this to use it:
-```julia
-a = timewidget(now())
-b = Box(:h)
-push!(b, a.hour, a.minute, a.second)
-```
+Return a time widget that includes the `Time` and a `GtkBox` with the hour, minute, and second widgets in it.
 """
-function timewidget(t::T) where T <: Dates.AbstractTime
+function timewidget(t0::T) where T <: Dates.AbstractTime
+    t = Signal(t0)
     # values
-    h = Dates.value(Dates.Hour(t))
-    m = Dates.value(Dates.Minute(t))
-    s = Dates.value(Dates.Second(t))
+    h = map(x -> Dates.value(Dates.Hour(x)), t)
+    m = map(x -> Dates.value(Dates.Minute(x)), t)
+    s = map(x -> Dates.value(Dates.Second(x)), t)
     # widgets
-    hour = spinbutton(0:23, value=h, orientation="v")
+    hour = spinbutton(0:23, signal=h, orientation="v")
     increase_hour = Signal(false)
-    minute = cyclicspinbutton(0:59, increase_hour, value=m, orientation="v") 
+    minute = cyclicspinbutton(0:59, increase_hour, signal=m, orientation="v") 
     increase_minute = Signal(false)
-    second = cyclicspinbutton(0:59, increase_minute, value=s, orientation="v") 
+    second = cyclicspinbutton(0:59, increase_minute, signal=s, orientation="v") 
     # maps and filters
     hourleft = map(increase_hour, hour) do i, h
         i ? h < 23 : h > 0
@@ -161,6 +155,13 @@ function timewidget(t::T) where T <: Dates.AbstractTime
     foreach(increase_minuteᵗ; init=nothing) do i
         push!(minute, value(minute) - (-1)^i)
     end
+    tupled_time = map(tuple, hour, minute, second)
+    good_time = map(tupled_time) do x
+        isnull(Dates.validargs(Dates.Time, x..., 0, 0, 0))
+    end
+    x2 = filterwhen(good_time, value(tupled_time), tupled_time)
+    t2 = map(x -> Dates.Time(x...), x2)
+    bind!(t, t2, true, initial=false)
     # make everything as small as possible
     setproperty!(widget(hour), :width_request, 1)
     setproperty!(widget(minute), :width_request, 1)
@@ -168,20 +169,17 @@ function timewidget(t::T) where T <: Dates.AbstractTime
     setproperty!(widget(hour), :height_request, 1)
     setproperty!(widget(minute), :height_request, 1)
     setproperty!(widget(second), :height_request, 1)
+    b = Gtk.Box(:h)
+    push!(b, hour, minute, second)
     # done
-    return TimeWidget(hour, minute, second)
+    return TimeWidget(t, b)
 end
 
-"""
-    Time(w::TimeWidget)
-
-Extract the time from an instance of a `TimeWidget`.
-```jldoctest
-t = Dates.Time(1,2,3)
-w = timewidget(t)
-Dates.Time(w)
-01:02:03
-```
-"""
-Dates.Time(w::TimeWidget) = Dates.Time(value(w.hour), value(w.minute), value(w.second))
+# These would be cool to use, but I'm not sure if you want me to import all of these from Reactive, or if I should some how make TimeWidget a subtype of InputWidget. All my attempts to do either failed...
+# signal(w::TimeWidget) = w.signal
+# value(w::TimeWidget) = value(signal(w))
+# Dates.Time(w::TimeWidget) = value(w)
+# widget(w::TimeWidget) = w.widget
+# Reactive.push!(w::TimeWidget, t::Dates.Time) = push!(signal(w), t)
+# Reactive.map(f::Function, w::TimeWidget) = map(f, signal(w))
 
