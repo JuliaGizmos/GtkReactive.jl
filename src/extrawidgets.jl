@@ -173,7 +173,7 @@ function timewidget(t::T) where T <: Dates.AbstractTime
 end
 
 """
-    get_time(time)
+    Time(w::TimeWidget)
 
 Extract the time from an instance of a `TimeWidget`.
 ```jldoctest
