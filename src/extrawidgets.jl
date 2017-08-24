@@ -128,7 +128,7 @@ end
 
 Return a time widget that includes the `Time` and a `GtkBox` with the hour, minute, and second widgets in it.
 """
-function timewidget(t0::T) where T <: Dates.AbstractTime
+function timewidget(t0::Dates.Time)
     t = Signal(t0)
     # values
     h = map(x -> Dates.value(Dates.Hour(x)), t)
