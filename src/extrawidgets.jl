@@ -118,6 +118,88 @@ Base.unsafe_convert(::Type{Ptr{Gtk.GLib.GObject}}, p::PlayerWithTextbox) =
 
 ################# A time widget ##########################
 
+immutable TimeWidget <: InputWidget{Dates.Time}
+    signal::Signal{Dates.Time}
+    widget::GtkBox
+    id::Culong
+    preserved::Vector
+
+    function (::Type{TimeWidget})(signal::Signal{Dates.Time}, widget, id, preserved)
+        obj = new(signal, widget, id, preserved)
+        gc_preserve(widget, obj)
+        obj
+    end
+end
+TimeWidget(signal::Signal{Dates.Time}, widget::GtkBox, id, preserved) =
+    TimeWidget(signal, widget, id, preserved)
+
+timewidget(signal::Signal, widget::GtkBox, id, preserved = []) =
+    TimeWidget(signal, widget, id, preserved)
+
+"""
+    timewidget(time; widget=nothing, value=nothing, signal=nothing, orientation="vertical")
+
+Create a timewidget widget with the specified `time`. Optionally provide:
+  - the GtkBox `widget` (by default, creates a new one)
+  - the starting `value` (defaults to `Time(0,0,0)`)
+  - the (Reactive.jl) `signal` coupled to this timewidget (by default, creates a new signal)
+  - the `orientation` of the timewidget.
+"""
+function timewidget(time::Dates.Time;
+                   widget=nothing,
+                   value=nothing,
+                   signal=nothing,
+                   orientation="vertical",
+                   syncsig=true,
+                   own=nothing)
+
+
+
+    signalin = signal
+    signal, value = init_wsigval(Dates.Time, signal, value; default=Dates.Time(0,0,0))
+    if own == nothing
+        own = signal != signalin
+    end
+    if widget == nothing
+        widget = GtkScale(lowercase(first(orientation)) == 'v',
+                          first(range), last(range), step(range))
+        Gtk.G_.size_request(widget, 200, -1)
+    else
+        adj = Gtk.Adjustment(widget)
+        Gtk.G_.lower(adj, first(range))
+        Gtk.G_.upper(adj, last(range))
+        Gtk.G_.step_increment(adj, step(range))
+    end
+    Gtk.G_.value(widget, value)
+
+    ## widget -> signal
+    id = signal_connect(widget, :value_changed) do w
+        push!(signal, defaultgetter(w))
+    end
+
+    ## signal -> widget
+    preserved = []
+    if syncsig
+        push!(preserved, init_signal2widget(widget, id, signal))
+    end
+    if own
+        ondestroy(widget, preserved)
+    end
+
+    TimeWidget(signal, widget, id, preserved)
+end
+
+
+
+
+
+
+
+
+
+
+
+
 immutable TimeWidget
     signal::Signal{Dates.Time}
     widget::GtkBox
