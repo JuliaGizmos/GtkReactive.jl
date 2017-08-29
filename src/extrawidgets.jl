@@ -127,19 +127,21 @@ end
     timewidget(time)
 
 Return a time widget that includes the `Time` and a `GtkBox` with the hour, minute, and second widgets in it.
+You can specify the specific `SpinButton` widgets for the hour, minute, and second (useful when using the 
+`Gtk.Builder` and `glade`).
 """
-function timewidget(t0::Dates.Time)
+function timewidget(t0::Dates.Time; hour_widget=nothing, minute_widget=nothing, second_widget=nothing)
     t = Signal(t0)
     # values
     h = map(x -> Dates.value(Dates.Hour(x)), t)
     m = map(x -> Dates.value(Dates.Minute(x)), t)
     s = map(x -> Dates.value(Dates.Second(x)), t)
     # widgets
-    hour = spinbutton(0:23, signal=h, orientation="v")
+    hour = spinbutton(0:23, widget=hour_widget, signal=h)
     increase_hour = Signal(false)
-    minute = cyclicspinbutton(0:59, increase_hour, signal=m, orientation="v") 
+    minute = cyclicspinbutton(0:59, increase_hour, widget=minute_widget, signal=m)
     increase_minute = Signal(false)
-    second = cyclicspinbutton(0:59, increase_minute, signal=s, orientation="v") 
+    second = cyclicspinbutton(0:59, increase_minute, widget=second_widget, signal=s)
     # maps and filters
     hourleft = map(increase_hour, hour) do i, h
         i ? h < 23 : h > 0
