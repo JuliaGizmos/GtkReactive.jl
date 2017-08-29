@@ -130,7 +130,7 @@ Return a time widget that includes the `Time` and a `GtkBox` with the hour, minu
 You can specify the specific `SpinButton` widgets for the hour, minute, and second (useful when using the 
 `Gtk.Builder` and `glade`).
 """
-function timewidget(t0::Dates.Time; hour_widget=nothing, minute_widget=nothing, second_widget=nothing)
+function timewidget(t0::Dates.Time; hour_widget=nothing, minute_widget=nothing, second_widget=nothing, box=nothing)
     t = Signal(t0)
     # values
     h = map(x -> Dates.value(Dates.Hour(x)), t)
@@ -171,9 +171,11 @@ function timewidget(t0::Dates.Time; hour_widget=nothing, minute_widget=nothing, 
     setproperty!(widget(hour), :height_request, 1)
     setproperty!(widget(minute), :height_request, 1)
     setproperty!(widget(second), :height_request, 1)
-    b = Gtk.Box(:h)
-    push!(b, hour, minute, second)
+    if box == nothing
+        box = Gtk.Box(:h)
+        push!(box, hour, minute, second)
+    end
     # done
-    return TimeWidget(t, b)
+    return TimeWidget(t, box)
 end
 
