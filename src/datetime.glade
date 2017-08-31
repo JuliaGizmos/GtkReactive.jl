@@ -24,7 +24,7 @@
           </packing>
         </child>
         <child>
-          <object class="GtkLabel">
+          <object class="GtkLabel" id="separator1">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="label" translatable="yes">-</property>
@@ -48,7 +48,7 @@
           </packing>
         </child>
         <child>
-          <object class="GtkLabel">
+          <object class="GtkLabel" id="separator2">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="label" translatable="yes">-</property>
@@ -72,7 +72,7 @@
           </packing>
         </child>
         <child>
-          <object class="GtkLabel">
+          <object class="GtkLabel" id="separator3">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="label" translatable="yes"> </property>
@@ -96,7 +96,7 @@
           </packing>
         </child>
         <child>
-          <object class="GtkLabel">
+          <object class="GtkLabel" id="separator4">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="label" translatable="yes">:</property>
@@ -120,7 +120,7 @@
           </packing>
         </child>
         <child>
-          <object class="GtkLabel">
+          <object class="GtkLabel" id="separator5">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="label" translatable="yes">:</property>
