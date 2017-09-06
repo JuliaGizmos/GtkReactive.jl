@@ -204,7 +204,33 @@ include("tools.jl")
     @test G_.orientation(Orientable(widget(s))) == Gtk.GConstants.GtkOrientation.VERTICAL
     destroy(s)
 
-    @test_nowarn timewidget(Dates.Time(1,1,1))
+    t = Dates.Time(1,1,1)
+    s = Signal(t)
+    tw = timewidget(t, signal=s)
+    run_till_empty()
+    @test value(tw) == value(s) == t
+    t = Dates.Time(2,2,2)
+    push!(tw, t)
+    run_till_empty()
+    @test value(tw) == value(s) == t
+    t = Dates.Time(3,3,3)
+    push!(s, t)
+    run_till_empty()
+    @test value(tw) == value(s) == t
+
+    t = DateTime(1,1,1,1,1,1)
+    s = Signal(t)
+    tw = datetimewidget(t, signal=s)
+    run_till_empty()
+    @test value(tw) == value(s) == t
+    t = DateTime(2,2,2,2,2,2)
+    push!(tw, t)
+    run_till_empty()
+    @test value(tw) == value(s) == t
+    t = DateTime(3,3,3,3,3,3)
+    push!(s, t)
+    run_till_empty()
+    @test value(tw) == value(s) == t
 end
 
 ## button
