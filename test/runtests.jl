@@ -205,6 +205,13 @@ include("tools.jl")
     destroy(s)
 
     @test_nowarn timewidget(Dates.Time(1,1,1))
+
+    p = progressbar(2:2:10)
+    push!(p, 4)
+    run_till_empty()
+    @test value(p) == 4
+    @test getproperty(p, :fraction, Float64) == 0.4
+
 end
 
 ## button
