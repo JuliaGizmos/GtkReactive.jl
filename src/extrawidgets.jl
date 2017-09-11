@@ -130,36 +130,37 @@ Return a time widget that includes the `Time` and a `GtkFrame` with the hour, mi
 second widgets in it. You can specify the specific `GtkFrame` widget (useful when using the `Gtk.Builder` and `glade`). Time is guaranteed to be positive. 
 """
 function timewidget(t1::Dates.Time; widget=nothing, signal=nothing)
-    const zerotime = Dates.Time(0,0,0)
+    const zerotime = Dates.Time(0,0,0) # convenient since we'll use it frequently
     b = Gtk.GtkBuilder(filename=joinpath(@__DIR__, "time.glade"))
     if signal == nothing
-        signal = Signal(t1)
+        signal = Signal(t1) # this is the input signal, we can push! into it to update the widget
     end
     S = map(signal) do x
-        (Dates.Second(x), x)
+        (Dates.Second(x), x) # crop the seconds from the Time signal, but keep the time for the next (minutes) crop
     end
     M = map(S) do x
-        x = last(x)
-        (Dates.Minute(x), x)
+        x = last(x) # this is the time
+        (Dates.Minute(x), x) # crop the minutes out of this tuple signal, and again, keep hold of the time for the next (hour) crop
     end
     H = map(M) do x
         x = last(x)
-        (Dates.Hour(x), x)
+        (Dates.Hour(x), x) # last crop, we have the hours now, and the time is kept as well
     end
-    t2 = map(last, H)
-    bind!(signal, t2)
-    Sint = Signal(Dates.value(first(value(S))))
-    Ssb = spinbutton(-1:60, widget=b["second"], signal=Sint)
+    t2 = map(last, H) # here is the final time
+    bind!(signal, t2) # we connect the input and output times so that any update to the resulting time will go into the input signal and actually show on the widgets
+    Sint = Signal(Dates.value(first(value(S)))) # necessary for now, until range-like GtkReactive.widgets can accept other ranges.
+    Ssb = spinbutton(-1:60, widget=b["second"], signal=Sint) # allow for values outside the actual range of seconds so that we'll be able to increase and decrease minutes.
     foreach(Sint) do x
-        Δ = Dates.Second(x) - first(value(S))
-        new_t = value(signal) + Δ
-        new_t = new_t < zerotime ? zerotime : new_t
-        new_x = Dates.Second(new_t)
-        push!(S, (new_x, new_t))
+        Δ = Dates.Second(x) - first(value(S)) # how much did we change by, this should always be ±1
+        new_t = value(signal) + Δ # new time
+        new_t = new_t < zerotime ? zerotime : new_t # julia Time is allowed negative values, here we correct for that
+        new_x = Dates.Second(new_t) # new seconds
+        push!(S, (new_x, new_t)) # update that specific widget, here the magic begins, this update will cascade down the widget-line...
     end
-    Sint2 = map(src -> Dates.value(Dates.Second(src)), t2)
-    Sint3 = droprepeats(Sint2)
-    bind!(Sint, Sint3, false)
+    Sint2 = map(src -> Dates.value(Dates.Second(src)), t2) # Any change in the value of the seconds, namely 60 -> 0, needs to loop back into the beginning of this last chain of events.
+    Sint3 = droprepeats(Sint2) # important, otherwise we get an endless update loop
+    bind!(Sint, Sint3, false) # final step of connecting the two 
+    # everything is the same for minutes:
     Mint = Signal(Dates.value(first(value(M))))
     Msb = spinbutton(-1:60, widget=b["minute"], signal=Mint)
     foreach(Mint) do x
@@ -172,6 +173,7 @@ function timewidget(t1::Dates.Time; widget=nothing, signal=nothing)
     Mint2 = map(src -> Dates.value(Dates.Minute(src)), t2)
     Mint3 = droprepeats(Mint2)
     bind!(Mint, Mint3, false)
+    # while I think this next part is not entirely necessary for Hours, my brain hurts and I want this to be over. It works.
     Hint = Signal(Dates.value(first(value(H))))
     Hsb = spinbutton(0:23, widget=b["hour"], signal=Hint)
     foreach(Hint) do x
@@ -204,7 +206,7 @@ specific `SpinButton` widgets for the hour, minute, and second (useful when usin
 function datetimewidget(t1::DateTime; widget=nothing, signal=nothing)
     const zerotime = DateTime(0,1,1,0,0,0)
     b = Gtk.GtkBuilder(filename=joinpath(@__DIR__, "datetime.glade"))
-    # t1 = eps(t0) < Dates.Second(1) ? round(t0, Dates.Second(1)) : t0
+    # the same logic is applied here as for `timewidget`
     if signal == nothing
         signal = Signal(t1)
     end
