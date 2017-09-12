@@ -118,64 +118,200 @@ Base.unsafe_convert(::Type{Ptr{Gtk.GLib.GObject}}, p::PlayerWithTextbox) =
 
 ################# A time widget ##########################
 
-immutable TimeWidget <: InputWidget{Dates.Time}
-    signal::Signal{Dates.Time}
-    widget::GtkBox
+immutable TimeWidget{T <: Dates.TimeType} <: InputWidget{T}
+    signal::Signal{T}
+    widget::GtkFrame
 end
 
 """
     timewidget(time)
 
-Return a time widget that includes the `Time` and a `GtkBox` with the hour, minute, and second widgets in it.
-You can specify the specific `SpinButton` widgets for the hour, minute, and second (useful when using the 
-`Gtk.Builder` and `glade`).
+Return a time widget that includes the `Time` and a `GtkFrame` with the hour, minute, and
+second widgets in it. You can specify the specific `GtkFrame` widget (useful when using the `Gtk.Builder` and `glade`). Time is guaranteed to be positive. 
 """
-function timewidget(t0::Dates.Time; hour_widget=nothing, minute_widget=nothing, second_widget=nothing, box=nothing)
-    t = Signal(t0)
-    # values
-    h = map(x -> Dates.value(Dates.Hour(x)), t)
-    m = map(x -> Dates.value(Dates.Minute(x)), t)
-    s = map(x -> Dates.value(Dates.Second(x)), t)
-    # widgets
-    hour = spinbutton(0:23, widget=hour_widget, signal=h)
-    increase_hour = Signal(false)
-    minute = cyclicspinbutton(0:59, increase_hour, widget=minute_widget, signal=m)
-    increase_minute = Signal(false)
-    second = cyclicspinbutton(0:59, increase_minute, widget=second_widget, signal=s)
-    # maps and filters
-    hourleft = map(increase_hour, hour) do i, h
-        i ? h < 23 : h > 0
+function timewidget(t1::Dates.Time; widget=nothing, signal=nothing)
+    const zerotime = Dates.Time(0,0,0) # convenient since we'll use it frequently
+    b = Gtk.GtkBuilder(filename=joinpath(@__DIR__, "time.glade"))
+    if signal == nothing
+        signal = Signal(t1) # this is the input signal, we can push! into it to update the widget
     end
-    increase_hourᵗ = filterwhen(hourleft, value(increase_hour), increase_hour)
-    foreach(increase_hourᵗ; init=nothing) do i
-        push!(hour, value(hour) - (-1)^i)
+    S = map(signal) do x
+        (Dates.Second(x), x) # crop the seconds from the Time signal, but keep the time for the next (minutes) crop
     end
-    timeleft = map(increase_minute, hour, minute) do i, h, m
-        i ? m < 59 || h < 23 : m > 0 || h > 0
+    M = map(S) do x
+        x = last(x) # this is the time
+        (Dates.Minute(x), x) # crop the minutes out of this tuple signal, and again, keep hold of the time for the next (hour) crop
     end
-    increase_minuteᵗ = filterwhen(timeleft, value(increase_minute), increase_minute)
-    foreach(increase_minuteᵗ; init=nothing) do i
-        push!(minute, value(minute) - (-1)^i)
+    H = map(M) do x
+        x = last(x)
+        (Dates.Hour(x), x) # last crop, we have the hours now, and the time is kept as well
     end
-    tupled_time = map(tuple, hour, minute, second)
-    good_time = map(tupled_time) do x
-        isnull(Dates.validargs(Dates.Time, x..., 0, 0, 0))
+    t2 = map(last, H) # here is the final time
+    bind!(signal, t2) # we connect the input and output times so that any update to the resulting time will go into the input signal and actually show on the widgets
+    Sint = Signal(Dates.value(first(value(S)))) # necessary for now, until range-like GtkReactive.widgets can accept other ranges.
+    Ssb = spinbutton(-1:60, widget=b["second"], signal=Sint) # allow for values outside the actual range of seconds so that we'll be able to increase and decrease minutes.
+    foreach(Sint) do x
+        Δ = Dates.Second(x) - first(value(S)) # how much did we change by, this should always be ±1
+        new_t = value(signal) + Δ # new time
+        new_t = new_t < zerotime ? zerotime : new_t # julia Time is allowed negative values, here we correct for that
+        new_x = Dates.Second(new_t) # new seconds
+        push!(S, (new_x, new_t)) # update that specific widget, here the magic begins, this update will cascade down the widget-line...
     end
-    x2 = filterwhen(good_time, value(tupled_time), tupled_time)
-    t2 = map(x -> Dates.Time(x...), x2)
-    bind!(t, t2, true, initial=false)
-    # make everything as small as possible
-    setproperty!(widget(hour), :width_request, 1)
-    setproperty!(widget(minute), :width_request, 1)
-    setproperty!(widget(second), :width_request, 1)
-    setproperty!(widget(hour), :height_request, 1)
-    setproperty!(widget(minute), :height_request, 1)
-    setproperty!(widget(second), :height_request, 1)
-    if box == nothing
-        box = Gtk.Box(:h)
-        push!(box, hour, minute, second)
+    Sint2 = map(src -> Dates.value(Dates.Second(src)), t2) # Any change in the value of the seconds, namely 60 -> 0, needs to loop back into the beginning of this last chain of events.
+    Sint3 = droprepeats(Sint2) # important, otherwise we get an endless update loop
+    bind!(Sint, Sint3, false) # final step of connecting the two 
+    # everything is the same for minutes:
+    Mint = Signal(Dates.value(first(value(M))))
+    Msb = spinbutton(-1:60, widget=b["minute"], signal=Mint)
+    foreach(Mint) do x
+        Δ = Dates.Minute(x) - first(value(M))
+        new_t = value(signal) + Δ
+        new_t = new_t < zerotime ? zerotime : new_t
+        new_x = Dates.Minute(new_t)
+        push!(M, (new_x, new_t))
     end
-    # done
-    return TimeWidget(t, box)
+    Mint2 = map(src -> Dates.value(Dates.Minute(src)), t2)
+    Mint3 = droprepeats(Mint2)
+    bind!(Mint, Mint3, false)
+    # while I think this next part is not entirely necessary for Hours, my brain hurts and I want this to be over. It works.
+    Hint = Signal(Dates.value(first(value(H))))
+    Hsb = spinbutton(0:23, widget=b["hour"], signal=Hint)
+    foreach(Hint) do x
+        Δ = Dates.Hour(x) - first(value(H))
+        new_t = value(signal) + Δ
+        new_t = new_t < zerotime ? zerotime : new_t
+        new_x = Dates.Hour(new_t)
+        push!(H, (new_x, new_t))
+    end
+    Hint2 = map(src -> Dates.value(Dates.Hour(src)), t2)
+    Hint3 = droprepeats(Hint2)
+    bind!(Hint, Hint3, false)
+
+    if widget == nothing
+        return TimeWidget(signal, b["frame"])
+    else
+        push!(widget, b["frame"])
+        return TimeWidget(signal, widget)
+    end
 end
 
+"""
+    datetimewidget(datetime)
+
+Return a datetime widget that includes the `DateTime` and a `GtkBox` with the
+year, month, day, hour, minute, and second widgets in it. You can specify the
+specific `SpinButton` widgets for the hour, minute, and second (useful when using
+`Gtk.Builder` and `glade`). Date and time are guaranteed to be positive. 
+"""
+function datetimewidget(t1::DateTime; widget=nothing, signal=nothing)
+    const zerotime = DateTime(0,1,1,0,0,0)
+    b = Gtk.GtkBuilder(filename=joinpath(@__DIR__, "datetime.glade"))
+    # the same logic is applied here as for `timewidget`
+    if signal == nothing
+        signal = Signal(t1)
+    end
+    S = map(signal) do x
+        (Dates.Second(x), x)
+    end
+    M = map(S) do x
+        x = last(x)
+        (Dates.Minute(x), x)
+    end
+    H = map(M) do x
+        x = last(x)
+        (Dates.Hour(x), x)
+    end
+    d = map(H) do x
+        x = last(x)
+        (Dates.Day(x), x)
+    end
+    m = map(d) do x
+        x = last(x)
+        (Dates.Month(x), x)
+    end
+    y = map(m) do x
+        x = last(x)
+        (Dates.Year(x), x)
+    end
+    t2 = map(last, y)
+    bind!(signal, t2)
+    Sint = Signal(Dates.value(first(value(S))))
+    Ssb = spinbutton(-1:60, widget=b["second"], signal=Sint)
+    foreach(Sint) do x
+        Δ = Dates.Second(x) - first(value(S))
+        new_t = value(signal) + Δ
+        new_t = new_t < zerotime ? zerotime : new_t
+        new_x = Dates.Second(new_t)
+        push!(S, (new_x, new_t))
+    end
+    Sint2 = map(src -> Dates.value(Dates.Second(src)), t2)
+    Sint3 = droprepeats(Sint2)
+    bind!(Sint, Sint3, false)
+    Mint = Signal(Dates.value(first(value(M))))
+    Msb = spinbutton(-1:60, widget=b["minute"], signal=Mint)
+    foreach(Mint) do x
+        Δ = Dates.Minute(x) - first(value(M))
+        new_t = value(signal) + Δ
+        new_t = new_t < zerotime ? zerotime : new_t
+        new_x = Dates.Minute(new_t)
+        push!(M, (new_x, new_t))
+    end
+    Mint2 = map(src -> Dates.value(Dates.Minute(src)), t2)
+    Mint3 = droprepeats(Mint2)
+    bind!(Mint, Mint3, false)
+    Hint = Signal(Dates.value(first(value(H))))
+    Hsb = spinbutton(-1:24, widget=b["hour"], signal=Hint)
+    foreach(Hint) do x
+        Δ = Dates.Hour(x) - first(value(H))
+        new_t = value(signal) + Δ
+        new_t = new_t < zerotime ? zerotime : new_t
+        new_x = Dates.Hour(new_t)
+        push!(H, (new_x, new_t))
+    end
+    Hint2 = map(src -> Dates.value(Dates.Hour(src)), t2)
+    Hint3 = droprepeats(Hint2)
+    bind!(Hint, Hint3, false)
+    dint = Signal(Dates.value(first(value(d))))
+    dsb = spinbutton(-1:32, widget=b["day"], signal=dint)
+    foreach(dint) do x
+        Δ = Dates.Day(x) - first(value(d))
+        new_t = value(signal) + Δ
+        new_t = new_t < zerotime ? zerotime : new_t
+        new_x = Dates.Day(new_t)
+        push!(d, (new_x, new_t))
+    end
+    dint2 = map(src -> Dates.value(Dates.Day(src)), t2)
+    dint3 = droprepeats(dint2)
+    bind!(dint, dint3, false)
+    mint = Signal(Dates.value(first(value(m))))
+    msb = spinbutton(-1:13, widget=b["month"], signal=mint)
+    foreach(mint) do x
+        Δ = Dates.Month(x) - first(value(m))
+        new_t = value(signal) + Δ
+        new_t = new_t < zerotime ? zerotime : new_t
+        new_x = Dates.Month(new_t)
+        push!(m, (new_x, new_t))
+    end
+    mint2 = map(src -> Dates.value(Dates.Month(src)), t2)
+    mint3 = droprepeats(mint2)
+    bind!(mint, mint3, false)
+    yint = Signal(Dates.value(first(value(y))))
+    ysb = spinbutton(-1:10000, widget=b["year"], signal=yint)
+    foreach(yint) do x
+        Δ = Dates.Year(x) - first(value(y))
+        new_t = value(signal) + Δ
+        new_t = new_t < zerotime ? zerotime : new_t
+        new_x = Dates.Year(new_t)
+        push!(y, (new_x, new_t))
+    end
+    yint2 = map(src -> Dates.value(Dates.Year(src)), t2)
+    yint3 = droprepeats(yint2)
+    bind!(yint, yint3, false)
+
+    if widget == nothing
+        return TimeWidget(signal, b["frame"])
+    else
+        push!(widget, b["frame"])
+        return TimeWidget(signal, widget)
+    end
+end
