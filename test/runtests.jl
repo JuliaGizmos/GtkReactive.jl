@@ -237,7 +237,7 @@ include("tools.jl")
     # progressbar
     pb = progressbar(1:10)
     @test value(pb) == 1
-    push!(a, 5)
+    push!(pb, 5)
     run_till_empty()
     @test value(pb) == 5
     
