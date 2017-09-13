@@ -964,16 +964,26 @@ ProgressBar{T}(signal::Signal{T}, widget::GtkProgressBarLeaf, preserved) =
     ProgressBar{T}(signal, widget, preserved)
 
 # convert a member of the range into a decimal 
-range2fraction(r::Range{T}, i::T) where T<:Number = (i - first(r) + step(r))/step(r)/length(r)
+range2fraction(r::Range{T}, i::T) where T<:Number = (i - first(r))/(last(r) - first(r))
 
 """
     progressbar(range::Range; widget=nothing, signal=nothing)
 
 Create a progressbar displaying the current iteration in the given range; new iterations may be
 displayed by pushing to the widget. Note that iterators that are not members of the range are not 
-checkes for. Optionally specify
+checked for. Optionally specify
   - the GtkProgressBar `widget` (by default, creates a new one)
   - the (Reactive.jl) `signal` coupled to this progressbar (by default, creates a new signal)
+
+```jldoctest
+julia> pb = progressbar(5:2:11)
+Gtk.GtkProgressBarLeaf with 1: "input" = 5 Int64 
+
+julia> push!(pb, 7)
+
+julia> value(pb)
+7
+```
 """
 function progressbar(range::Range{T};
                widget=nothing,
