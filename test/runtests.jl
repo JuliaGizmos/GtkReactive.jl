@@ -204,6 +204,7 @@ include("tools.jl")
     @test G_.orientation(Orientable(widget(s))) == Gtk.GConstants.GtkOrientation.VERTICAL
     destroy(s)
 
+    # timewidget
     t = Dates.Time(1,1,1)
     s = Signal(t)
     tw = timewidget(t, signal=s)
@@ -218,6 +219,7 @@ include("tools.jl")
     run_till_empty()
     @test value(tw) == value(s) == t
 
+    # datetimewidget
     t = DateTime(1,1,1,1,1,1)
     s = Signal(t)
     tw = datetimewidget(t, signal=s)
@@ -231,6 +233,14 @@ include("tools.jl")
     push!(s, t)
     run_till_empty()
     @test value(tw) == value(s) == t
+
+    # progressbar
+    pb = progressbar(1:10)
+    @test value(pb) == 1
+    push!(a, 5)
+    run_till_empty()
+    @test value(pb) == 5
+    
 end
 
 ## button
