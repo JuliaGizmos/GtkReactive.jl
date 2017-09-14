@@ -963,36 +963,42 @@ end
 ProgressBar{T}(signal::Signal{T}, widget::GtkProgressBarLeaf, preserved) =
     ProgressBar{T}(signal, widget, preserved)
 
-# convert a member of the range into a decimal 
-range2fraction(r::AbstractInterval{T}, i::T) where T<:Number = (i - minimum(r))/IntervalSets.width(r)
+# convert a member of the interval into a decimal 
+interval2fraction(x::AbstractInterval, i) = (i - minimum(x))/IntervalSets.width(x)
 
 """
-    progressbar(range::Range; widget=nothing, signal=nothing)
+    progressbar(interval::AbstractInterval; widget=nothing, signal=nothing)
 
-Create a progressbar displaying the current iteration in the given range; new iterations may be
-displayed by pushing to the widget. Note that iterators that are not members of the range are not 
-checked for. Optionally specify
+Create a progressbar displaying the current state in the given interval; new iterations may be
+displayed by pushing to the widget. Optionally specify
   - the GtkProgressBar `widget` (by default, creates a new one)
   - the (Reactive.jl) `signal` coupled to this progressbar (by default, creates a new signal)
 
 # Examples
 
 ```julia-repl
-julia> pb = progressbar(5..11)
-Gtk.GtkProgressBarLeaf with 5: "input-3" = 5 Int64 
+julia> using GtkReactive
 
-julia> push!(pb, 7)
+julia> using IntervalSets
 
-julia> value(pb)
-7
+julia> n = 10
+
+julia> pb = progressbar(1..n)
+Gtk.GtkProgressBarLeaf with 1: "input" = 1 Int64 
+
+julia> for i = 1:n
+           # do something
+           push!(pb, i)
+       end
+
 ```
 """
-function progressbar(range::AbstractInterval{T};
+function progressbar(interval::AbstractInterval{T};
                widget=nothing,
                signal=nothing,
                syncsig=true,
                own=nothing) where T<:Number
-    value = minimum(range)
+    value = minimum(interval)
     signalin = signal
     signal, value = init_wsigval(T, signal, value)
     if own == nothing
@@ -1001,12 +1007,12 @@ function progressbar(range::AbstractInterval{T};
     if widget == nothing
         widget = GtkProgressBar()
     else
-        setproperty!(widget, :fraction, range2fraction(range, value))
+        setproperty!(widget, :fraction, interval2fraction(interval, value))
     end
     preserved = []
     if syncsig
         push!(preserved, map(signal) do val
-            setproperty!(widget, :fraction, range2fraction(range, val))
+            setproperty!(widget, :fraction, interval2fraction(interval, val))
         end)
     end
     if own
