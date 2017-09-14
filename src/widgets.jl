@@ -964,7 +964,7 @@ ProgressBar{T}(signal::Signal{T}, widget::GtkProgressBarLeaf, preserved) =
     ProgressBar{T}(signal, widget, preserved)
 
 # convert a member of the range into a decimal 
-range2fraction(r::Range{T}, i::T) where T<:Number = (i - first(r))/(last(r) - first(r))
+range2fraction(r::AbstractInterval{T}, i::T) where T<:Number = (i - minimum(r))/IntervalSets.width(r)
 
 """
     progressbar(range::Range; widget=nothing, signal=nothing)
@@ -975,9 +975,11 @@ checked for. Optionally specify
   - the GtkProgressBar `widget` (by default, creates a new one)
   - the (Reactive.jl) `signal` coupled to this progressbar (by default, creates a new signal)
 
-```jldoctest
-julia> pb = progressbar(5:2:11)
-Gtk.GtkProgressBarLeaf with 1: "input" = 5 Int64 
+# Examples
+
+```julia-repl
+julia> pb = progressbar(5..11)
+Gtk.GtkProgressBarLeaf with 5: "input-3" = 5 Int64 
 
 julia> push!(pb, 7)
 
@@ -985,12 +987,12 @@ julia> value(pb)
 7
 ```
 """
-function progressbar(range::Range{T};
+function progressbar(range::AbstractInterval{T};
                widget=nothing,
                signal=nothing,
                syncsig=true,
                own=nothing) where T<:Number
-    value = first(range)
+    value = minimum(range)
     signalin = signal
     signal, value = init_wsigval(T, signal, value)
     if own == nothing
@@ -1013,4 +1015,4 @@ function progressbar(range::Range{T};
     ProgressBar(signal, widget, preserved)
 end
 
-
+progressbar(range::Range; args...) = progressbar(ClosedInterval(range), args...)
