@@ -946,3 +946,79 @@ function cyclicspinbutton{T}(range::Range{T}, carry_up::Signal{Bool};
 
     CyclicSpinButton(signal, widget, id, preserved)
 end
+
+######################## ProgressBar #########################
+
+immutable ProgressBar{T <: Number} <: Widget
+    signal::Signal{T}
+    widget::GtkProgressBarLeaf
+    preserved::Vector{Any}
+
+    function (::Type{ProgressBar{T}}){T}(signal::Signal{T}, widget, preserved)
+        obj = new{T}(signal, widget, preserved)
+        gc_preserve(widget, obj)
+        obj
+    end
+end
+ProgressBar{T}(signal::Signal{T}, widget::GtkProgressBarLeaf, preserved) =
+    ProgressBar{T}(signal, widget, preserved)
+
+# convert a member of the interval into a decimal 
+interval2fraction(x::AbstractInterval, i) = (i - minimum(x))/IntervalSets.width(x)
+
+"""
+    progressbar(interval::AbstractInterval; widget=nothing, signal=nothing)
+
+Create a progressbar displaying the current state in the given interval; new iterations may be
+displayed by pushing to the widget. Optionally specify
+  - the GtkProgressBar `widget` (by default, creates a new one)
+  - the (Reactive.jl) `signal` coupled to this progressbar (by default, creates a new signal)
+
+# Examples
+
+```julia-repl
+julia> using GtkReactive
+
+julia> using IntervalSets
+
+julia> n = 10
+
+julia> pb = progressbar(1..n)
+Gtk.GtkProgressBarLeaf with 1: "input" = 1 Int64 
+
+julia> for i = 1:n
+           # do something
+           push!(pb, i)
+       end
+
+```
+"""
+function progressbar(interval::AbstractInterval{T};
+               widget=nothing,
+               signal=nothing,
+               syncsig=true,
+               own=nothing) where T<:Number
+    value = minimum(interval)
+    signalin = signal
+    signal, value = init_wsigval(T, signal, value)
+    if own == nothing
+        own = signal != signalin
+    end
+    if widget == nothing
+        widget = GtkProgressBar()
+    else
+        setproperty!(widget, :fraction, interval2fraction(interval, value))
+    end
+    preserved = []
+    if syncsig
+        push!(preserved, map(signal) do val
+            setproperty!(widget, :fraction, interval2fraction(interval, val))
+        end)
+    end
+    if own
+        ondestroy(widget, preserved)
+    end
+    ProgressBar(signal, widget, preserved)
+end
+
+progressbar(range::Range; args...) = progressbar(ClosedInterval(range), args...)
