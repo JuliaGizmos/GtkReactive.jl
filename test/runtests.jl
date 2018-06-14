@@ -2,9 +2,13 @@ using GtkReactive, Gtk.ShortNames, IntervalSets, Graphics, Colors,
       TestImages, FileIO, FixedPointNumbers, RoundingIntegers
 using Base.Test
 
-if !istaskdone(Reactive.runner_task)
+rtask = Reactive.runner_task # starting with Reactive 0.7.0, this became a Ref
+if isa(rtask, Base.RefValue)
+    rtask = rtask[]
+end
+if !istaskdone(rtask)
     Reactive.stop()
-    wait(Reactive.runner_task)
+    wait(rtask)
 end
 
 include("tools.jl")
@@ -242,7 +246,7 @@ include("tools.jl")
     @test value(pb) == 5
     pb = progressbar(2:8)
     @test value(pb) == 2
-    
+
 end
 
 ## button
@@ -348,7 +352,7 @@ end
                                  (ZoomRegion((5:10, 3:5)), (UserUnit(5), UserUnit(10))),
                                  ((-1:1, 101:110), (UserUnit(110), UserUnit(1))))
         set_coordinates(c, coords)
-        @test GtkReactive.convertunits(UserUnit, c, corner_dev...) == corner_usr
+        @test all(GtkReactive.convertunits(UserUnit, c, corner_dev...) .≈ corner_usr)
         @test GtkReactive.convertunits(DeviceUnit, c, corner_dev...) == corner_dev
         @test GtkReactive.convertunits(UserUnit, c, corner_usr...) == corner_usr
         @test GtkReactive.convertunits(DeviceUnit, c, corner_usr...) == corner_dev
