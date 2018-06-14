@@ -2,9 +2,13 @@ using GtkReactive, Gtk.ShortNames, IntervalSets, Graphics, Colors,
       TestImages, FileIO, FixedPointNumbers, RoundingIntegers
 using Base.Test
 
-if !istaskdone(Reactive.runner_task)
+rtask = Reactive.runner_task # starting with Reactive 0.7.0, this became a Ref
+if isa(rtask, Base.RefValue)
+    rtask = rtask[]
+end
+if !istaskdone(rtask)
     Reactive.stop()
-    wait(Reactive.runner_task)
+    wait(rtask)
 end
 
 include("tools.jl")
