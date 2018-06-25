@@ -467,7 +467,7 @@ end
 end
 
 # For testing ZoomRegion support for non-AbstractArray objects
-immutable Foo end
+struct Foo end
 Base.indices(::Foo) = (Base.OneTo(7), Base.OneTo(9))
 
 @testset "Zoom/pan" begin

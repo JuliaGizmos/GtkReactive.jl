@@ -16,17 +16,17 @@ Optionally specify the element type `T`; if `signal` is a
 init_wsigval(::Void, ::Void; default=nothing) = _init_wsigval(nothing, default)
 init_wsigval(::Void, value; default=nothing) = _init_wsigval(typeof(value), nothing, value)
 init_wsigval(signal, value; default=nothing) = _init_wsigval(eltype(signal), signal, value)
-init_wsigval{T}(::Type{T}, ::Void, ::Void; default=nothing) =
+init_wsigval(::Type{T}, ::Void, ::Void; default=nothing) where {T} =
     _init_wsigval(T, nothing, default)
-init_wsigval{T}(::Type{T}, signal, value; default=nothing) =
+init_wsigval(::Type{T}, signal, value; default=nothing) where {T} =
     _init_wsigval(T, signal, value)
 
 _init_wsigval(::Void, value) = _init_wsigval(typeof(value), nothing, value)
-_init_wsigval{T}(::Type{T}, ::Void, ::Void) = error("must supply an initial value")
-_init_wsigval{T}(::Type{T}, ::Void, value) = Signal(T, value), value
-_init_wsigval{T}(::Type{T}, signal::Signal{T}, ::Void) =
+_init_wsigval(::Type{T}, ::Void, ::Void) where {T} = error("must supply an initial value")
+_init_wsigval(::Type{T}, ::Void, value) where {T} = Signal(T, value), value
+_init_wsigval(::Type{T}, signal::Signal{T}, ::Void) where {T} =
     _init_wsigval(T, signal, value(signal))
-function _init_wsigval{T}(::Type{T}, signal::Signal{T}, value)
+function _init_wsigval(::Type{T}, signal::Signal{T}, value) where T
     push!(signal, value)
     signal, value
 end
@@ -78,19 +78,19 @@ end
 
 ########################## Slider ############################
 
-immutable Slider{T<:Number} <: InputWidget{T}
+struct Slider{T<:Number} <: InputWidget{T}
     signal::Signal{T}
     widget::GtkScaleLeaf
     id::Culong
     preserved::Vector
 
-    function (::Type{Slider{T}}){T}(signal::Signal{T}, widget, id, preserved)
+    function Slider{T}(signal::Signal{T}, widget, id, preserved) where T
         obj = new{T}(signal, widget, id, preserved)
         gc_preserve(widget, obj)
         obj
     end
 end
-Slider{T}(signal::Signal{T}, widget::GtkScaleLeaf, id, preserved) =
+Slider(signal::Signal{T}, widget::GtkScaleLeaf, id, preserved) where {T} =
     Slider{T}(signal, widget, id, preserved)
 
 # differs from median(r) in that it always returns an element of the range
@@ -109,13 +109,13 @@ Create a slider widget with the specified `range`. Optionally provide:
   - the (Reactive.jl) `signal` coupled to this slider (by default, creates a new signal)
   - the `orientation` of the slider.
 """
-function slider{T}(range::Range{T};
-                   widget=nothing,
-                   value=nothing,
-                   signal=nothing,
-                   orientation="horizontal",
-                   syncsig=true,
-                   own=nothing)
+function slider(range::Range{T};
+                widget=nothing,
+                value=nothing,
+                signal=nothing,
+                orientation="horizontal",
+                syncsig=true,
+                own=nothing) where T
     signalin = signal
     signal, value = init_wsigval(T, signal, value; default=medianelement(range))
     if own == nothing
@@ -163,7 +163,7 @@ end
 
 ######################### Checkbox ###########################
 
-immutable Checkbox <: InputWidget{Bool}
+struct Checkbox <: InputWidget{Bool}
     signal::Signal{Bool}
     widget::GtkCheckButtonLeaf
     id::Culong
@@ -217,7 +217,7 @@ checkbox(; value=false, widget=nothing, signal=nothing, label="", own=nothing) =
 
 ###################### ToggleButton ########################
 
-immutable ToggleButton <: InputWidget{Bool}
+struct ToggleButton <: InputWidget{Bool}
     signal::Signal{Bool}
     widget::GtkToggleButtonLeaf
     id::Culong
@@ -271,7 +271,7 @@ togglebutton(; value=false, widget=nothing, signal=nothing, label="", own=nothin
 
 ######################### Button ###########################
 
-immutable Button <: InputWidget{Void}
+struct Button <: InputWidget{Void}
     signal::Signal{Void}
     widget::Union{GtkButtonLeaf,GtkToolButtonLeaf}
     id::Culong
@@ -321,20 +321,20 @@ button(label::Union{String,Symbol}; widget=nothing, signal=nothing, own=nothing)
 
 ######################## Textbox ###########################
 
-immutable Textbox{T} <: InputWidget{T}
+struct Textbox{T} <: InputWidget{T}
     signal::Signal{T}
     widget::GtkEntryLeaf
     id::Culong
     preserved::Vector{Any}
     range
 
-    function (::Type{Textbox{T}}){T}(signal::Signal{T}, widget, id, preserved, range)
+    function Textbox{T}(signal::Signal{T}, widget, id, preserved, range) where T
         obj = new{T}(signal, widget, id, preserved, range)
         gc_preserve(widget, obj)
         obj
     end
 end
-Textbox{T}(signal::Signal{T}, widget::GtkEntryLeaf, id, preserved, range) =
+Textbox(signal::Signal{T}, widget::GtkEntryLeaf, id, preserved, range) where {T} =
     Textbox{T}(signal, widget, id, preserved, range)
 
 textbox(signal::Signal, widget::GtkButtonLeaf, id, preserved = []) =
@@ -351,14 +351,14 @@ for numeric entries, and/or provide the (Reactive.jl) `signal` coupled
 to this text box. Finally, you can specify which Gtk signal (e.g.
 `activate`, `changed`) you'd like the widget to update with.
 """
-function textbox{T}(::Type{T};
-                    widget=nothing,
-                    value=nothing,
-                    range=nothing,
-                    signal=nothing,
-                    syncsig=true,
-                    own=nothing,
-                    gtksignal=:activate)
+function textbox(::Type{T};
+                 widget=nothing,
+                 value=nothing,
+                 range=nothing,
+                 signal=nothing,
+                 syncsig=true,
+                 own=nothing,
+                 gtksignal=:activate) where T
     if T <: AbstractString && range != nothing
         throw(ArgumentError("You cannot set a range on a string textbox"))
     end
@@ -390,19 +390,19 @@ function textbox{T}(::Type{T};
 
     Textbox(signal, widget, id, preserved, range)
 end
-function textbox{T}(value::T;
-                    widget=nothing,
-                    range=nothing,
-                    signal=nothing,
-                    syncsig=true,
-                    own=nothing,
-                    gtksignal=:activate)
+function textbox(value::T;
+                 widget=nothing,
+                 range=nothing,
+                 signal=nothing,
+                 syncsig=true,
+                 own=nothing,
+                 gtksignal=:activate) where T
     textbox(T; widget=widget, value=value, range=range, signal=signal, syncsig=syncsig, own=own, gtksignal=gtksignal)
 end
 
-entrygetter{T<:AbstractString}(w, signal::Signal{T}, ::Void) =
+entrygetter(w, signal::Signal{T}, ::Void) where {T<:AbstractString} =
     getproperty(w, :text, String)
-function entrygetter{T}(w, signal::Signal{T}, range)
+function entrygetter(w, signal::Signal{T}, range) where T
     val = tryparse(T, getproperty(w, :text, String))
     if isnull(val)
         nval = value(signal)
@@ -428,7 +428,7 @@ entrysetter!(w, val) = setproperty!(w, :text, string(val))
 
 ######################### Textarea ###########################
 
-immutable Textarea <: InputWidget{String}
+struct Textarea <: InputWidget{String}
     signal::Signal{String}
     widget::GtkTextView
     id::Culong
@@ -486,7 +486,7 @@ end
 
 ##################### SelectionWidgets ######################
 
-immutable Dropdown <: InputWidget{String}
+struct Dropdown <: InputWidget{String}
     signal::Signal{String}
     mappedsignal::Signal
     widget::GtkComboBoxTextLeaf
@@ -586,7 +586,7 @@ end
 juststring(str::AbstractString) = String(str)
 juststring(p::Pair{String}) = p.first
 pairaction(str::AbstractString) = x->nothing
-pairaction{F<:Function}(p::Pair{String,F}) = p.second
+pairaction(p::Pair{String,F}) where {F<:Function} = p.second
 
 
 # """
@@ -658,7 +658,7 @@ pairaction{F<:Function}(p::Pair{String,F}) = p.second
 
 ######################## Label #############################
 
-immutable Label <: Widget
+struct Label <: Widget
     signal::Signal{String}
     widget::GtkLabel
     preserved::Vector{Any}
@@ -775,19 +775,19 @@ end
 
 ########################## SpinButton ########################
 
-immutable SpinButton{T<:Number} <: InputWidget{T}
+struct SpinButton{T<:Number} <: InputWidget{T}
     signal::Signal{T}
     widget::GtkSpinButtonLeaf
     id::Culong
     preserved::Vector
 
-    function (::Type{SpinButton{T}}){T}(signal::Signal{T}, widget, id, preserved)
+    function SpinButton{T}(signal::Signal{T}, widget, id, preserved) where T
         obj = new{T}(signal, widget, id, preserved)
         gc_preserve(widget, obj)
         obj
     end
 end
-SpinButton{T}(signal::Signal{T}, widget::GtkSpinButtonLeaf, id, preserved) =
+SpinButton(signal::Signal{T}, widget::GtkSpinButtonLeaf, id, preserved) where {T} =
     SpinButton{T}(signal, widget, id, preserved)
 
 spinbutton(signal::Signal, widget::GtkSpinButtonLeaf, id, preserved = []) =
@@ -802,13 +802,13 @@ Create a spinbutton widget with the specified `range`. Optionally provide:
   - the (Reactive.jl) `signal` coupled to this spinbutton (by default, creates a new signal)
   - the `orientation` of the spinbutton.
 """
-function spinbutton{T}(range::Range{T};
-                       widget=nothing,
-                       value=nothing,
-                       signal=nothing,
-                       orientation="horizontal",
-                       syncsig=true,
-                       own=nothing)
+function spinbutton(range::Range{T};
+                    widget=nothing,
+                    value=nothing,
+                    signal=nothing,
+                    orientation="horizontal",
+                    syncsig=true,
+                    own=nothing) where T
     signalin = signal
     signal, value = init_wsigval(T, signal, value; default=range.start)
     if own == nothing
@@ -860,19 +860,19 @@ end
 
 ########################## CyclicSpinButton ########################
 
-immutable CyclicSpinButton{T<:Number} <: InputWidget{T}
+struct CyclicSpinButton{T<:Number} <: InputWidget{T}
     signal::Signal{T}
     widget::GtkSpinButtonLeaf
     id::Culong
     preserved::Vector
 
-    function (::Type{CyclicSpinButton{T}}){T}(signal::Signal{T}, widget, id, preserved)
+    function CyclicSpinButton{T}(signal::Signal{T}, widget, id, preserved) where T
         obj = new{T}(signal, widget, id, preserved)
         gc_preserve(widget, obj)
         obj
     end
 end
-CyclicSpinButton{T}(signal::Signal{T}, widget::GtkSpinButtonLeaf, id, preserved) =
+CyclicSpinButton(signal::Signal{T}, widget::GtkSpinButtonLeaf, id, preserved) where {T} =
     CyclicSpinButton{T}(signal, widget, id, preserved)
 
 cyclicspinbutton(signal::Signal, widget::GtkSpinButtonLeaf, id, preserved = []) =
@@ -891,13 +891,13 @@ than the minimum of the range `carry_up` is updated with `false`. Optional argum
   - the (Reactive.jl) `signal` coupled to this cyclicspinbutton (by default, creates a new signal)
   - the `orientation` of the cyclicspinbutton.
 """
-function cyclicspinbutton{T}(range::Range{T}, carry_up::Signal{Bool};
+function cyclicspinbutton(range::Range{T}, carry_up::Signal{Bool};
                        widget=nothing,
                        value=nothing,
                        signal=nothing,
                        orientation="horizontal",
                        syncsig=true,
-                       own=nothing)
+                       own=nothing) where T
     signalin = signal
     signal, value = init_wsigval(T, signal, value; default=range.start)
     if own == nothing
@@ -949,18 +949,18 @@ end
 
 ######################## ProgressBar #########################
 
-immutable ProgressBar{T <: Number} <: Widget
+struct ProgressBar{T <: Number} <: Widget
     signal::Signal{T}
     widget::GtkProgressBarLeaf
     preserved::Vector{Any}
 
-    function (::Type{ProgressBar{T}}){T}(signal::Signal{T}, widget, preserved)
+    function ProgressBar{T}(signal::Signal{T}, widget, preserved) where T
         obj = new{T}(signal, widget, preserved)
         gc_preserve(widget, obj)
         obj
     end
 end
-ProgressBar{T}(signal::Signal{T}, widget::GtkProgressBarLeaf, preserved) =
+ProgressBar(signal::Signal{T}, widget::GtkProgressBarLeaf, preserved) where {T} =
     ProgressBar{T}(signal, widget, preserved)
 
 # convert a member of the interval into a decimal 

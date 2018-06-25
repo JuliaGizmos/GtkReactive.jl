@@ -19,11 +19,11 @@ returns true when restoring the full view (by default, double-clicking
 mouse button 1). `minpixels` can be used for aborting rubber-band
 selections smaller than some threshold.
 """
-function init_zoom_rubberband{U,T}(canvas::Canvas{U},
-                                   zr::Signal{ZoomRegion{T}},
-                                   initiate::Function = zrb_init_default,
-                                   reset::Function = zrb_reset_default,
-                                   minpixels::Integer = 2)
+function init_zoom_rubberband(canvas::Canvas{U},
+                              zr::Signal{ZoomRegion{T}},
+                              initiate::Function = zrb_init_default,
+                              reset::Function = zrb_reset_default,
+                              minpixels::Integer = 2) where {U,T}
     enabled = Signal(true)
     active = Signal(false)
     function update_zr(widget, bb)
@@ -65,7 +65,7 @@ zrb_reset_default(btn) = btn.button == 1 && btn.clicktype == DOUBLE_BUTTON_PRESS
 
 # For rubberband, we draw the selection region on the front canvas, and repair
 # by copying from the back.
-type RubberBand{U}
+mutable struct RubberBand{U}
     pos1::XY{U}
     pos2::XY{U}
     moved::Bool

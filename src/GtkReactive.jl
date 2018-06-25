@@ -33,10 +33,10 @@ export ZoomRegion, zoom, pan_x, pan_y, init_zoom_rubberband, init_zoom_scroll,
        init_pan_scroll, init_pan_drag
 
 # The generic Widget interface
-@compat abstract type Widget end
+abstract type Widget end
 
 # A widget that gives out a signal of type T
-@compat abstract type InputWidget{T}  <: Widget end
+abstract type InputWidget{T}  <: Widget end
 
 """
     signal(w) -> s
@@ -69,9 +69,9 @@ include("rubberband.jl")
 
 ## More convenience functions
 # Containers
-(::Type{GtkWindow})(w::Union{Widget,Canvas}) = GtkWindow(widget(w))
-(::Type{GtkFrame})(w::Union{Widget,Canvas}) = GtkFrame(widget(w))
-(::Type{GtkAspectFrame})(w::Union{Widget,Canvas}, args...) =
+GtkWindow(w::Union{Widget,Canvas}) = GtkWindow(widget(w))
+GtkFrame(w::Union{Widget,Canvas}) = GtkFrame(widget(w))
+GtkAspectFrame(w::Union{Widget,Canvas}, args...) =
     GtkAspectFrame(widget(w), args...)
 
 Base.push!(container::Union{Gtk.GtkBin,GtkBox}, child::Widget) =
@@ -85,7 +85,7 @@ widget(c::Canvas) = c.widget
 
 Gtk.setproperty!(w::Union{Widget,Canvas}, key, val) = setproperty!(widget(w), key, val)
 Gtk.getproperty(w::Union{Widget,Canvas}, key) = getproperty(widget(w), key)
-Gtk.getproperty{T}(w::Union{Widget,Canvas}, key, ::Type{T}) = getproperty(widget(w), key, T)
+Gtk.getproperty(w::Union{Widget,Canvas}, key, ::Type{T}) where {T} = getproperty(widget(w), key, T)
 
 Base.unsafe_convert(::Type{Ptr{Gtk.GLib.GObject}}, w::Union{Widget,Canvas}) =
     Base.unsafe_convert(Ptr{Gtk.GLib.GObject}, widget(w))
@@ -112,16 +112,16 @@ function Graphics.BoundingBox(xy::XY)
     BoundingBox(minimum(xy.x), maximum(xy.x), minimum(xy.y), maximum(xy.y))
 end
 
-function Base.push!{T,S}(zr::Signal{ZoomRegion{T}}, cv::XY{ClosedInterval{S}})
+function Base.push!(zr::Signal{ZoomRegion{T}}, cv::XY{ClosedInterval{S}}) where {T,S}
     fv = value(zr).fullview
     push!(zr, ZoomRegion{T}(fv, cv))
 end
 
-function Base.push!{T}(zr::Signal{ZoomRegion{T}}, inds::Tuple{ClosedInterval,ClosedInterval})
+function Base.push!(zr::Signal{ZoomRegion{T}}, inds::Tuple{ClosedInterval,ClosedInterval}) where T
     push!(zr, XY{ClosedInterval{T}}(inds[2], inds[1]))
 end
 
-function Base.push!{T}(zr::Signal{ZoomRegion{T}}, inds::Tuple{AbstractUnitRange,AbstractUnitRange})
+function Base.push!(zr::Signal{ZoomRegion{T}}, inds::Tuple{AbstractUnitRange,AbstractUnitRange}) where T
     push!(zr, map(ClosedInterval{T}, inds))
 end
 

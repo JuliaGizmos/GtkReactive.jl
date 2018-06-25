@@ -3,30 +3,30 @@
 using Gtk.GConstants: GDK_KEY_Left, GDK_KEY_Right, GDK_KEY_Up, GDK_KEY_Down
 using Gtk.GConstants.GdkEventMask: KEY_PRESS, SCROLL
 
-@compat abstract type CairoUnit <: Real end
+abstract type CairoUnit <: Real end
 
-Base.:+{U<:CairoUnit}(x::U, y::U) = U(x.val + y.val)
-Base.:-{U<:CairoUnit}(x::U, y::U) = U(x.val - y.val)
-Base.:<{U<:CairoUnit}(x::U, y::U) = Bool(x.val < y.val)
-Base.:>{U<:CairoUnit}(x::U, y::U) = Bool(x.val > y.val)
-Base.abs{U<:CairoUnit}(x::U) = U(abs(x.val))
-Base.min{U<:CairoUnit}(x::U, y::U) = U(min(x.val, y.val))
-Base.max{U<:CairoUnit}(x::U, y::U) = U(max(x.val, y.val))
+Base.:+(x::U, y::U) where {U<:CairoUnit} = U(x.val + y.val)
+Base.:-(x::U, y::U) where {U<:CairoUnit} = U(x.val - y.val)
+Base.:<(x::U, y::U) where {U<:CairoUnit} = Bool(x.val < y.val)
+Base.:>(x::U, y::U) where {U<:CairoUnit} = Bool(x.val > y.val)
+Base.abs(x::U) where {U<:CairoUnit} = U(abs(x.val))
+Base.min(x::U, y::U) where {U<:CairoUnit} = U(min(x.val, y.val))
+Base.max(x::U, y::U) where {U<:CairoUnit} = U(max(x.val, y.val))
 Base.isapprox(x::U, y::U; kwargs...) where U<:CairoUnit =
     isapprox(x.val, y.val; kwargs...)
 # Most of these are for ambiguity resolution
-Base.convert{T<:CairoUnit}(::Type{T}, x::T) = x
+Base.convert(::Type{T}, x::T) where {T<:CairoUnit} = x
 Base.convert(::Type{Bool}, x::CairoUnit) = convert(Bool, x.val)
 Base.convert(::Type{Integer}, x::CairoUnit) = convert(Integer, x.val)
-Base.convert{T<:RInteger}(::Type{T}, x::CairoUnit) =
+Base.convert(::Type{T}, x::CairoUnit) where {T<:RInteger} =
     convert(T, convert(RoundingIntegers.itype(T), x.val))
-Base.convert{T<:FixedPointNumbers.Normed}(::Type{T}, x::CairoUnit) = convert(T, x.val)
-Base.convert{T<:Real}(::Type{T}, x::CairoUnit) = convert(T, x.val)
+Base.convert(::Type{T}, x::CairoUnit) where {T<:FixedPointNumbers.Normed} = convert(T, x.val)
+Base.convert(::Type{T}, x::CairoUnit) where {T<:Real} = convert(T, x.val)
 # The next three are for ambiguity resolution
-Base.promote_rule{U<:CairoUnit}(::Type{Bool}, ::Type{U}) = Float64
-Base.promote_rule{U<:CairoUnit}(::Type{BigFloat}, ::Type{U}) = BigFloat
-Base.promote_rule{T<:Irrational,U<:CairoUnit}(::Type{T}, ::Type{U}) = promote_type(T, Float64)
-Base.promote_rule{T<:Real,U<:CairoUnit}(::Type{T}, ::Type{U}) = promote_type(T, Float64)
+Base.promote_rule(::Type{Bool}, ::Type{U}) where {U<:CairoUnit} = Float64
+Base.promote_rule(::Type{BigFloat}, ::Type{U}) where {U<:CairoUnit} = BigFloat
+Base.promote_rule(::Type{T}, ::Type{U}) where {T<:Irrational,U<:CairoUnit} = promote_type(T, Float64)
+Base.promote_rule(::Type{T}, ::Type{U}) where {T<:Real,U<:CairoUnit} = promote_type(T, Float64)
 
 """
     DeviceUnit(x)
@@ -34,7 +34,7 @@ Base.promote_rule{T<:Real,U<:CairoUnit}(::Type{T}, ::Type{U}) = promote_type(T, 
 Represent a number `x` as having "device" units (aka, screen
 pixels). See the Cairo documentation.
 """
-immutable DeviceUnit <: CairoUnit
+struct DeviceUnit <: CairoUnit
     val::Float64
 end
 
@@ -46,7 +46,7 @@ have been established with calls that affect the transformation
 matrix, e.g., [`Graphics.set_coordinates`](@ref) or
 [`Cairo.set_matrix`](@ref).
 """
-immutable UserUnit <: CairoUnit
+struct UserUnit <: CairoUnit
     val::Float64
 end
 
@@ -55,7 +55,7 @@ showtype(::Type{DeviceUnit}) = "DeviceUnit"
 
 Base.show(io::IO, x::CairoUnit) = print(io, showtype(typeof(x)), '(', x.val, ')')
 
-Base.promote_rule{U<:UserUnit,D<:DeviceUnit}(::Type{U}, ::Type{D}) =
+Base.promote_rule(::Type{U}, ::Type{D}) where {U<:UserUnit,D<:DeviceUnit} =
     error("UserUnit and DeviceUnit are incompatible, promotion not defined")
 
 function convertunits(::Type{UserUnit}, c, x::DeviceUnit, y::DeviceUnit)
@@ -94,31 +94,31 @@ number increases to the right and downward. If used to encode mouse
 pointer positions, the units of `x` and `y` are either
 [`DeviceUnit`](@ref) or [`UserUnit`](@ref).
 """
-immutable XY{T}
+struct XY{T}
     x::T
     y::T
 
-    (::Type{XY{T}}){T}(x, y) = new{T}(x, y)
-    (::Type{XY{U}}){U<:CairoUnit}(x::U, y::U) = new{U}(x, y)
-    (::Type{XY{U}}){U<:CairoUnit}(x::Real, y::Real) = new{U}(U(x), U(y))
+    XY{T}(x, y) where {T} = new{T}(x, y)
+    XY{U}(x::U, y::U) where {U<:CairoUnit} = new{U}(x, y)
+    XY{U}(x::Real, y::Real) where {U<:CairoUnit} = new{U}(U(x), U(y))
 end
-(::Type{XY}){T}(x::T, y::T) = XY{T}(x, y)
-(::Type{XY})(x, y) = XY(promote(x, y)...)
+XY(x::T, y::T) where {T} = XY{T}(x, y)
+XY(x, y) = XY(promote(x, y)...)
 
-function (::Type{XY{U}}){U<:CairoUnit}(w::GtkCanvas, evt::Gtk.GdkEvent)
+function XY{U}(w::GtkCanvas, evt::Gtk.GdkEvent) where U<:CairoUnit
     XY{U}(convertunits(U, w, DeviceUnit(evt.x), DeviceUnit(evt.y))...)
 end
 
-function Base.show{T<:CairoUnit}(io::IO, xy::XY{T})
+function Base.show(io::IO, xy::XY{T}) where T<:CairoUnit
     print(io, "XY{$(showtype(T))}(", Float64(xy.x), ", ", Float64(xy.y), ')')
 end
 Base.show(io::IO, xy::XY) = print(io, "XY(", xy.x, ", ", xy.y, ')')
 
-Base.convert{T}(::Type{XY{T}}, xy::XY{T}) = xy
-Base.convert{T}(::Type{XY{T}}, xy::XY) = XY(T(xy.x), T(xy.y))
+Base.convert(::Type{XY{T}}, xy::XY{T}) where {T} = xy
+Base.convert(::Type{XY{T}}, xy::XY) where {T} = XY(T(xy.x), T(xy.y))
 
-Base.:+{T}(xy1::XY{T}, xy2::XY{T}) = XY{T}(xy1.x+xy2.x,xy1.y+xy2.y)
-Base.:-{T}(xy1::XY{T}, xy2::XY{T}) = XY{T}(xy1.x-xy2.x,xy1.y-xy2.y)
+Base.:+(xy1::XY{T}, xy2::XY{T}) where {T} = XY{T}(xy1.x+xy2.x,xy1.y+xy2.y)
+Base.:-(xy1::XY{T}, xy2::XY{T}) where {T} = XY{T}(xy1.x-xy2.x,xy1.y-xy2.y)
 
 """
     MouseButton(position, button, clicktype, modifiers)
@@ -142,20 +142,20 @@ The fieldnames are the same as the argument names above.
 Create a "dummy" MouseButton event. Often useful for the fallback to
 Reactive's `filterwhen`.
 """
-immutable MouseButton{U<:CairoUnit}
+struct MouseButton{U<:CairoUnit}
     position::XY{U}
     button::UInt32
     clicktype::typeof(BUTTON_PRESS)
     modifiers::typeof(SHIFT)
     gtkevent
 end
-function MouseButton{U}(pos::XY{U}, button::Integer, clicktype::Integer, modifiers::Integer, gtkevent=nothing)
+function MouseButton(pos::XY{U}, button::Integer, clicktype::Integer, modifiers::Integer, gtkevent=nothing) where U
     MouseButton{U}(pos, UInt32(button), oftype(BUTTON_PRESS, clicktype), oftype(SHIFT, modifiers), gtkevent)
 end
-function (::Type{MouseButton{U}}){U}(w::GtkCanvas, evt::Gtk.GdkEvent)
+function MouseButton{U}(w::GtkCanvas, evt::Gtk.GdkEvent) where U
     MouseButton{U}(XY{U}(w, evt), evt.button, evt.event_type, evt.state, evt)
 end
-function (::Type{MouseButton{U}}){U}()
+function MouseButton{U}() where U
     MouseButton(XY(U(-1), U(-1)), 0, 0, 0, nothing)
 end
 
@@ -176,18 +176,18 @@ the click; they may be 0 (no modifiers) or any combination of `SHIFT`,
 Create a "dummy" MouseScroll event. Often useful for the fallback to
 Reactive's `filterwhen`.
 """
-immutable MouseScroll{U<:CairoUnit}
+struct MouseScroll{U<:CairoUnit}
     position::XY{U}
     direction::typeof(UP)
     modifiers::typeof(SHIFT)
 end
-function MouseScroll{U}(pos::XY{U}, direction::Integer, modifiers::Integer)
+function MouseScroll(pos::XY{U}, direction::Integer, modifiers::Integer) where U
     MouseScroll{U}(pos, oftype(UP, direction), oftype(SHIFT, modifiers))
 end
-function (::Type{MouseScroll{U}}){U}(w::GtkCanvas, evt::Gtk.GdkEvent)
+function MouseScroll{U}(w::GtkCanvas, evt::Gtk.GdkEvent) where U
     MouseScroll{U}(XY{U}(w, evt), evt.direction, evt.state)
 end
-function (::Type{MouseScroll{U}}){U}()
+function MouseScroll{U}() where U
     MouseScroll(XY(U(-1), U(-1)), 0, 0)
 end
 
@@ -207,7 +207,7 @@ A type with `Signal` fields for which you can `map` callback actions. The fields
 `U` should be either [`DeviceUnit`](@ref) or [`UserUnit`](@ref) and
 determines the coordinate system used for reporting mouse positions.
 """
-immutable MouseHandler{U<:CairoUnit}
+struct MouseHandler{U<:CairoUnit}
     buttonpress::Signal{MouseButton{U}}
     buttonrelease::Signal{MouseButton{U}}
     motion::Signal{MouseButton{U}}
@@ -215,7 +215,7 @@ immutable MouseHandler{U<:CairoUnit}
     ids::Vector{Culong}   # for disabling any of these callbacks
     widget::GtkCanvas
 
-    function (::Type{MouseHandler{U}}){U<:CairoUnit}(canvas::GtkCanvas)
+    function MouseHandler{U}(canvas::GtkCanvas) where U<:CairoUnit
         pos = XY(U(-1), U(-1))
         btn = MouseButton(pos, 0, BUTTON_PRESS, SHIFT)
         scroll = MouseScroll(pos, UP, SHIFT)
@@ -239,12 +239,12 @@ Create a canvas for drawing and interaction. The relevant fields are:
 
 See also [`canvas`](@ref).
 """
-immutable Canvas{U}
+struct Canvas{U}
     widget::GtkCanvas
     mouse::MouseHandler{U}
     preserved::Vector{Any}
 
-    function (::Type{Canvas{U}}){U}(w::Integer=-1, h::Integer=-1; own::Bool=true)
+    function Canvas{U}(w::Integer=-1, h::Integer=-1; own::Bool=true) where U
         gtkcanvas = GtkCanvas(w, h)
         # Delete the Gtk handlers
         for id in gtkcanvas.mouse.ids
@@ -269,7 +269,7 @@ width `w` and height `h`. `U` refers to the units for the canvas (for
 both drawing and reporting mouse pointer positions), see
 [`DeviceUnit`](@ref) and [`UserUnit`](@ref). See also [`GtkReactive.Canvas`](@ref).
 """
-canvas{U<:CairoUnit}(::Type{U}=DeviceUnit, w::Integer=-1, h::Integer=-1) = Canvas{U}(w, h)
+canvas(::Type{U}=DeviceUnit, w::Integer=-1, h::Integer=-1) where {U<:CairoUnit} = Canvas{U}(w, h)
 canvas(w::Integer, h::Integer) = canvas(DeviceUnit, w, h)
 
 """
@@ -308,7 +308,7 @@ function Gtk.draw(drawfun::Function, c::Canvas, signals::Signal...)
 end
 
 # Painting an image to a canvas
-function Base.copy!{C<:Union{Colorant,Number}}(ctx::GraphicsContext, img::AbstractArray{C})
+function Base.copy!(ctx::GraphicsContext, img::AbstractArray{C}) where C<:Union{Colorant,Number}
     save(ctx)
     reset_transform(ctx)
     Cairo.image(ctx, image_surface(img), 0, 0, Graphics.width(ctx), Graphics.height(ctx))
@@ -330,19 +330,19 @@ image_surface(img::Matrix{RGB24})  =
 image_surface(img::Matrix{ARGB32}) =
     Cairo.CairoImageSurface(reinterpret(UInt32, img), Cairo.FORMAT_ARGB32)
 
-image_surface{T<:Number}(img::AbstractArray{T}) =
+image_surface(img::AbstractArray{T}) where {T<:Number} =
     image_surface(convert(Matrix{Gray24}, img))
-image_surface{T<:ColorTypes.AbstractGray}(img::AbstractArray{T}) =
+image_surface(img::AbstractArray{T}) where {T<:ColorTypes.AbstractGray} =
     image_surface(convert(Matrix{Gray24}, img))
-image_surface{C<:Color}(img::AbstractArray{C}) =
+image_surface(img::AbstractArray{C}) where {C<:Color} =
     image_surface(convert(Matrix{RGB24}, img))
-image_surface{C<:Colorant}(img::AbstractArray{C}) =
+image_surface(img::AbstractArray{C}) where {C<:Colorant} =
     image_surface(convert(Matrix{ARGB32}, img))
 
 
 # Coordiantes could be AbstractFloat without an implied step, so let's
 # use intervals instead of ranges
-immutable ZoomRegion{T}
+struct ZoomRegion{T}
     fullview::XY{ClosedInterval{T}}
     currentview::XY{ClosedInterval{T}}
 end
@@ -362,13 +362,13 @@ interest. `zr.fullview` stores the original `fullinds` from which `zr` was
 constructed; these are used to reset to the original limits and to
 confine `zr.currentview`.
 """
-function ZoomRegion{I<:Integer}(inds::Tuple{AbstractUnitRange{I},AbstractUnitRange{I}})
+function ZoomRegion(inds::Tuple{AbstractUnitRange{I},AbstractUnitRange{I}}) where I<:Integer
     ci = map(ClosedInterval{RInt}, inds)
     fullview = XY(ci[2], ci[1])
     ZoomRegion(fullview, fullview)
 end
-function ZoomRegion{I<:Integer}(fullinds::Tuple{AbstractUnitRange{I},AbstractUnitRange{I}},
-                                curinds::Tuple{AbstractUnitRange{I},AbstractUnitRange{I}})
+function ZoomRegion(fullinds::Tuple{AbstractUnitRange{I},AbstractUnitRange{I}},
+                    curinds::Tuple{AbstractUnitRange{I},AbstractUnitRange{I}}) where I<:Integer
     fi = map(ClosedInterval{RInt}, fullinds)
     ci = map(ClosedInterval{RInt}, curinds)
     ZoomRegion(XY(fi[2], fi[1]), XY(ci[2], ci[1]))
@@ -484,12 +484,12 @@ is triggered by scrolling while holding down the SHIFT key.
 You can flip the direction of either pan operation with `xpanflip` and
 `ypanflip`, respectively.
 """
-function init_pan_scroll{U,T}(canvas::Canvas{U},
-                              zr::Signal{ZoomRegion{T}},
-                              filter_x::Function = evt->(evt.modifiers & 0x0f) == SHIFT || evt.direction == LEFT || evt.direction == RIGHT,
-                              filter_y::Function = evt->(evt.modifiers & 0x0f) == 0 && (evt.direction == UP || evt.direction == DOWN),
-                              xpanflip = false,
-                              ypanflip  = false)
+function init_pan_scroll(canvas::Canvas{U},
+                         zr::Signal{ZoomRegion{T}},
+                         filter_x::Function = evt->(evt.modifiers & 0x0f) == SHIFT || evt.direction == LEFT || evt.direction == RIGHT,
+                         filter_y::Function = evt->(evt.modifiers & 0x0f) == 0 && (evt.direction == UP || evt.direction == DOWN),
+                         xpanflip = false,
+                         ypanflip  = false) where {U,T}
     enabled = Signal(true)
     dummyscroll = MouseScroll{U}()
     pan = map(filterwhen(enabled, dummyscroll, canvas.mouse.scroll)) do event
@@ -522,9 +522,9 @@ pan-dragging).
 click-drag panning has been met (by default, clicking mouse button
 1). The argument `btn` is a [`MouseButton`](@ref) event.
 """
-function init_pan_drag{U,T}(canvas::Canvas{U},
-                            zr::Signal{ZoomRegion{T}},
-                            initiate::Function = pandrag_init_default)
+function init_pan_drag(canvas::Canvas{U},
+                       zr::Signal{ZoomRegion{T}},
+                       initiate::Function = pandrag_init_default) where {U,T}
     enabled = Signal(true)
     active = Signal(false)
     dummybtn = MouseButton{U}()
@@ -589,12 +589,12 @@ choice, `:center`, keeps the canvas centered on its current location.
 You can change the amount of zooming via `factor` and the direction of
 zooming with `flip`.
 """
-function init_zoom_scroll{U,T}(canvas::Canvas{U},
-                               zr::Signal{ZoomRegion{T}},
-                               filter::Function = evt->(evt.modifiers & 0x0f) == CONTROL,
-                               focus::Symbol = :pointer,
-                               factor = 2.0,
-                               flip = false)
+function init_zoom_scroll(canvas::Canvas{U},
+                          zr::Signal{ZoomRegion{T}},
+                          filter::Function = evt->(evt.modifiers & 0x0f) == CONTROL,
+                          focus::Symbol = :pointer,
+                          factor = 2.0,
+                          flip = false) where {U,T}
     focus == :pointer || focus == :center || error("focus must be :pointer or :center")
     enabled = Signal(true)
     dummyscroll = MouseScroll{U}()
@@ -627,17 +627,17 @@ scrollpm(direction::Integer) =
     direction == LEFT ? -1 : error("Direction ", direction, " not recognized")
 
 ##### Callbacks #####
-function mousedown_cb{U}(ptr::Ptr, eventp::Ptr, handler::MouseHandler{U})
+function mousedown_cb(ptr::Ptr, eventp::Ptr, handler::MouseHandler{U}) where U
     evt = unsafe_load(eventp)
     push!(handler.buttonpress, MouseButton{U}(handler.widget, evt))
     Int32(false)
 end
-function mouseup_cb{U}(ptr::Ptr, eventp::Ptr, handler::MouseHandler{U})
+function mouseup_cb(ptr::Ptr, eventp::Ptr, handler::MouseHandler{U}) where U
     evt = unsafe_load(eventp)
     push!(handler.buttonrelease, MouseButton{U}(handler.widget, evt))
     Int32(false)
 end
-function mousemove_cb{U}(ptr::Ptr, eventp::Ptr, handler::MouseHandler{U})
+function mousemove_cb(ptr::Ptr, eventp::Ptr, handler::MouseHandler{U}) where U
     evt = unsafe_load(eventp)
     pos = XY{U}(handler.widget, evt)
     # This doesn't support multi-button moves well, but those are rare in most GUIs and
@@ -653,7 +653,7 @@ function mousemove_cb{U}(ptr::Ptr, eventp::Ptr, handler::MouseHandler{U})
     push!(handler.motion, MouseButton(pos, button, evt.event_type, evt.state))
     Int32(false)
 end
-function mousescroll_cb{U}(ptr::Ptr, eventp::Ptr, handler::MouseHandler{U})
+function mousescroll_cb(ptr::Ptr, eventp::Ptr, handler::MouseHandler{U}) where U
     evt = unsafe_load(eventp)
     push!(handler.scroll, MouseScroll{U}(handler.widget, evt))
     Int32(false)
