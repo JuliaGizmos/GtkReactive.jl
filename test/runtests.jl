@@ -1,3 +1,8 @@
+# Workaround for libz loading confusion.
+@static if Sys.islinux()
+    using ImageMagick
+end
+
 using GtkReactive, Gtk.ShortNames, IntervalSets, Graphics, Colors,
       TestImages, FileIO, FixedPointNumbers, RoundingIntegers, Dates, Cairo
 using Test
