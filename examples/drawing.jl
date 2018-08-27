@@ -52,4 +52,4 @@ function drawline(ctx, l, color)
     stroke(ctx)
 end
 
-showall(win)
+Gtk.showall(win)

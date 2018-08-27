@@ -110,7 +110,7 @@ function XY{U}(w::GtkCanvas, evt::Gtk.GdkEvent) where U<:CairoUnit
 end
 
 function Base.show(io::IO, xy::XY{T}) where T<:CairoUnit
-    print(io, "XY{$(showtype(T))}(", Float64(xy.x), ", ", Float64(xy.y), ')')
+    print(io, "XY{$(showtype(T))}(", convert(Float64, xy.x), ", ", convert(Float64, xy.y), ')')
 end
 Base.show(io::IO, xy::XY) = print(io, "XY(", xy.x, ", ", xy.y, ')')
 
@@ -219,7 +219,7 @@ struct MouseHandler{U<:CairoUnit}
         pos = XY(U(-1), U(-1))
         btn = MouseButton(pos, 0, BUTTON_PRESS, SHIFT)
         scroll = MouseScroll(pos, UP, SHIFT)
-        ids = Vector{Culong}(0)
+        ids = Vector{Culong}(undef, 0)
         handler = new{U}(Signal(btn), Signal(btn), Signal(btn), Signal(scroll), ids, canvas)
         # Create the callbacks
         push!(ids, Gtk.on_signal_button_press(mousedown_cb, canvas, false, handler))
@@ -253,7 +253,7 @@ struct Canvas{U}
         empty!(gtkcanvas.mouse.ids)
         # Initialize our own handlers
         mouse = MouseHandler{U}(gtkcanvas)
-        setproperty!(gtkcanvas, :is_focus, true)
+        set_gtk_property!(gtkcanvas, :is_focus, true)
         preserved = []
         canvas = new{U}(gtkcanvas, mouse, preserved)
         gc_preserve(gtkcanvas, canvas)
@@ -324,11 +324,11 @@ function Base.fill!(c::Union{GtkCanvas,Canvas}, color::Colorant)
 end
 
 image_surface(img::Matrix{Gray24}) =
-    Cairo.CairoImageSurface(reinterpret(UInt32, img), Cairo.FORMAT_RGB24)
+    Cairo.CairoImageSurface(Matrix(reinterpret(UInt32, img)), Cairo.FORMAT_RGB24)
 image_surface(img::Matrix{RGB24})  =
-    Cairo.CairoImageSurface(reinterpret(UInt32, img), Cairo.FORMAT_RGB24)
+    Cairo.CairoImageSurface(Matrix(reinterpret(UInt32, img)), Cairo.FORMAT_RGB24)
 image_surface(img::Matrix{ARGB32}) =
-    Cairo.CairoImageSurface(reinterpret(UInt32, img), Cairo.FORMAT_ARGB32)
+    Cairo.CairoImageSurface(Matrix(reinterpret(UInt32, img)), Cairo.FORMAT_ARGB32)
 
 image_surface(img::AbstractArray{T}) where {T<:Number} =
     image_surface(convert(Matrix{Gray24}, img))
@@ -363,17 +363,17 @@ constructed; these are used to reset to the original limits and to
 confine `zr.currentview`.
 """
 function ZoomRegion(inds::Tuple{AbstractUnitRange{I},AbstractUnitRange{I}}) where I<:Integer
-    ci = map(ClosedInterval{RInt}, inds)
+    ci = convert.(ClosedInterval{RInt}, inds)
     fullview = XY(ci[2], ci[1])
     ZoomRegion(fullview, fullview)
 end
 function ZoomRegion(fullinds::Tuple{AbstractUnitRange{I},AbstractUnitRange{I}},
                     curinds::Tuple{AbstractUnitRange{I},AbstractUnitRange{I}}) where I<:Integer
-    fi = map(ClosedInterval{RInt}, fullinds)
-    ci = map(ClosedInterval{RInt}, curinds)
+    fi = convert.(ClosedInterval{RInt}, fullinds)
+    ci = convert.(ClosedInterval{RInt}, curinds)
     ZoomRegion(XY(fi[2], fi[1]), XY(ci[2], ci[1]))
 end
-ZoomRegion(img) = ZoomRegion(indices(img))
+ZoomRegion(img) = ZoomRegion(axes(img))
 function ZoomRegion(fullview::XY, bb::BoundingBox)
     xview = oftype(fullview.x, bb.xmin..bb.xmax)
     yview = oftype(fullview.y, bb.ymin..bb.ymax)
@@ -382,7 +382,7 @@ end
 
 reset(zr::ZoomRegion) = ZoomRegion(zr.fullview, zr.fullview)
 
-Base.indices(zr::ZoomRegion) = map(UnitRange, (zr.currentview.y, zr.currentview.x))
+Base.axes(zr::ZoomRegion) = convert.(UnitRange, (zr.currentview.y, zr.currentview.x))
 
 function interior(iv::ClosedInterval, limits::AbstractInterval)
     imin, imax = minimum(iv), maximum(iv)

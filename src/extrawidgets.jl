@@ -1,3 +1,5 @@
+using Dates
+
 # Widgets built on top of more basic widgets
 
 """
@@ -54,7 +56,7 @@ function PlayerWithTextbox(builder, index::Signal, range::AbstractUnitRange, id:
     play_forward = button(; widget=Gtk.G_.object(builder,"play_forward$id"))
 
     # Fix up widget properties
-    setproperty!(scale.widget, "round-digits", 0)  # glade/gtkbuilder bug that I have to set this here?
+    set_gtk_property!(scale.widget, "round-digits", 0)  # glade/gtkbuilder bug that I have to set this here?
 
     # Link the buttons
     clampindex(i) = clamp(i, minimum(range), maximum(range))
@@ -88,7 +90,7 @@ function PlayerWithTextbox(index::Signal, range::AbstractUnitRange, id::Integer=
     PlayerWithTextbox(builder, index, range, id)
 end
 
-player(range::Range{Int}; style="with-textbox", id::Int=1) =
+player(range::AbstractRange{Int}; style="with-textbox", id::Int=1) =
     player(Signal(first(range)), range; style=style, id=id)
 
 """

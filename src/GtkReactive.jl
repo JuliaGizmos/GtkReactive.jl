@@ -2,8 +2,6 @@ __precompile__(true)
 
 module GtkReactive
 
-using Compat
-
 using Gtk, Colors, FixedPointNumbers, Reexport
 @reexport using Reactive
 using Graphics
@@ -69,9 +67,9 @@ include("rubberband.jl")
 
 ## More convenience functions
 # Containers
-GtkWindow(w::Union{Widget,Canvas}) = GtkWindow(widget(w))
-GtkFrame(w::Union{Widget,Canvas}) = GtkFrame(widget(w))
-GtkAspectFrame(w::Union{Widget,Canvas}, args...) =
+Gtk.GtkWindow(w::Union{Widget,Canvas}) = GtkWindow(widget(w))
+Gtk.GtkFrame(w::Union{Widget,Canvas}) = GtkFrame(widget(w))
+Gtk.GtkAspectFrame(w::Union{Widget,Canvas}, args...) =
     GtkAspectFrame(widget(w), args...)
 
 Base.push!(container::Union{Gtk.GtkBin,GtkBox}, child::Widget) =
@@ -83,9 +81,9 @@ Base.:|>(parent::Gtk.GtkContainer, child::Union{Widget,Canvas}) = push!(parent, 
 
 widget(c::Canvas) = c.widget
 
-Gtk.setproperty!(w::Union{Widget,Canvas}, key, val) = setproperty!(widget(w), key, val)
-Gtk.getproperty(w::Union{Widget,Canvas}, key) = getproperty(widget(w), key)
-Gtk.getproperty(w::Union{Widget,Canvas}, key, ::Type{T}) where {T} = getproperty(widget(w), key, T)
+Gtk.set_gtk_property!(w::Union{Widget,Canvas}, key, val) = set_gtk_property!(widget(w), key, val)
+Gtk.get_gtk_property(w::Union{Widget,Canvas}, key) = get_gtk_property(widget(w), key)
+Gtk.get_gtk_property(w::Union{Widget,Canvas}, key, ::Type{T}) where {T} = get_gtk_property(widget(w), key, T)
 
 Base.unsafe_convert(::Type{Ptr{Gtk.GLib.GObject}}, w::Union{Widget,Canvas}) =
     Base.unsafe_convert(Ptr{Gtk.GLib.GObject}, widget(w))
@@ -122,12 +120,12 @@ function Base.push!(zr::Signal{ZoomRegion{T}}, inds::Tuple{ClosedInterval,Closed
 end
 
 function Base.push!(zr::Signal{ZoomRegion{T}}, inds::Tuple{AbstractUnitRange,AbstractUnitRange}) where T
-    push!(zr, map(ClosedInterval{T}, inds))
+    push!(zr, convert.(ClosedInterval{T}, inds))
 end
 
 Gtk.reveal(c::Canvas, args...) = reveal(c.widget, args...)
 
-const _ref_dict = ObjectIdDict()
+const _ref_dict = IdDict{Any, Any}()
 
 """
     gc_preserve(widget::GtkWidget, obj)

@@ -13,18 +13,18 @@ returning its current value (if the `value` input is `nothing`).
 Optionally specify the element type `T`; if `signal` is a
 `Reactive.Signal`, then `T` must agree with `eltype(signal)`.
 """
-init_wsigval(::Void, ::Void; default=nothing) = _init_wsigval(nothing, default)
-init_wsigval(::Void, value; default=nothing) = _init_wsigval(typeof(value), nothing, value)
+init_wsigval(::Nothing, ::Nothing; default=nothing) = _init_wsigval(nothing, default)
+init_wsigval(::Nothing, value; default=nothing) = _init_wsigval(typeof(value), nothing, value)
 init_wsigval(signal, value; default=nothing) = _init_wsigval(eltype(signal), signal, value)
-init_wsigval(::Type{T}, ::Void, ::Void; default=nothing) where {T} =
+init_wsigval(::Type{T}, ::Nothing, ::Nothing; default=nothing) where {T} =
     _init_wsigval(T, nothing, default)
 init_wsigval(::Type{T}, signal, value; default=nothing) where {T} =
     _init_wsigval(T, signal, value)
 
-_init_wsigval(::Void, value) = _init_wsigval(typeof(value), nothing, value)
-_init_wsigval(::Type{T}, ::Void, ::Void) where {T} = error("must supply an initial value")
-_init_wsigval(::Type{T}, ::Void, value) where {T} = Signal(T, value), value
-_init_wsigval(::Type{T}, signal::Signal{T}, ::Void) where {T} =
+_init_wsigval(::Nothing, value) = _init_wsigval(typeof(value), nothing, value)
+_init_wsigval(::Type{T}, ::Nothing, ::Nothing) where {T} = error("must supply an initial value")
+_init_wsigval(::Type{T}, ::Nothing, value) where {T} = Signal(T, value), value
+_init_wsigval(::Type{T}, signal::Signal{T}, ::Nothing) where {T} =
     _init_wsigval(T, signal, value(signal))
 function _init_wsigval(::Type{T}, signal::Signal{T}, value) where T
     push!(signal, value)
@@ -95,7 +95,7 @@ Slider(signal::Signal{T}, widget::GtkScaleLeaf, id, preserved) where {T} =
 
 # differs from median(r) in that it always returns an element of the range
 medianidx(r) = (1+length(r))>>1
-medianelement(r::Range) = r[medianidx(r)]
+medianelement(r::AbstractRange) = r[medianidx(r)]
 
 slider(signal::Signal, widget::GtkScaleLeaf, id, preserved = []) =
     Slider(signal, widget, id, preserved)
@@ -109,7 +109,7 @@ Create a slider widget with the specified `range`. Optionally provide:
   - the (Reactive.jl) `signal` coupled to this slider (by default, creates a new signal)
   - the `orientation` of the slider.
 """
-function slider(range::Range{T};
+function slider(range::AbstractRange{T};
                 widget=nothing,
                 value=nothing,
                 signal=nothing,
@@ -152,7 +152,7 @@ end
 
 # Adjust the range on a slider
 # Is calling this `push!` too much of a pun?
-function Base.push!(s::Slider, range::Range, value=value(s))
+function Base.push!(s::Slider, range::AbstractRange, value=value(s))
     first(range) <= value <= last(range) || error("$value is not within the span of $range")
     adj = Gtk.Adjustment(widget(s))
     Gtk.G_.lower(adj, first(range))
@@ -271,12 +271,12 @@ togglebutton(; value=false, widget=nothing, signal=nothing, label="", own=nothin
 
 ######################### Button ###########################
 
-struct Button <: InputWidget{Void}
-    signal::Signal{Void}
+struct Button <: InputWidget{Nothing}
+    signal::Signal{Nothing}
     widget::Union{GtkButtonLeaf,GtkToolButtonLeaf}
     id::Culong
 
-    function (::Type{Button})(signal::Signal{Void}, widget, id)
+    function (::Type{Button})(signal::Signal{Nothing}, widget, id)
         obj = new(signal, widget, id)
         gc_preserve(widget, obj)
         obj
@@ -295,7 +295,7 @@ Create a push button with text-label `label`. Optionally provide:
   - the (Reactive.jl) `signal` coupled to this button (by default, creates a new signal)
 """
 function button(;
-                label::Union{Void,String,Symbol}=nothing,
+                label::Union{Nothing,String,Symbol}=nothing,
                 widget=nothing,
                 signal=nothing,
                 own=nothing)
@@ -370,7 +370,7 @@ function textbox(::Type{T};
     if widget == nothing
         widget = GtkEntry()
     end
-    setproperty!(widget, :text, value)
+    set_gtk_property!(widget, :text, value)
 
     id = signal_connect(widget, gtksignal) do w
         push!(signal, entrygetter(w, signal, range))
@@ -400,30 +400,29 @@ function textbox(value::T;
     textbox(T; widget=widget, value=value, range=range, signal=signal, syncsig=syncsig, own=own, gtksignal=gtksignal)
 end
 
-entrygetter(w, signal::Signal{T}, ::Void) where {T<:AbstractString} =
-    getproperty(w, :text, String)
+entrygetter(w, signal::Signal{T}, ::Nothing) where {T<:AbstractString} =
+    get_gtk_property(w, :text, String)
 function entrygetter(w, signal::Signal{T}, range) where T
-    val = tryparse(T, getproperty(w, :text, String))
-    if isnull(val)
+    val = tryparse(T, get_gtk_property(w, :text, String))
+    if val == nothing
         nval = value(signal)
         # Invalid entry, restore the old value
         entrysetter!(w, nval)
     else
-        nv = get(val)
-        nval = nearest(nv, range)
-        if nv != nval
+        nval = nearest(val, range)
+        if val != nval
             entrysetter!(w, nval)
         end
     end
     nval
 end
-nearest(val, ::Void) = val
-function nearest(val, r::Range)
+nearest(val, ::Nothing) = val
+function nearest(val, r::AbstractRange)
     i = round(Int, (val - first(r))/step(r)) + 1
     r[clamp(i, 1, length(r))]
 end
 
-entrysetter!(w, val) = setproperty!(w, :text, string(val))
+entrysetter!(w, val) = set_gtk_property!(w, :text, string(val))
 
 
 ######################### Textarea ###########################
@@ -462,10 +461,10 @@ function textarea(value::String="";
         widget = GtkTextView()
     end
     buf = Gtk.G_.buffer(widget)
-    setproperty!(buf, :text, value)
+    set_gtk_property!(buf, :text, value)
 
     id = signal_connect(buf, :changed) do w
-        push!(signal, getproperty(w, :text, String))
+        push!(signal, get_gtk_property(w, :text, String))
     end
 
     preserved = []
@@ -473,8 +472,8 @@ function textarea(value::String="";
         # GtkTextBuffer is not a GtkWdiget, so we have to do this manually
         push!(preserved, map(signal) do val
                   signal_handler_block(buf, id)
-                  curval = getproperty(buf, :text, String)
-                  curval != val && setproperty!(buf, :text, val)
+                  curval = get_gtk_property(buf, :text, String)
+                  curval != val && set_gtk_property!(buf, :text, val)
                   signal_handler_unblock(buf, id)
                   nothing
               end)
@@ -545,8 +544,8 @@ function dropdown(; choices=nothing,
     allstrings || all(x->isa(x, Pair), choices) || throw(ArgumentError("all elements must either be strings or pairs, got $choices"))
     str2int = Dict{String,Int}()
     int2str = Dict{Int,String}()
-    getactive(w) = int2str[getproperty(w, :active, Int)]
-    setactive!(w, val) = setproperty!(widget, :active, str2int[val])
+    getactive(w) = int2str[get_gtk_property(w, :active, Int)]
+    setactive!(w, val) = set_gtk_property!(widget, :active, str2int[val])
     k = -1
     for c in choices
         str = juststring(c)
@@ -691,12 +690,12 @@ function label(value;
     if widget == nothing
         widget = GtkLabel(value)
     else
-        setproperty!(widget, :label, value)
+        set_gtk_property!(widget, :label, value)
     end
     preserved = []
     if syncsig
         push!(preserved, map(signal) do val
-            setproperty!(widget, :label, val)
+            set_gtk_property!(widget, :label, val)
         end)
     end
     if own
@@ -724,7 +723,7 @@ end
 # type Progress <: Widget
 #     label::AbstractString
 #     value::Int
-#     range::Range
+#     range::AbstractRange
 #     orientation::String
 #     readout::Bool
 #     readout_format::String
@@ -739,7 +738,7 @@ end
 # # Make a widget out of a domain
 # widget(x::Signal, label="") = x
 # widget(x::Widget, label="") = x
-# widget(x::Range, label="") = selection_slider(x, label=label)
+# widget(x::AbstractRange, label="") = selection_slider(x, label=label)
 # widget(x::AbstractVector, label="") = togglebuttons(x, label=label)
 # widget(x::Associative, label="") = togglebuttons(x, label=label)
 # widget(x::Bool, label="") = checkbox(x, label=label)
@@ -802,7 +801,7 @@ Create a spinbutton widget with the specified `range`. Optionally provide:
   - the (Reactive.jl) `signal` coupled to this spinbutton (by default, creates a new signal)
   - the `orientation` of the spinbutton.
 """
-function spinbutton(range::Range{T};
+function spinbutton(range::AbstractRange{T};
                     widget=nothing,
                     value=nothing,
                     signal=nothing,
@@ -849,7 +848,7 @@ end
 
 # Adjust the range on a spinbutton
 # Is calling this `push!` too much of a pun?
-function Base.push!(s::SpinButton, range::Range, value=value(s))
+function Base.push!(s::SpinButton, range::AbstractRange, value=value(s))
     first(range) <= value <= last(range) || error("$value is not within the span of $range")
     adj = Gtk.Adjustment(widget(s))
     Gtk.G_.lower(adj, first(range))
@@ -891,7 +890,7 @@ than the minimum of the range `carry_up` is updated with `false`. Optional argum
   - the (Reactive.jl) `signal` coupled to this cyclicspinbutton (by default, creates a new signal)
   - the `orientation` of the cyclicspinbutton.
 """
-function cyclicspinbutton(range::Range{T}, carry_up::Signal{Bool};
+function cyclicspinbutton(range::AbstractRange{T}, carry_up::Signal{Bool};
                        widget=nothing,
                        value=nothing,
                        signal=nothing,
@@ -1007,12 +1006,12 @@ function progressbar(interval::AbstractInterval{T};
     if widget == nothing
         widget = GtkProgressBar()
     else
-        setproperty!(widget, :fraction, interval2fraction(interval, value))
+        set_gtk_property!(widget, :fraction, interval2fraction(interval, value))
     end
     preserved = []
     if syncsig
         push!(preserved, map(signal) do val
-            setproperty!(widget, :fraction, interval2fraction(interval, val))
+            set_gtk_property!(widget, :fraction, interval2fraction(interval, val))
         end)
     end
     if own
@@ -1021,4 +1020,4 @@ function progressbar(interval::AbstractInterval{T};
     ProgressBar(signal, widget, preserved)
 end
 
-progressbar(range::Range; args...) = progressbar(ClosedInterval(range), args...)
+progressbar(range::AbstractRange; args...) = progressbar(convert(ClosedInterval, range), args...)
