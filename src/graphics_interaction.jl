@@ -323,6 +323,8 @@ function Base.fill!(c::Union{GtkCanvas,Canvas}, color::Colorant)
     fill(ctx)
 end
 
+# TODO: Remove Matrix once the CairoImageSurface constructor has been
+# generalized. Cairo.jl issue #252.
 image_surface(img::Matrix{Gray24}) =
     Cairo.CairoImageSurface(Matrix(reinterpret(UInt32, img)), Cairo.FORMAT_RGB24)
 image_surface(img::Matrix{RGB24})  =
