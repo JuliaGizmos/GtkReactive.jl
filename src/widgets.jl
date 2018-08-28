@@ -567,8 +567,7 @@ function dropdown(; choices=nothing,
     push!(preserved, init_signal2widget(getactive, setactive!, widget, id, signal))
     if !allstrings
         choicedict = Dict(choices...)
-        # yield() seems to help when running under Pkg.test, not sure why
-        mappedsignal = map(val->(yield(); choicedict[val]), signal; typ=Any)
+        mappedsignal = map(val->choicedict[val], signal; typ=Any)
     else
         mappedsignal = Signal(nothing)
     end
@@ -963,7 +962,7 @@ end
 ProgressBar{T}(signal::Signal{T}, widget::GtkProgressBarLeaf, preserved) =
     ProgressBar{T}(signal, widget, preserved)
 
-# convert a member of the interval into a decimal 
+# convert a member of the interval into a decimal
 interval2fraction(x::AbstractInterval, i) = (i - minimum(x))/IntervalSets.width(x)
 
 """
@@ -984,7 +983,7 @@ julia> using IntervalSets
 julia> n = 10
 
 julia> pb = progressbar(1..n)
-Gtk.GtkProgressBarLeaf with 1: "input" = 1 Int64 
+Gtk.GtkProgressBarLeaf with 1: "input" = 1 Int64
 
 julia> for i = 1:n
            # do something

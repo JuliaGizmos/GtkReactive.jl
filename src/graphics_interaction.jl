@@ -299,7 +299,11 @@ draw a red circle centered on `xsig`, `ysig`.
 """
 function Gtk.draw(drawfun::Function, c::Canvas, signals::Signal...)
     @guarded draw(c.widget) do widget
-        yield()  # allow the Gtk event queue to run
+        # This used to have a `yield` in it to allow the Gtk event queue to run,
+        # but that caused
+        # https://github.com/JuliaGraphics/Gtk.jl/issues/368
+        # and the bizarre failures in
+        # https://github.com/JuliaImages/ImageView.jl/pull/153
         drawfun(widget, map(value, signals)...)
     end
     drawsig = map((values...)->draw(c.widget), signals...)
