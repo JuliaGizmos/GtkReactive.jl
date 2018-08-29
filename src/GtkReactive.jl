@@ -1,5 +1,3 @@
-__precompile__(true)
-
 module GtkReactive
 
 using Gtk, Colors, FixedPointNumbers, Reexport
