@@ -1,6 +1,11 @@
+# Workaround for libz loading confusion.
+@static if Sys.islinux()
+    using ImageMagick
+end
+
 using GtkReactive, Gtk.ShortNames, IntervalSets, Graphics, Colors,
-      TestImages, FileIO, FixedPointNumbers, RoundingIntegers
-using Base.Test
+      TestImages, FileIO, FixedPointNumbers, RoundingIntegers, Dates, Cairo
+using Test
 
 rtask = Reactive.runner_task # starting with Reactive 0.7.0, this became a Ref
 if isa(rtask, Base.RefValue)
@@ -8,7 +13,7 @@ if isa(rtask, Base.RefValue)
 end
 if !istaskdone(rtask)
     Reactive.stop()
-    wait(rtask)
+    fetch(rtask)
 end
 
 include("tools.jl")
@@ -18,10 +23,10 @@ include("tools.jl")
     l = label("Hello")
     @test signal(l) == l.signal
     @test signal(signal(l)) == l.signal
-    @test getproperty(l, :label, String) == "Hello"
+    @test get_gtk_property(l, :label, String) == "Hello"
     push!(signal(l), "world")
     rr()
-    @test getproperty(l, :label, String) == "world"
+    @test get_gtk_property(l, :label, String) == "world"
     @test string(l) == string("Gtk.GtkLabelLeaf with ", string(signal(l)))
     # map with keywords
     lsig0 = map(l) do lbl  # "regular" map runs the function
@@ -42,7 +47,7 @@ include("tools.jl")
     w = Window("Checkbox")
     check = checkbox(label="click me")
     push!(w, check)
-    showall(w)
+    Gtk.showall(w)
     @test value(check) == false
     @test Gtk.G_.active(check.widget) == false
     push!(check, true)
@@ -55,7 +60,7 @@ include("tools.jl")
     w = Window("Togglebutton")
     tgl = togglebutton(label="click me")
     push!(w, tgl)
-    showall(w)
+    Gtk.showall(w)
     @test value(tgl) == false
     @test Gtk.G_.active(tgl.widget) == false
     push!(tgl, true)
@@ -70,21 +75,21 @@ include("tools.jl")
     win = Window("Textboxes") |> (bx = Box(:h))
     push!(bx, txt)
     push!(bx, num)
-    showall(win)
-    @test getproperty(txt, :text, String) == "Type something"
+    Gtk.showall(win)
+    @test get_gtk_property(txt, :text, String) == "Type something"
     push!(txt, "ok")
     rr()
-    @test getproperty(txt, :text, String) == "ok"
-    setproperty!(txt, :text, "other direction")
-    signal_emit(widget(txt), :activate, Void)
+    @test get_gtk_property(txt, :text, String) == "ok"
+    set_gtk_property!(txt, :text, "other direction")
+    signal_emit(widget(txt), :activate, Nothing)
     rr()
     @test value(txt) == "other direction"
-    @test getproperty(num, :text, String) == "5"
+    @test get_gtk_property(num, :text, String) == "5"
     push!(signal(num), 11, (sig, val, osig, capex) -> throw(capex.ex))
     @test_throws ArgumentError rr()
     push!(num, 8)
     rr()
-    @test getproperty(num, :text, String) == "8"
+    @test get_gtk_property(num, :text, String) == "8"
     meld = map(txt, num) do t, n
         join((t, n), 'X')
     end
@@ -101,11 +106,11 @@ include("tools.jl")
     ## textarea (aka TextView)
     v = textarea("Type something longer")
     win = Window(v)
-    showall(win)
+    Gtk.showall(win)
     @test value(v) == "Type something longer"
     push!(v, "ok")
     rr()
-    @test getproperty(Gtk.G_.buffer(v.widget), :text, String) == "ok"
+    @test get_gtk_property(Gtk.G_.buffer(v.widget), :text, String) == "ok"
     destroy(win)
 
     ## slider
@@ -139,7 +144,7 @@ include("tools.jl")
     @test value(dd) == "Strawberry"
     push!(dd, "Chocolate")
     rr()
-    @test getproperty(dd, :active, Int) == 2
+    @test get_gtk_property(dd, :active, Int) == 2
     destroy(dd.widget)
 
     r = Ref(0)
@@ -260,11 +265,11 @@ action = map(b) do val
     global counter
     counter::Int += 1
 end
-showall(w)
+Gtk.showall(w)
 rr()
 cc = counter  # map seems to fire it once, so record the "new" initial value
-click(b::GtkReactive.Button) = ccall((:gtk_button_clicked,Gtk.libgtk),Void,(Ptr{Gtk.GObject},),b.widget)
-gc(true)
+click(b::GtkReactive.Button) = ccall((:gtk_button_clicked,Gtk.libgtk),Cvoid,(Ptr{Gtk.GObject},),b.widget)
+GC.gc(true)
 click(b)
 rr()
 @test counter == cc+1
@@ -281,7 +286,7 @@ if Gtk.libgtk_version >= v"3.10"
         p = player(s, 1:8)
         win = Window() |> (g = Grid())
         g[1,1] = p
-        showall(win)
+        Gtk.showall(win)
         rr()
         btn_fwd = p.widget.step_forward
         @test value(s) == 1
@@ -298,7 +303,7 @@ if Gtk.libgtk_version >= v"3.10"
 
         p = player(1:1000)
         win = Window(frame(p))
-        showall(win)
+        Gtk.showall(win)
         push!(widget(p).direction, 1)
         destroy(win)  # this should not generate a lot of output
     end
@@ -335,7 +340,7 @@ end
 
     c = canvas(208, 207)
     win = Window(c)
-    showall(win)
+    Gtk.showall(win)
     sleep(0.1)
     @test Graphics.width(c) == 208
     @test Graphics.height(c) == 207
@@ -343,7 +348,7 @@ end
     destroy(win)
     c = canvas(UserUnit, 208, 207)
     win = Window(c)
-    showall(win)
+    Gtk.showall(win)
     reveal(c, true)
     sleep(0.3)
     @test isa(c, GtkReactive.Canvas{UserUnit})
@@ -368,13 +373,13 @@ end
     c = canvas()
     f = AspectFrame(c, "Some title", 0.5, 0.5, 3.0)
     @test isa(f, Gtk.GtkAspectFrameLeaf)
-    @test getproperty(f, :ratio, Float64) == 3.0
+    @test get_gtk_property(f, :ratio, Float64) == 3.0
     destroy(f)
 end
 
 # @testset "Canvas events" begin
     win = Window() |> (c = canvas(UserUnit))
-    showall(win)
+    Gtk.showall(win)
     sleep(0.2)
     lastevent = Ref("nothing")
     press   = map(btn->lastevent[] = "press",   c.mouse.buttonpress)
@@ -414,7 +419,7 @@ end
     popupmenu = Menu()
     popupitem = MenuItem("Popup menu...")
     push!(popupmenu, popupitem)
-    showall(popupmenu)
+    Gtk.showall(popupmenu)
     win = Window() |> (c = canvas())
     popuptriggered = Ref(false)
     push!(c.preserved, map(c.mouse.buttonpress) do btn
@@ -451,7 +456,7 @@ end
         circle(ctx, x, y, 5)
         stroke(ctx)
     end
-    showall(win)
+    Gtk.showall(win)
     rr()
     push!(xsig, 100)
     rr()
@@ -467,8 +472,8 @@ end
 end
 
 # For testing ZoomRegion support for non-AbstractArray objects
-immutable Foo end
-Base.indices(::Foo) = (Base.OneTo(7), Base.OneTo(9))
+struct Foo end
+Base.axes(::Foo) = (Base.OneTo(7), Base.OneTo(9))
 
 @testset "Zoom/pan" begin
     @test string(UserUnit(3)) == "UserUnit(3.0)"
@@ -561,7 +566,7 @@ Base.indices(::Foo) = (Base.OneTo(7), Base.OneTo(9))
     @test zr.fullview.y == 1..100
     @test zr.currentview.x == 8..12
     @test zr.currentview.y == 11..20
-    @test indices(zr) == (11:20, 8:12)
+    @test axes(zr) == (11:20, 8:12)
 end
 
 ### Simulate the mouse clicks, etc. to trigger zoom/pan
@@ -576,7 +581,7 @@ draw(c) do cnvs
     set_coordinates(c, value(zr))
     fill!(c, colorant"blue")
 end
-showall(win)
+Gtk.showall(win)
 sleep(0.1)
 
 # Zoom by rubber band

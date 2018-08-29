@@ -33,7 +33,7 @@ push!(mainwin, vbox)
 cnvs = canvas()
 auxwin = Window(cnvs)
 showwin = map(cb) do val
-    setproperty!(auxwin, :visible, val)
+    set_gtk_property!(auxwin, :visible, val)
 end
 # Also make sure it gets destroyed when we destroy the main window
 signal_connect(mainwin, :destroy) do w
@@ -43,6 +43,6 @@ end
 draw(cnvs) do c
     fill!(c, colorant"orange")
 end
-showall(auxwin)
+Gtk.showall(auxwin)
 
-showall(mainwin)
+Gtk.showall(mainwin)
