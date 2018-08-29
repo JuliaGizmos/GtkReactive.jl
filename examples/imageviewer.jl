@@ -20,7 +20,7 @@ zoomsigs = init_zoom_rubberband(c, zr)
 # region of interest. This view will update anytime `zr` updates.
 imgsig = map(zr) do r
     cv = r.currentview
-    view(img, UnitRange{Int}(cv.y), UnitRange{Int}(cv.x))
+    view(img, convert(UnitRange{Int}, cv.y), convert(UnitRange{Int}, cv.x))
 end
 
 ## Turn on drawing for the canvas
@@ -35,4 +35,4 @@ redraw = draw(c, imgsig) do cnvs, image
 end
 
 ## Don't forget this!
-showall(win)
+Gtk.showall(win)

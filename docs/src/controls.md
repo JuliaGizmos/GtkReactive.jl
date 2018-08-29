@@ -35,7 +35,7 @@ julia> win = Window("Testing") |> (bx = Box(:v));  # a window containing a verti
 
 julia> push!(bx, sl);    # put the slider in the box, shorthand for push!(bx, widget(sl))
 
-julia> showall(win);
+julia> Gtk.showall(win);
 ```
 
 Because of the `showall`, you should now see a window with your slider
@@ -79,7 +79,7 @@ Gtk.GtkEntryLeaf with Signal{Int64}(1, nactions=2)
 
 julia> push!(bx, tb);
 
-julia> showall(win);
+julia> Gtk.showall(win);
 ```
 
 ![slider2](assets/slider2.png)

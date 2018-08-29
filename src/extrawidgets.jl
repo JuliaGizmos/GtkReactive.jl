@@ -1,3 +1,5 @@
+using Dates
+
 # Widgets built on top of more basic widgets
 
 """
@@ -9,23 +11,23 @@ frame(f::GtkFrame) = f
 
 ################# A movie-player widget ##################
 
-immutable Player{P} <: Widget
+struct Player{P} <: Widget
     signal::Signal{Int}
     widget::P
     preserved::Vector
 
-    function (::Type{Player{P}}){P}(signal::Signal{Int}, widget, preserved)
+    function Player{P}(signal::Signal{Int}, widget, preserved) where P
         obj = new{P}(signal, widget, preserved)
         gc_preserve(frame(widget), obj)
         obj
     end
 end
-Player{P}(signal::Signal{Int}, widget::P, preserved) =
+Player(signal::Signal{Int}, widget::P, preserved) where {P} =
     Player{P}(signal, widget, preserved)
 
 frame(p::Player) = frame(p.widget)
 
-immutable PlayerWithTextbox
+struct PlayerWithTextbox
     range::UnitRange{Int}     # valid values for index
     direction::Signal{Int8}   # +1 = forward, -1 = backward, 0 = not playing
     # GUI elements
@@ -54,7 +56,7 @@ function PlayerWithTextbox(builder, index::Signal, range::AbstractUnitRange, id:
     play_forward = button(; widget=Gtk.G_.object(builder,"play_forward$id"))
 
     # Fix up widget properties
-    setproperty!(scale.widget, "round-digits", 0)  # glade/gtkbuilder bug that I have to set this here?
+    set_gtk_property!(scale.widget, "round-digits", 0)  # glade/gtkbuilder bug that I have to set this here?
 
     # Link the buttons
     clampindex(i) = clamp(i, minimum(range), maximum(range))
@@ -88,7 +90,7 @@ function PlayerWithTextbox(index::Signal, range::AbstractUnitRange, id::Integer=
     PlayerWithTextbox(builder, index, range, id)
 end
 
-player(range::Range{Int}; style="with-textbox", id::Int=1) =
+player(range::AbstractRange{Int}; style="with-textbox", id::Int=1) =
     player(Signal(first(range)), range; style=style, id=id)
 
 """
@@ -118,7 +120,7 @@ Base.unsafe_convert(::Type{Ptr{Gtk.GLib.GObject}}, p::PlayerWithTextbox) =
 
 ################# A time widget ##########################
 
-immutable TimeWidget{T <: Dates.TimeType} <: InputWidget{T}
+struct TimeWidget{T <: Dates.TimeType} <: InputWidget{T}
     signal::Signal{T}
     widget::GtkFrame
 end
@@ -130,7 +132,7 @@ Return a time widget that includes the `Time` and a `GtkFrame` with the hour, mi
 second widgets in it. You can specify the specific `GtkFrame` widget (useful when using the `Gtk.Builder` and `glade`). Time is guaranteed to be positive. 
 """
 function timewidget(t1::Dates.Time; widget=nothing, signal=nothing)
-    const zerotime = Dates.Time(0,0,0) # convenient since we'll use it frequently
+    zerotime = Dates.Time(0,0,0) # convenient since we'll use it frequently
     b = Gtk.GtkBuilder(filename=joinpath(@__DIR__, "time.glade"))
     if signal == nothing
         signal = Signal(t1) # this is the input signal, we can push! into it to update the widget
@@ -204,7 +206,7 @@ specific `SpinButton` widgets for the hour, minute, and second (useful when usin
 `Gtk.Builder` and `glade`). Date and time are guaranteed to be positive. 
 """
 function datetimewidget(t1::DateTime; widget=nothing, signal=nothing)
-    const zerotime = DateTime(0,1,1,0,0,0)
+    zerotime = DateTime(0,1,1,0,0,0)
     b = Gtk.GtkBuilder(filename=joinpath(@__DIR__, "datetime.glade"))
     # the same logic is applied here as for `timewidget`
     if signal == nothing

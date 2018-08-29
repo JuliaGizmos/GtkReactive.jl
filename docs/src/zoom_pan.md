@@ -46,7 +46,7 @@ intervals `1..768` (corresponding to the width of the image) and
 julia> imgsig = map(zr) do r
            cv = r.currentview   # extract the currently-selected region
            # Create a SubArray covering just the selected region (see `?view`)
-           view(image, UnitRange{Int}(cv.y), UnitRange{Int}(cv.x))
+           view(image, convert(UnitRange{Int}, cv.y), convert(UnitRange{Int}, cv.x))
        end;
 ```
 
@@ -66,7 +66,7 @@ julia> redraw = draw(c, imgsig, zr) do cnvs, img, r
            # to the same position in the image.
            set_coordinates(cnvs, r)
        end
-Signal{Void}(nothing, nactions=0)
+Signal{Nothing}(nothing, nactions=0)
 ```
 
 We won't need to do anything further with `redraw`, but as a reminder:
@@ -76,14 +76,14 @@ by assigning it to a variable we ensure it won't be garbage-collected
 
 Now, let's see our image:
 ```jldoctest demozoom
-julia> showall(win);
+julia> Gtk.showall(win);
 ```
 
 ![image1](assets/image1.png)
 
 We could `push!` values to `zr` and see the image update:
 ```jldoctest demozoom
-julia> push!(zr, (100:300, indices(image, 2)))
+julia> push!(zr, (100:300, axes(image, 2)))
 ```
 
 ![image2](assets/image2.png)
@@ -94,18 +94,18 @@ zooming (with [`init_zoom_rubberband`](@ref)) and panning (with [`init_pan_drag`
 ```jldoctest demozoom
 julia> rb = init_zoom_rubberband(c, zr)
 Dict{String,Any} with 5 entries:
-  "drag"    => Signal{Void}(nothing, nactions=0)
-  "init"    => Signal{Void}(nothing, nactions=0)
+  "drag"    => Signal{Nothing}(nothing, nactions=0)
+  "init"    => Signal{Nothing}(nothing, nactions=0)
   "active"  => Signal{Bool}(false, nactions=0)
-  "finish"  => Signal{Void}(nothing, nactions=0)
+  "finish"  => Signal{Nothing}(nothing, nactions=0)
   "enabled" => Signal{Bool}(true, nactions=0)
 
 julia> pandrag = init_pan_drag(c, zr)
 Dict{String,Any} with 5 entries:
-  "drag"    => Signal{Void}(nothing, nactions=0)
-  "init"    => Signal{Void}(nothing, nactions=0)
+  "drag"    => Signal{Nothing}(nothing, nactions=0)
+  "init"    => Signal{Nothing}(nothing, nactions=0)
   "active"  => Signal{Bool}(false, nactions=0)
-  "finish"  => Signal{Void}(nothing, nactions=0)
+  "finish"  => Signal{Nothing}(nothing, nactions=0)
   "enabled" => Signal{Bool}(true, nactions=0)
 ```
 
