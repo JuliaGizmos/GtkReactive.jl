@@ -311,8 +311,12 @@ end
 
 @testset "CairoUnits" begin
     x = UserUnit(0.2)
+    @test UserUnit(x) === x
+    @test convert(UserUnit, x) === x
     @test x+x === UserUnit(0.2+0.2)
     @test x-x === UserUnit(0.0)
+    @test Float64(x) === 0.2
+    @test convert(Float64, x) === 0.2
     y = UserUnit(-0.3)
     @test x > y
     @test y < x
@@ -322,6 +326,8 @@ end
     @test max(x, y) === x
     z = DeviceUnit(2.0)
     @test_throws ErrorException x+z
+    @test Bool(DeviceUnit(1.0)) === true
+    @test Integer(DeviceUnit(3.0)) === 3
 end
 
 @testset "Canvas" begin

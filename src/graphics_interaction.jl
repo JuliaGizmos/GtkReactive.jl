@@ -14,14 +14,13 @@ Base.min(x::U, y::U) where {U<:CairoUnit} = U(min(x.val, y.val))
 Base.max(x::U, y::U) where {U<:CairoUnit} = U(max(x.val, y.val))
 Base.isapprox(x::U, y::U; kwargs...) where U<:CairoUnit =
     isapprox(x.val, y.val; kwargs...)
-# Most of these are for ambiguity resolution
+
 Base.convert(::Type{T}, x::T) where {T<:CairoUnit} = x
-Base.convert(::Type{Bool}, x::CairoUnit) = convert(Bool, x.val)
-Base.convert(::Type{Integer}, x::CairoUnit) = convert(Integer, x.val)
-Base.convert(::Type{T}, x::CairoUnit) where {T<:RInteger} =
-    convert(T, convert(RoundingIntegers.itype(T), x.val))
-Base.convert(::Type{T}, x::CairoUnit) where {T<:FixedPointNumbers.Normed} = convert(T, x.val)
-Base.convert(::Type{T}, x::CairoUnit) where {T<:Real} = convert(T, x.val)
+(::Type{T})(x::CairoUnit) where T<:Real = T(x.val)
+
+# Ambiguity resolution
+Bool(x::CairoUnit) = Bool(x.val)
+
 # The next three are for ambiguity resolution
 Base.promote_rule(::Type{Bool}, ::Type{U}) where {U<:CairoUnit} = Float64
 Base.promote_rule(::Type{BigFloat}, ::Type{U}) where {U<:CairoUnit} = BigFloat
@@ -49,6 +48,7 @@ matrix, e.g., [`Graphics.set_coordinates`](@ref) or
 struct UserUnit <: CairoUnit
     val::Float64
 end
+UserUnit(x::UserUnit) = x
 
 showtype(::Type{UserUnit}) = "UserUnit"
 showtype(::Type{DeviceUnit}) = "DeviceUnit"
