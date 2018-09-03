@@ -120,7 +120,7 @@ function Base.push!(zr::Signal{ZoomRegion{T}}, inds::Tuple{ClosedInterval,Closed
 end
 
 function Base.push!(zr::Signal{ZoomRegion{T}}, inds::Tuple{AbstractUnitRange,AbstractUnitRange}) where T
-    push!(zr, convert.(ClosedInterval{T}, inds))
+    push!(zr, ClosedInterval{T}.(inds))
 end
 
 Gtk.reveal(c::Canvas, args...) = reveal(c.widget, args...)
