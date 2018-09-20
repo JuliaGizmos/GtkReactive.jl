@@ -59,15 +59,7 @@ Base.promote_rule(::Type{U}, ::Type{D}) where {U<:UserUnit,D<:DeviceUnit} =
     error("UserUnit and DeviceUnit are incompatible, promotion not defined")
 
 function convertunits(::Type{UserUnit}, c, x::DeviceUnit, y::DeviceUnit)
-    # For some unknown reason, the following doesn't seem to work
-    # over a remote X connection:
-    # xu, yu = device_to_user(getgc(c), x.val, y.val)
-    # So just do the inversion directly (see https://www.cairographics.org/manual/cairo-cairo-matrix-t.html#cairo-matrix-t)
-    m = Cairo.get_matrix(getgc(c))
-    Δx, Δy = x.val - m.x0, y.val - m.y0
-    det = m.xx * m.yy - m.yx * m.xy  # manually do inverse of 2x2 matrix
-    xu, yu = (m.yy * Δx - m.xy * Δy)/det, (-m.yx * Δx + m.xx * Δy)/det
-
+    xu, yu = device_to_user(getgc(c), x.val, y.val)
     UserUnit(xu), UserUnit(yu)
 end
 function convertunits(::Type{UserUnit}, c, x::UserUnit, y::UserUnit)
@@ -77,12 +69,7 @@ function convertunits(::Type{DeviceUnit}, c, x::DeviceUnit, y::DeviceUnit)
     x, y
 end
 function convertunits(::Type{DeviceUnit}, c, x::UserUnit, y::UserUnit)
-    # See above
-    # xd, yd = user_to_device(getgc(c), x.val, y.val)
-    m = Cairo.get_matrix(getgc(c))
-    xd = m.xx * x.val + m.xy * y.val + m.x0
-    yd = m.yx * x.val + m.yy * y.val + m.y0
-
+    xd, yd = user_to_device(getgc(c), x.val, y.val)
     DeviceUnit(xd), DeviceUnit(yd)
 end
 
