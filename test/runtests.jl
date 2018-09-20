@@ -363,7 +363,7 @@ end
                                  (ZoomRegion((5:10, 3:5)), (UserUnit(5), UserUnit(10))),
                                  ((-1:1, 101:110), (UserUnit(110), UserUnit(1))))
         set_coordinates(c, coords)
-        @test all(GtkReactive.convertunits(UserUnit, c, corner_dev...) .≈ corner_usr)
+        @test GtkReactive.convertunits(UserUnit, c, corner_dev...) == corner_usr
         @test GtkReactive.convertunits(DeviceUnit, c, corner_dev...) == corner_dev
         @test GtkReactive.convertunits(UserUnit, c, corner_usr...) == corner_usr
         @test GtkReactive.convertunits(DeviceUnit, c, corner_usr...) == corner_dev
