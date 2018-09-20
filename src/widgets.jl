@@ -1019,4 +1019,4 @@ function progressbar(interval::AbstractInterval{T};
     ProgressBar(signal, widget, preserved)
 end
 
-progressbar(range::AbstractRange; args...) = progressbar(convert(ClosedInterval, range), args...)
+progressbar(range::AbstractRange; args...) = progressbar(ClosedInterval(range), args...)

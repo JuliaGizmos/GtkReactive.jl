@@ -369,14 +369,14 @@ constructed; these are used to reset to the original limits and to
 confine `zr.currentview`.
 """
 function ZoomRegion(inds::Tuple{AbstractUnitRange{I},AbstractUnitRange{I}}) where I<:Integer
-    ci = convert.(ClosedInterval{RInt}, inds)
+    ci = ClosedInterval{RInt}.(inds)
     fullview = XY(ci[2], ci[1])
     ZoomRegion(fullview, fullview)
 end
 function ZoomRegion(fullinds::Tuple{AbstractUnitRange{I},AbstractUnitRange{I}},
                     curinds::Tuple{AbstractUnitRange{I},AbstractUnitRange{I}}) where I<:Integer
-    fi = convert.(ClosedInterval{RInt}, fullinds)
-    ci = convert.(ClosedInterval{RInt}, curinds)
+    fi = ClosedInterval{RInt}.(fullinds)
+    ci = ClosedInterval{RInt}.(curinds)
     ZoomRegion(XY(fi[2], fi[1]), XY(ci[2], ci[1]))
 end
 ZoomRegion(img) = ZoomRegion(axes(img))
@@ -388,7 +388,7 @@ end
 
 reset(zr::ZoomRegion) = ZoomRegion(zr.fullview, zr.fullview)
 
-Base.axes(zr::ZoomRegion) = convert.(UnitRange, (zr.currentview.y, zr.currentview.x))
+Base.axes(zr::ZoomRegion) = UnitRange.((zr.currentview.y, zr.currentview.x))
 
 function interior(iv::ClosedInterval, limits::AbstractInterval)
     imin, imax = minimum(iv), maximum(iv)
