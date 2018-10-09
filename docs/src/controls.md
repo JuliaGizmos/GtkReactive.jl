@@ -5,7 +5,7 @@ Let's create a `slider` object:
 julia> using Gtk.ShortNames, GtkReactive
 
 julia> sl = slider(1:11)
-Gtk.GtkScaleLeaf with Signal{Int64}(6, nactions=1)
+Gtk.GtkScaleLeaf with 1: "input" = 6 Int64
 
 julia> typeof(sl)
 GtkReactive.Slider{Int64}
@@ -17,7 +17,7 @@ the on-screen display). We can extract both of these components:
 
 ```jldoctest demo1
 julia> signal(sl)
-Signal{Int64}(6, nactions=1)
+1: "input" = 6 Int64
 
 julia> typeof(widget(sl))
 Gtk.GtkScaleLeaf
@@ -56,7 +56,7 @@ Reactive.run_till_now()
 
 ```jldoctest demo1
 julia> sl
-Gtk.GtkScaleLeaf with Signal{Int64}(11, nactions=1)
+Gtk.GtkScaleLeaf with 1: "input" = 11 Int64
 ```
 
 You can see that dragging the slider caused the value of the signal to
@@ -75,7 +75,7 @@ value into a textbox:
 
 ```jldoctest demo1
 julia> tb = textbox(Int; signal=signal(sl))
-Gtk.GtkEntryLeaf with Signal{Int64}(1, nactions=2)
+Gtk.GtkEntryLeaf with 1: "input" = 1 Int64
 
 julia> push!(bx, tb);
 

@@ -35,7 +35,7 @@ Zoom and pan interactions all work through a [`ZoomRegion`](@ref) signal; let's
 create one for this image:
 ```jldoctest demozoom
 julia> zr = Signal(ZoomRegion(image))
-1: "input" = GtkReactive.ZoomRegion{RoundingIntegers.RInt64}(XY(1..768, 1..512), XY(1..768, 1..512)) GtkReactive.ZoomRegion{RoundingIntegers.RInt64}
+8: "input-6" = ZoomRegion{RoundingIntegers.RInt64}(XY(1..768, 1..512), XY(1..768, 1..512)) ZoomRegion{RoundingIntegers.RInt64}
 ```
 
 The key thing to note here is that it has been created for the
@@ -46,7 +46,7 @@ intervals `1..768` (corresponding to the width of the image) and
 julia> imgsig = map(zr) do r
            cv = r.currentview   # extract the currently-selected region
            # Create a SubArray covering just the selected region (see `?view`)
-           view(image, convert(UnitRange{Int}, cv.y), convert(UnitRange{Int}, cv.x))
+           view(image, UnitRange{Int}(cv.y), UnitRange{Int}(cv.x))
        end;
 ```
 
@@ -66,7 +66,7 @@ julia> redraw = draw(c, imgsig, zr) do cnvs, img, r
            # to the same position in the image.
            set_coordinates(cnvs, r)
        end
-Signal{Nothing}(nothing, nactions=0)
+7: "map(map(input-5), input-5)" = nothing Nothing
 ```
 
 We won't need to do anything further with `redraw`, but as a reminder:
@@ -93,20 +93,20 @@ zooming (with [`init_zoom_rubberband`](@ref)) and panning (with [`init_pan_drag`
 
 ```jldoctest demozoom
 julia> rb = init_zoom_rubberband(c, zr)
-Dict{String,Any} with 5 entries:
-  "drag"    => Signal{Nothing}(nothing, nactions=0)
-  "init"    => Signal{Nothing}(nothing, nactions=0)
-  "active"  => Signal{Bool}(false, nactions=0)
-  "finish"  => Signal{Nothing}(nothing, nactions=0)
-  "enabled" => Signal{Bool}(true, nactions=0)
+Dict{String,Signal} with 5 entries:
+  "drag"    => 15: "map(filterwhen(input-8, input-4))" = nothing Nothing
+  "init"    => 13: "map(filterwhen(input-7, input-2))" = nothing Nothing
+  "active"  => 11: "input-8" = false Bool
+  "finish"  => 17: "map(filterwhen(input-8, input-3))" = nothing Nothing
+  "enabled" => 10: "input-7" = true Bool
 
 julia> pandrag = init_pan_drag(c, zr)
-Dict{String,Any} with 5 entries:
-  "drag"    => Signal{Nothing}(nothing, nactions=0)
-  "init"    => Signal{Nothing}(nothing, nactions=0)
-  "active"  => Signal{Bool}(false, nactions=0)
-  "finish"  => Signal{Nothing}(nothing, nactions=0)
-  "enabled" => Signal{Bool}(true, nactions=0)
+Dict{String,Signal} with 5 entries:
+  "drag"    => 23: "map(filterwhen(input-10, input-4))" = nothing Nothing
+  "init"    => 21: "map(filterwhen(input-9, input-2))" = nothing Nothing
+  "active"  => 19: "input-10" = false Bool
+  "finish"  => 25: "map(filterwhen(input-10, input-3))" = nothing Nothing
+  "enabled" => 18: "input-9" = true Bool
 ```
 
 Now hold down your `Ctrl` key on your keyboard, click on the image,
