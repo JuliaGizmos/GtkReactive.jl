@@ -4,7 +4,8 @@
 end
 
 using GtkReactive, Gtk.ShortNames, IntervalSets, Graphics, Colors,
-      TestImages, FileIO, FixedPointNumbers, RoundingIntegers, Dates, Cairo
+      TestImages, FileIO, FixedPointNumbers, RoundingIntegers, Dates, Cairo,
+      IdentityRanges
 using Test
 
 rtask = Reactive.runner_task # starting with Reactive 0.7.0, this became a Ref
@@ -120,6 +121,12 @@ include("tools.jl")
     push!(s, 3)
     rr()
     @test value(s) == 3
+    s3 = slider(IdentityRange(-3:3))
+    sleep(0.01)
+    @test value(s3) == 0
+    push!(s3, -3)
+    rr()
+    @test value(s3) == -3
 
     # Use a single signal for two widgets
     s2 = slider(1:15, signal=signal(s), orientation='v')
