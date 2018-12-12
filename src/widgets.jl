@@ -93,8 +93,8 @@ end
 Slider(signal::Signal{T}, widget::GtkScaleLeaf, id, preserved) where {T} =
     Slider{T}(signal, widget, id, preserved)
 
+medianidx(r) = (ax = axes(r)[1]; return (first(ax)+last(ax))÷2)
 # differs from median(r) in that it always returns an element of the range
-medianidx(r) = (1+length(r))>>1
 medianelement(r::AbstractRange) = r[medianidx(r)]
 
 slider(signal::Signal, widget::GtkScaleLeaf, id, preserved = []) =
@@ -419,7 +419,8 @@ end
 nearest(val, ::Nothing) = val
 function nearest(val, r::AbstractRange)
     i = round(Int, (val - first(r))/step(r)) + 1
-    r[clamp(i, 1, length(r))]
+    ax = axes(r)[1]
+    r[clamp(i, first(ax), last(ax))]
 end
 
 entrysetter!(w, val) = set_gtk_property!(w, :text, string(val))
