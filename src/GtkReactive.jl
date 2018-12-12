@@ -133,7 +133,7 @@ const _ref_dict = IdDict{Any, Any}()
 Preserve `obj` until `widget` has been [`destroy`](@ref)ed.
 """
 function gc_preserve(widget::Union{GtkWidget,GtkCanvas}, obj)
-    _ref_dict[obj] = true
+    _ref_dict[obj] = obj
     signal_connect(widget, :destroy) do w
         delete!(_ref_dict, obj)
     end
