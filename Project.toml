@@ -1,6 +1,6 @@
 name = "GtkReactive"
 uuid = "27996c0f-39cd-5cc1-a27a-05f136f946b6"
-version = "0.5.3"
+version = "0.6.0"
 
 [deps]
 Cairo = "159f3aea-2a34-519c-b102-8c37f9878175"
