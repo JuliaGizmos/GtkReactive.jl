@@ -1,0 +1,35 @@
+name = "GtkReactive"
+uuid = "27996c0f-39cd-5cc1-a27a-05f136f946b6"
+version = "0.5.3"
+
+[deps]
+Cairo = "159f3aea-2a34-519c-b102-8c37f9878175"
+Colors = "5ae59095-9a9b-59fe-a467-6f913c188581"
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+FixedPointNumbers = "53c48c17-4a7d-5ca2-90c5-79b7896eea93"
+Graphics = "a2bd30eb-e257-5431-a919-1863eab51364"
+Gtk = "4c0ca9eb-093a-5379-98c5-f87ac0bbbf44"
+IntervalSets = "8197267c-284f-5f27-9208-e0e47529a953"
+Reactive = "a223df75-4e93-5b7c-acf9-bdd599c0f4de"
+Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
+RoundingIntegers = "d5f540fe-1c90-5db3-b776-2e2f362d9394"
+
+[compat]
+FixedPointNumbers = "≥ 0.3.0"
+Graphics = "≥ 0.2.0"
+Gtk = "≥ 0.13.0"
+IntervalSets = "≥ 0.3.0"
+Reactive = "≥ 0.4.0"
+julia = "≥ 0.7.0"
+
+[extras]
+Cairo = "159f3aea-2a34-519c-b102-8c37f9878175"
+FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
+IdentityRanges = "bbac6d45-d8f3-5730-bfe4-7a449cd117ca"
+ImageMagick = "6218d12a-5da1-5696-b52f-db25d2ecc6d1"
+QuartzImageIO = "dca85d43-d64c-5e67-8c65-017450d5d020"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+TestImages = "5e47fb64-e119-507b-a336-dd2b206d9990"
+
+[targets]
+test = ["FileIO", "IdentityRanges", "Cairo", "Test", "ImageMagick", "QuartzImageIO", "TestImages"]
