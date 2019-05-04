@@ -3,9 +3,10 @@ sudo: true
 dist: trusty   # need trusty to support orientation for spinbutton
 os:
     - linux
+    - osx
 julia:
-    - 0.7
     - 1.0
+    - 1.1
     - nightly
 notifications:
     email: false
