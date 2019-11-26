@@ -308,10 +308,13 @@ end
 Base.copy!(c::Union{GtkCanvas,Canvas}, img) = copy!(getgc(c), img)
 function Base.fill!(c::Union{GtkCanvas,Canvas}, color::Colorant)
     ctx = getgc(c)
+    save(ctx)
+    reset_transform(ctx)
     w, h = Graphics.width(c), Graphics.height(c)
     rectangle(ctx, 0, 0, w, h)
     set_source(ctx, color)
     fill(ctx)
+    restore(ctx)
 end
 
 # TODO: Remove Matrix once the CairoImageSurface constructor has been
