@@ -15,11 +15,14 @@ Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 RoundingIntegers = "d5f540fe-1c90-5db3-b776-2e2f362d9394"
 
 [compat]
-FixedPointNumbers = "≥ 0.3.0"
-Graphics = "≥ 0.2.0"
-Gtk = "≥ 0.13.0"
-IntervalSets = "≥ 0.3.0"
-Reactive = "≥ 0.4.0"
+Cairo = "0.6"
+Colors = "0.9"
+FixedPointNumbers = "0.6"
+Graphics = "0.4"
+Gtk = "0.17, 0.18"
+IntervalSets = "0.3"
+Reactive = "0.8"
+Reexport = "0.2"
 julia = "1"
 
 [extras]
