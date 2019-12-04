@@ -21,7 +21,8 @@ matrix:
     - julia: nightly
 script:
     - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-    - if [[ `uname` = "Linux" ]]; then TESTCMD="xvfb-run julia"; else TESTCMD="julia"; fi
+    # - if [[ `uname` = "Linux" ]]; then TESTCMD='xvfb-run --auto-servernum --server-num=99 --server-args="-screen 99 640x480x24" julia'; else TESTCMD='julia'; fi
+    - if [[ `uname` = "Linux" ]]; then TESTCMD='xvfb-run julia'; else TESTCMD='julia'; fi
     - $TESTCMD -e 'using Pkg; Pkg.build(); Pkg.test(coverage=true)'
 after_success:
   # push coverage results to Codecov
