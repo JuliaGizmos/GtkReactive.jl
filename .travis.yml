@@ -1,9 +1,10 @@
 language: julia
 sudo: true
-dist: trusty   # need trusty to support orientation for spinbutton
+
 os:
     - linux
     - osx
+    - windows
 julia:
     - 1.0
     - 1.3
