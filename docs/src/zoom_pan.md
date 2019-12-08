@@ -59,14 +59,13 @@ julia> redraw = draw(c, imgsig, zr) do cnvs, img, r
            # Copy the pixel data to the canvas. Because `img` is the value of `imgsig`,
            # this will only copy the region that was selected by the `view` call above.
            copy!(cnvs, img)
-
            # Here we set the coordinates of the canvas to correspond
            # to the selected region of the image. This ensures that
            # every point on the canvas has coordinates that correspond
            # to the same position in the image.
            set_coordinates(cnvs, r)
        end
-7: "map(map(input-5), input-5)" = nothing Nothing
+10: "map(map(input-6), input-6)" = nothing Nothing
 ```
 
 We won't need to do anything further with `redraw`, but as a reminder:
@@ -94,19 +93,19 @@ zooming (with [`init_zoom_rubberband`](@ref)) and panning (with [`init_pan_drag`
 ```jldoctest demozoom
 julia> rb = init_zoom_rubberband(c, zr)
 Dict{String,Signal} with 5 entries:
-  "drag"    => 15: "map(filterwhen(input-8, input-4))" = nothing Nothing
-  "init"    => 13: "map(filterwhen(input-7, input-2))" = nothing Nothing
-  "active"  => 11: "input-8" = false Bool
-  "finish"  => 17: "map(filterwhen(input-8, input-3))" = nothing Nothing
-  "enabled" => 10: "input-7" = true Bool
+  "drag"    => 16: "map(filterwhen(input-8, input-4))" = nothing Nothing
+  "init"    => 14: "map(filterwhen(input-7, input-2))" = nothing Nothing
+  "active"  => 12: "input-8" = false Bool
+  "finish"  => 18: "map(filterwhen(input-8, input-3))" = nothing Nothing
+  "enabled" => 11: "input-7" = true Bool
 
 julia> pandrag = init_pan_drag(c, zr)
 Dict{String,Signal} with 5 entries:
-  "drag"    => 23: "map(filterwhen(input-10, input-4))" = nothing Nothing
-  "init"    => 21: "map(filterwhen(input-9, input-2))" = nothing Nothing
-  "active"  => 19: "input-10" = false Bool
-  "finish"  => 25: "map(filterwhen(input-10, input-3))" = nothing Nothing
-  "enabled" => 18: "input-9" = true Bool
+  "drag"    => 24: "map(filterwhen(input-10, input-4))" = nothing Nothing
+  "init"    => 22: "map(filterwhen(input-9, input-2))" = nothing Nothing
+  "active"  => 20: "input-10" = false Bool
+  "finish"  => 26: "map(filterwhen(input-10, input-3))" = nothing Nothing
+  "enabled" => 19: "input-9" = true Bool
 ```
 
 Now hold down your `Ctrl` key on your keyboard, click on the image,
