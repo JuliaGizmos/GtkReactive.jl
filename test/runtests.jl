@@ -372,11 +372,14 @@ end
     sleep(1.0)
     @test isa(c, GtkReactive.Canvas{UserUnit})
     corner_dev = (DeviceUnit(208), DeviceUnit(207))
+    can_test_coords = (VERSION < v"1.3" || get(ENV, "CI", nothing) != "true" || !Sys.islinux()) &&
+                      !(VERSION < v"1.3" && Sys.iswindows())
+    @show can_test_coords
     for (coords, corner_usr) in ((BoundingBox(0, 1, 0, 1), (UserUnit(1), UserUnit(1))),
                                  (ZoomRegion((5:10, 3:5)), (UserUnit(5), UserUnit(10))),
                                  ((-1:1, 101:110), (UserUnit(110), UserUnit(1))))
         set_coordinates(c, coords)
-        if VERSION < v"1.3" || get(ENV, "CI", nothing) != "true"
+        if can_test_coords
             # FIXME: the new JLL-based version fails on Travis.
             # Unfortunately this is difficult to debug because it doesn't replicate
             # locally or on a local headless server. See #91.
@@ -489,6 +492,7 @@ end
     # Check that we get the right answer
     fn = tempname()
     Cairo.write_to_png(getgc(c).surface, fn)
+    sleep(0.1)
     imgout = load(fn)
     rm(fn)
     @test imgout[25,100] == imgout[16,100] == imgout[20,105] == colorant"red"
