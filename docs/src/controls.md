@@ -56,7 +56,7 @@ Reactive.run_till_now()
 
 ```jldoctest demo1
 julia> sl
-Gtk.GtkScaleLeaf with 1: "input" = 11 Int64
+Gtk.GtkScaleLeaf with 1: "input" = 6 Int64
 ```
 
 You can see that dragging the slider caused the value of the signal to

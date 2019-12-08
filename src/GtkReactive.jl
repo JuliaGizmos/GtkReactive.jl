@@ -1,5 +1,3 @@
-__precompile__(true)
-
 module GtkReactive
 
 using Gtk, Colors, FixedPointNumbers, Reexport
@@ -138,7 +136,5 @@ function gc_preserve(widget::Union{GtkWidget,GtkCanvas}, obj)
         delete!(_ref_dict, obj)
     end
 end
-
-include("deprecations.jl")
 
 end # module
