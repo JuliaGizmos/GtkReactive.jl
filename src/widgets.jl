@@ -49,11 +49,13 @@ function init_signal2widget(getter::Function,
                             widget::GtkWidget,
                             id, signal)
     map(signal) do val
-        signal_handler_block(widget, id)  # prevent "recursive firing" of the handler
-        curval = getter(widget)
-        curval != val && setter!(widget, val)
-        signal_handler_unblock(widget, id)
-        nothing
+        if signal_handler_is_connected(widget, id)
+            signal_handler_block(widget, id)  # prevent "recursive firing" of the handler
+            curval = getter(widget)
+            curval != val && setter!(widget, val)
+            signal_handler_unblock(widget, id)
+            nothing
+        end
     end
 end
 init_signal2widget(widget::GtkWidget, id, signal) =
