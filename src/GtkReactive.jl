@@ -14,6 +14,11 @@ using Gtk.GConstants.GdkModifierType: SHIFT, CONTROL, MOD1
 using Gtk.GConstants.GdkScrollDirection: UP, DOWN, LEFT, RIGHT
 using Gtk.GdkEventType: BUTTON_PRESS, DOUBLE_BUTTON_PRESS, BUTTON_RELEASE
 
+if !isdefined(Gtk, :signal_handler_is_connected)
+    signal_handler_is_connected(w::GObject, handler_id::Culong) =
+        ccall((:g_signal_handler_is_connected, Gtk.libgobject), Cint, (Ptr{GObject}, Culong), w, handler_id) == 1
+end
+
 # Re-exports
 export set_coordinates, BoundingBox, SHIFT, CONTROL, MOD1, UP, DOWN, LEFT, RIGHT,
        BUTTON_PRESS, DOUBLE_BUTTON_PRESS, destroy
