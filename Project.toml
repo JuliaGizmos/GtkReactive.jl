@@ -1,6 +1,6 @@
 name = "GtkReactive"
 uuid = "27996c0f-39cd-5cc1-a27a-05f136f946b6"
-version = "1.0.1"
+version = "1.0.2"
 
 [deps]
 Cairo = "159f3aea-2a34-519c-b102-8c37f9878175"
@@ -16,8 +16,8 @@ RoundingIntegers = "d5f540fe-1c90-5db3-b776-2e2f362d9394"
 
 [compat]
 Cairo = "0.6, 0.7, 0.8, 1"
-Colors = "0.9"
-FixedPointNumbers = "0.6"
+Colors = "0.9, 0.10, 0.11"
+FixedPointNumbers = "0.6, 0.7"
 Graphics = "0.4, 1"
 Gtk = "0.17, 0.18, 1"
 IntervalSets = "0.3"
