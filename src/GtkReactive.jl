@@ -1,5 +1,9 @@
 module GtkReactive
 
+if isdefined(Base, :Experimental) && isdefined(Base.Experimental, Symbol("@optlevel"))
+    @eval Base.Experimental.@optlevel 1
+end
+
 using Gtk, Colors, FixedPointNumbers, Reexport
 @reexport using Reactive
 using Graphics
