@@ -1,5 +1,9 @@
 module GtkReactive
 
+if isdefined(Base, :Experimental) && isdefined(Base.Experimental, Symbol("@optlevel"))
+    @eval Base.Experimental.@optlevel 1
+end
+
 using Gtk, Colors, FixedPointNumbers, Reexport
 @reexport using Reactive
 using Graphics
@@ -143,6 +147,6 @@ function gc_preserve(widget::Union{GtkWidget,GtkCanvas}, obj)
 end
 
 include("precompile.jl")
-_precompile_()
+VERSION >= v"1.4.2" && _precompile_() # https://github.com/JuliaLang/julia/pull/35378
 
 end # module
