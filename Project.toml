@@ -22,7 +22,7 @@ Graphics = "0.4, 1"
 Gtk = "0.17, 0.18, 1"
 IntervalSets = "0.3, 0.4, 0.5"
 Reactive = "0.8"
-Reexport = "0.2"
+Reexport = "0.2, 1.0"
 RoundingIntegers = "0.2"
 julia = "1"
 
