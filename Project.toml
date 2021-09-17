@@ -23,7 +23,7 @@ Gtk = "0.17, 0.18, 1"
 IntervalSets = "0.3, 0.4, 0.5"
 Reactive = "0.8"
 Reexport = "0.2, 1"
-RoundingIntegers = "0.2"
+RoundingIntegers = "0.2, 1"
 julia = "1"
 
 [extras]

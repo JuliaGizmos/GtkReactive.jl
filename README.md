@@ -2,7 +2,7 @@
 
 **NOTE**: new projects are encouraged to consider [GtkObservables](https://github.com/JuliaGizmos/GtkObservables.jl) instead.
 
-[![Build Status](https://travis-ci.org/JuliaGizmos/GtkReactive.jl.svg?branch=master)](https://travis-ci.org/JuliaGizmos/GtkReactive.jl)
+[![CI](https://github.com/JuliaGizmos/GtkReactive.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/JuliaGizmos/GtkReactive.jl/actions/workflows/CI.yml)
 
 [![codecov](https://codecov.io/gh/JuliaGizmos/GtkReactive.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/JuliaGizmos/GtkReactive.jl)
 
