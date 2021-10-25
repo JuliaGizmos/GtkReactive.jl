@@ -119,17 +119,6 @@ resizes (this is arranged by Gtk.jl), or (2) whenever `lines` or
 function):
 
 ```julia
-# Because `draw` isn't a one-line function, we again use do-block syntax:
-redraw = draw(c, lines, newline) do cnvs, lns, newl  # the function body takes 3 arguments
-    fill!(cnvs, colorant"white")   # set the background to white
-    set_coordinates(cnvs, BoundingBox(0, 1, 0, 1))  # set coordinates to 0..1 along each axis
-    ctx = getgc(cnvs)   # gets the "graphics context" object (see Cairo/Gtk)
-    for l in lns
-        drawline(ctx, l, colorant"blue")  # draw old lines in blue
-    end
-    drawline(ctx, newl, colorant"red")    # draw new line in red
-end
-
 function drawline(ctx, l, color)
     isempty(l) && return
     p = first(l)
@@ -140,6 +129,17 @@ function drawline(ctx, l, color)
         line_to(ctx, p.x, p.y)
     end
     stroke(ctx)
+end
+
+# Because `draw` isn't a one-line function, we again use do-block syntax:
+redraw = draw(c, lines, newline) do cnvs, lns, newl  # the function body takes 3 arguments
+    fill!(cnvs, colorant"white")   # set the background to white
+    set_coordinates(cnvs, BoundingBox(0, 1, 0, 1))  # set coordinates to 0..1 along each axis
+    ctx = getgc(cnvs)   # gets the "graphics context" object (see Cairo/Gtk)
+    for l in lns
+        drawline(ctx, l, colorant"blue")  # draw old lines in blue
+    end
+    drawline(ctx, newl, colorant"red")    # draw new line in red
 end
 ```
 
